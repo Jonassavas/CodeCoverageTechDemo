@@ -1,0 +1,213 @@
+
+
+
+<!DOCTYPE html>
+<html id="htmlId">
+<head>
+  <meta http-equiv="Content-Type" content="text/html;charset=windows-1252"> 
+  <title>Coverage Report > SMSMMSResultParser</title>
+  <style type="text/css">
+    @import "../../css/coverage.css";
+    @import "../../css/idea.min.css";
+  </style>
+  <script type="text/javascript" src="../../js/highlight.min.js"></script>
+  <script type="text/javascript" src="../../js/highlightjs-line-numbers.min.js"></script>
+</head>
+
+<body>
+<div class="content">
+<div class="breadCrumbs">
+Current scope:     <a href="../../index.html">all classes</a>
+    <span class="separator">|</span>
+    <a href="../index.html">com.google.zxing.client.result</a>
+</div>
+
+<h1>Coverage Summary for Class: SMSMMSResultParser (com.google.zxing.client.result)</h1>
+
+<table class="coverageStats">
+<tr>
+  <th class="name">Class</th>
+<th class="coverageStat 
+">
+  Class, %
+</th>
+<th class="coverageStat 
+">
+  Method, %
+</th>
+<th class="coverageStat 
+">
+  Line, %
+</th>
+</tr>
+<tr>
+  <td class="name">SMSMMSResultParser</td>
+<td class="coverageStat">
+  <span class="percent">
+    100%
+  </span>
+  <span class="absValue">
+    (1/1)
+  </span>
+</td>
+<td class="coverageStat">
+  <span class="percent">
+    100%
+  </span>
+  <span class="absValue">
+    (3/3)
+  </span>
+</td>
+<td class="coverageStat">
+  <span class="percent">
+    97.4%
+  </span>
+  <span class="absValue">
+    (37/38)
+  </span>
+</td>
+</tr>
+
+</table>
+
+<br/>
+<br/>
+
+
+<pre>
+<code class="sourceCode" id="sourceCode">&nbsp;/*
+&nbsp; * Copyright 2008 ZXing authors
+&nbsp; *
+&nbsp; * Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
+&nbsp; * you may not use this file except in compliance with the License.
+&nbsp; * You may obtain a copy of the License at
+&nbsp; *
+&nbsp; *      http://www.apache.org/licenses/LICENSE-2.0
+&nbsp; *
+&nbsp; * Unless required by applicable law or agreed to in writing, software
+&nbsp; * distributed under the License is distributed on an &quot;AS IS&quot; BASIS,
+&nbsp; * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+&nbsp; * See the License for the specific language governing permissions and
+&nbsp; * limitations under the License.
+&nbsp; */
+&nbsp;
+&nbsp;package com.google.zxing.client.result;
+&nbsp;
+&nbsp;import com.google.zxing.Result;
+&nbsp;
+&nbsp;import java.util.ArrayList;
+&nbsp;import java.util.Collection;
+&nbsp;import java.util.List;
+&nbsp;import java.util.Map;
+&nbsp;
+&nbsp;/**
+&nbsp; * &lt;p&gt;Parses an &quot;sms:&quot; URI result, which specifies a number to SMS.
+&nbsp; * See &lt;a href=&quot;http://tools.ietf.org/html/rfc5724&quot;&gt; RFC 5724&lt;/a&gt; on this.&lt;/p&gt;
+&nbsp; *
+&nbsp; * &lt;p&gt;This class supports &quot;via&quot; syntax for numbers, which is not part of the spec.
+&nbsp; * For example &quot;+12125551212;via=+12124440101&quot; may appear as a number.
+&nbsp; * It also supports a &quot;subject&quot; query parameter, which is not mentioned in the spec.
+&nbsp; * These are included since they were mentioned in earlier IETF drafts and might be
+&nbsp; * used.&lt;/p&gt;
+&nbsp; *
+&nbsp; * &lt;p&gt;This actually also parses URIs starting with &quot;mms:&quot; and treats them all the same way,
+&nbsp; * and effectively converts them to an &quot;sms:&quot; URI for purposes of forwarding to the platform.&lt;/p&gt;
+&nbsp; *
+&nbsp; * @author Sean Owen
+&nbsp; */
+<b class="fc">&nbsp;public final class SMSMMSResultParser extends ResultParser {</b>
+&nbsp;
+&nbsp;  @Override
+&nbsp;  public SMSParsedResult parse(Result result) {
+<b class="fc">&nbsp;    String rawText = getMassagedText(result);</b>
+<b class="fc">&nbsp;    if (!(rawText.startsWith(&quot;sms:&quot;) || rawText.startsWith(&quot;SMS:&quot;) ||</b>
+<b class="fc">&nbsp;          rawText.startsWith(&quot;mms:&quot;) || rawText.startsWith(&quot;MMS:&quot;))) {</b>
+<b class="fc">&nbsp;      return null;</b>
+&nbsp;    }
+&nbsp;
+&nbsp;    // Check up front if this is a URI syntax string with query arguments
+<b class="fc">&nbsp;    Map&lt;String,String&gt; nameValuePairs = parseNameValuePairs(rawText);</b>
+<b class="fc">&nbsp;    String subject = null;</b>
+<b class="fc">&nbsp;    String body = null;</b>
+<b class="fc">&nbsp;    boolean querySyntax = false;</b>
+<b class="fc">&nbsp;    if (nameValuePairs != null &amp;&amp; !nameValuePairs.isEmpty()) {</b>
+<b class="fc">&nbsp;      subject = nameValuePairs.get(&quot;subject&quot;);</b>
+<b class="fc">&nbsp;      body = nameValuePairs.get(&quot;body&quot;);</b>
+<b class="fc">&nbsp;      querySyntax = true;</b>
+&nbsp;    }
+&nbsp;
+&nbsp;    // Drop sms, query portion
+<b class="fc">&nbsp;    int queryStart = rawText.indexOf(&#39;?&#39;, 4);</b>
+&nbsp;    String smsURIWithoutQuery;
+&nbsp;    // If it&#39;s not query syntax, the question mark is part of the subject or message
+<b class="fc">&nbsp;    if (queryStart &lt; 0 || !querySyntax) {</b>
+<b class="fc">&nbsp;      smsURIWithoutQuery = rawText.substring(4);</b>
+&nbsp;    } else {
+<b class="fc">&nbsp;      smsURIWithoutQuery = rawText.substring(4, queryStart);</b>
+&nbsp;    }
+&nbsp;
+<b class="fc">&nbsp;    int lastComma = -1;</b>
+&nbsp;    int comma;
+<b class="fc">&nbsp;    List&lt;String&gt; numbers = new ArrayList&lt;&gt;(1);</b>
+<b class="fc">&nbsp;    List&lt;String&gt; vias = new ArrayList&lt;&gt;(1);</b>
+<b class="fc">&nbsp;    while ((comma = smsURIWithoutQuery.indexOf(&#39;,&#39;, lastComma + 1)) &gt; lastComma) {</b>
+<b class="fc">&nbsp;      String numberPart = smsURIWithoutQuery.substring(lastComma + 1, comma);</b>
+<b class="fc">&nbsp;      addNumberVia(numbers, vias, numberPart);</b>
+<b class="fc">&nbsp;      lastComma = comma;</b>
+<b class="fc">&nbsp;    }</b>
+<b class="fc">&nbsp;    addNumberVia(numbers, vias, smsURIWithoutQuery.substring(lastComma + 1));    </b>
+&nbsp;
+<b class="fc">&nbsp;    return new SMSParsedResult(numbers.toArray(EMPTY_STR_ARRAY),</b>
+<b class="fc">&nbsp;                               vias.toArray(EMPTY_STR_ARRAY),</b>
+&nbsp;                               subject,
+&nbsp;                               body);
+&nbsp;  }
+&nbsp;
+&nbsp;  private static void addNumberVia(Collection&lt;String&gt; numbers,
+&nbsp;                                   Collection&lt;String&gt; vias,
+&nbsp;                                   String numberPart) {
+<b class="fc">&nbsp;    int numberEnd = numberPart.indexOf(&#39;;&#39;);</b>
+<b class="fc">&nbsp;    if (numberEnd &lt; 0) {</b>
+<b class="fc">&nbsp;      numbers.add(numberPart);</b>
+<b class="fc">&nbsp;      vias.add(null);</b>
+&nbsp;    } else {
+<b class="fc">&nbsp;      numbers.add(numberPart.substring(0, numberEnd));</b>
+<b class="fc">&nbsp;      String maybeVia = numberPart.substring(numberEnd + 1);</b>
+&nbsp;      String via;
+<b class="fc">&nbsp;      if (maybeVia.startsWith(&quot;via=&quot;)) {</b>
+<b class="fc">&nbsp;        via = maybeVia.substring(4);</b>
+&nbsp;      } else {
+<b class="nc">&nbsp;        via = null;</b>
+&nbsp;      }
+<b class="fc">&nbsp;      vias.add(via);</b>
+&nbsp;    }
+&nbsp;  }
+&nbsp;
+&nbsp;}
+</code>
+</pre>
+</div>
+
+<script type="text/javascript">
+(function() {
+    var msie = false, msie9 = false;
+    /*@cc_on
+      msie = true;
+      @if (@_jscript_version >= 9)
+        msie9 = true;
+      @end
+    @*/
+
+    if (!msie || msie && msie9) {
+      hljs.highlightAll()
+      hljs.initLineNumbersOnLoad();
+    }
+})();
+</script>
+
+<div class="footer">
+    
+    <div style="float:right;">generated on 2023-11-12 23:26</div>
+</div>
+</body>
+</html>

@@ -1,0 +1,193 @@
+
+
+
+<!DOCTYPE html>
+<html id="htmlId">
+<head>
+  <meta http-equiv="Content-Type" content="text/html;charset=windows-1252"> 
+  <title>Coverage Report > BitMatrixParser</title>
+  <style type="text/css">
+    @import "../../css/coverage.css";
+    @import "../../css/idea.min.css";
+  </style>
+  <script type="text/javascript" src="../../js/highlight.min.js"></script>
+  <script type="text/javascript" src="../../js/highlightjs-line-numbers.min.js"></script>
+</head>
+
+<body>
+<div class="content">
+<div class="breadCrumbs">
+Current scope:     <a href="../../index.html">all classes</a>
+    <span class="separator">|</span>
+    <a href="../index.html">com.google.zxing.maxicode.decoder</a>
+</div>
+
+<h1>Coverage Summary for Class: BitMatrixParser (com.google.zxing.maxicode.decoder)</h1>
+
+<table class="coverageStats">
+<tr>
+  <th class="name">Class</th>
+<th class="coverageStat 
+">
+  Class, %
+</th>
+<th class="coverageStat 
+">
+  Method, %
+</th>
+<th class="coverageStat 
+">
+  Line, %
+</th>
+</tr>
+<tr>
+  <td class="name">BitMatrixParser</td>
+<td class="coverageStat">
+  <span class="percent">
+    100%
+  </span>
+  <span class="absValue">
+    (1/1)
+  </span>
+</td>
+<td class="coverageStat">
+  <span class="percent">
+    100%
+  </span>
+  <span class="absValue">
+    (3/3)
+  </span>
+</td>
+<td class="coverageStat">
+  <span class="percent">
+    100%
+  </span>
+  <span class="absValue">
+    (13/13)
+  </span>
+</td>
+</tr>
+
+</table>
+
+<br/>
+<br/>
+
+
+<pre>
+<code class="sourceCode" id="sourceCode">&nbsp;/*
+&nbsp; * Copyright 2011 ZXing authors
+&nbsp; *
+&nbsp; * Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
+&nbsp; * you may not use this file except in compliance with the License.
+&nbsp; * You may obtain a copy of the License at
+&nbsp; *
+&nbsp; *      http://www.apache.org/licenses/LICENSE-2.0
+&nbsp; *
+&nbsp; * Unless required by applicable law or agreed to in writing, software
+&nbsp; * distributed under the License is distributed on an &quot;AS IS&quot; BASIS,
+&nbsp; * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+&nbsp; * See the License for the specific language governing permissions and
+&nbsp; * limitations under the License.
+&nbsp; */
+&nbsp;
+&nbsp;package com.google.zxing.maxicode.decoder;
+&nbsp;
+&nbsp;import com.google.zxing.common.BitMatrix;
+&nbsp;
+&nbsp;/**
+&nbsp; * @author mike32767
+&nbsp; * @author Manuel Kasten
+&nbsp; */
+&nbsp;final class BitMatrixParser {
+&nbsp;
+&nbsp;  @SuppressWarnings(&quot;checkstyle:lineLength&quot;)
+<b class="fc">&nbsp;  private static final int[][] BITNR = {</b>
+&nbsp;    {121,120,127,126,133,132,139,138,145,144,151,150,157,156,163,162,169,168,175,174,181,180,187,186,193,192,199,198, -2, -2},
+&nbsp;    {123,122,129,128,135,134,141,140,147,146,153,152,159,158,165,164,171,170,177,176,183,182,189,188,195,194,201,200,816, -3},
+&nbsp;    {125,124,131,130,137,136,143,142,149,148,155,154,161,160,167,166,173,172,179,178,185,184,191,190,197,196,203,202,818,817},
+&nbsp;    {283,282,277,276,271,270,265,264,259,258,253,252,247,246,241,240,235,234,229,228,223,222,217,216,211,210,205,204,819, -3},
+&nbsp;    {285,284,279,278,273,272,267,266,261,260,255,254,249,248,243,242,237,236,231,230,225,224,219,218,213,212,207,206,821,820},
+&nbsp;    {287,286,281,280,275,274,269,268,263,262,257,256,251,250,245,244,239,238,233,232,227,226,221,220,215,214,209,208,822, -3},
+&nbsp;    {289,288,295,294,301,300,307,306,313,312,319,318,325,324,331,330,337,336,343,342,349,348,355,354,361,360,367,366,824,823},
+&nbsp;    {291,290,297,296,303,302,309,308,315,314,321,320,327,326,333,332,339,338,345,344,351,350,357,356,363,362,369,368,825, -3},
+&nbsp;    {293,292,299,298,305,304,311,310,317,316,323,322,329,328,335,334,341,340,347,346,353,352,359,358,365,364,371,370,827,826},
+&nbsp;    {409,408,403,402,397,396,391,390, 79, 78, -2, -2, 13, 12, 37, 36,  2, -1, 44, 43,109,108,385,384,379,378,373,372,828, -3},
+&nbsp;    {411,410,405,404,399,398,393,392, 81, 80, 40, -2, 15, 14, 39, 38,  3, -1, -1, 45,111,110,387,386,381,380,375,374,830,829},
+&nbsp;    {413,412,407,406,401,400,395,394, 83, 82, 41, -3, -3, -3, -3, -3,  5,  4, 47, 46,113,112,389,388,383,382,377,376,831, -3},
+&nbsp;    {415,414,421,420,427,426,103,102, 55, 54, 16, -3, -3, -3, -3, -3, -3, -3, 20, 19, 85, 84,433,432,439,438,445,444,833,832},
+&nbsp;    {417,416,423,422,429,428,105,104, 57, 56, -3, -3, -3, -3, -3, -3, -3, -3, 22, 21, 87, 86,435,434,441,440,447,446,834, -3},
+&nbsp;    {419,418,425,424,431,430,107,106, 59, 58, -3, -3, -3, -3, -3, -3, -3, -3, -3, 23, 89, 88,437,436,443,442,449,448,836,835},
+&nbsp;    {481,480,475,474,469,468, 48, -2, 30, -3, -3, -3, -3, -3, -3, -3, -3, -3, -3,  0, 53, 52,463,462,457,456,451,450,837, -3},
+&nbsp;    {483,482,477,476,471,470, 49, -1, -2, -3, -3, -3, -3, -3, -3, -3, -3, -3, -3, -3, -2, -1,465,464,459,458,453,452,839,838},
+&nbsp;    {485,484,479,478,473,472, 51, 50, 31, -3, -3, -3, -3, -3, -3, -3, -3, -3, -3,  1, -2, 42,467,466,461,460,455,454,840, -3},
+&nbsp;    {487,486,493,492,499,498, 97, 96, 61, 60, -3, -3, -3, -3, -3, -3, -3, -3, -3, 26, 91, 90,505,504,511,510,517,516,842,841},
+&nbsp;    {489,488,495,494,501,500, 99, 98, 63, 62, -3, -3, -3, -3, -3, -3, -3, -3, 28, 27, 93, 92,507,506,513,512,519,518,843, -3},
+&nbsp;    {491,490,497,496,503,502,101,100, 65, 64, 17, -3, -3, -3, -3, -3, -3, -3, 18, 29, 95, 94,509,508,515,514,521,520,845,844},
+&nbsp;    {559,558,553,552,547,546,541,540, 73, 72, 32, -3, -3, -3, -3, -3, -3, 10, 67, 66,115,114,535,534,529,528,523,522,846, -3},
+&nbsp;    {561,560,555,554,549,548,543,542, 75, 74, -2, -1,  7,  6, 35, 34, 11, -2, 69, 68,117,116,537,536,531,530,525,524,848,847},
+&nbsp;    {563,562,557,556,551,550,545,544, 77, 76, -2, 33,  9,  8, 25, 24, -1, -2, 71, 70,119,118,539,538,533,532,527,526,849, -3},
+&nbsp;    {565,564,571,570,577,576,583,582,589,588,595,594,601,600,607,606,613,612,619,618,625,624,631,630,637,636,643,642,851,850},
+&nbsp;    {567,566,573,572,579,578,585,584,591,590,597,596,603,602,609,608,615,614,621,620,627,626,633,632,639,638,645,644,852, -3},
+&nbsp;    {569,568,575,574,581,580,587,586,593,592,599,598,605,604,611,610,617,616,623,622,629,628,635,634,641,640,647,646,854,853},
+&nbsp;    {727,726,721,720,715,714,709,708,703,702,697,696,691,690,685,684,679,678,673,672,667,666,661,660,655,654,649,648,855, -3},
+&nbsp;    {729,728,723,722,717,716,711,710,705,704,699,698,693,692,687,686,681,680,675,674,669,668,663,662,657,656,651,650,857,856},
+&nbsp;    {731,730,725,724,719,718,713,712,707,706,701,700,695,694,689,688,683,682,677,676,671,670,665,664,659,658,653,652,858, -3},
+&nbsp;    {733,732,739,738,745,744,751,750,757,756,763,762,769,768,775,774,781,780,787,786,793,792,799,798,805,804,811,810,860,859},
+&nbsp;    {735,734,741,740,747,746,753,752,759,758,765,764,771,770,777,776,783,782,789,788,795,794,801,800,807,806,813,812,861, -3},
+&nbsp;    {737,736,743,742,749,748,755,754,761,760,767,766,773,772,779,778,785,784,791,790,797,796,803,802,809,808,815,814,863,862}
+&nbsp;  };
+&nbsp;
+&nbsp;  private final BitMatrix bitMatrix;
+&nbsp;
+&nbsp;  /**
+&nbsp;   * @param bitMatrix {@link BitMatrix} to parse
+&nbsp;   */
+<b class="fc">&nbsp;  BitMatrixParser(BitMatrix bitMatrix) {</b>
+<b class="fc">&nbsp;    this.bitMatrix = bitMatrix;</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  byte[] readCodewords() {
+<b class="fc">&nbsp;    byte[] result = new byte[144];</b>
+<b class="fc">&nbsp;    int height = bitMatrix.getHeight();</b>
+<b class="fc">&nbsp;    int width = bitMatrix.getWidth();</b>
+<b class="fc">&nbsp;    for (int y = 0; y &lt; height; y++) {</b>
+<b class="fc">&nbsp;      int[] bitnrRow = BITNR[y];</b>
+<b class="fc">&nbsp;      for (int x = 0; x &lt; width; x++) {</b>
+<b class="fc">&nbsp;        int bit = bitnrRow[x];</b>
+<b class="fc">&nbsp;        if (bit &gt;= 0 &amp;&amp; bitMatrix.get(x, y)) {</b>
+<b class="fc">&nbsp;          result[bit / 6] |= (byte) (1 &lt;&lt; (5 - (bit % 6)));</b>
+&nbsp;        }
+&nbsp;      }
+&nbsp;    }
+<b class="fc">&nbsp;    return result;</b>
+&nbsp;  }
+&nbsp;
+&nbsp;}
+</code>
+</pre>
+</div>
+
+<script type="text/javascript">
+(function() {
+    var msie = false, msie9 = false;
+    /*@cc_on
+      msie = true;
+      @if (@_jscript_version >= 9)
+        msie9 = true;
+      @end
+    @*/
+
+    if (!msie || msie && msie9) {
+      hljs.highlightAll()
+      hljs.initLineNumbersOnLoad();
+    }
+})();
+</script>
+
+<div class="footer">
+    
+    <div style="float:right;">generated on 2023-11-12 23:26</div>
+</div>
+</body>
+</html>

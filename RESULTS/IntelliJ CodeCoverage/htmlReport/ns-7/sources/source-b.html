@@ -1,0 +1,303 @@
+
+
+
+<!DOCTYPE html>
+<html id="htmlId">
+<head>
+  <meta http-equiv="Content-Type" content="text/html;charset=windows-1252"> 
+  <title>Coverage Report > ExpandedProductParsedResult</title>
+  <style type="text/css">
+    @import "../../css/coverage.css";
+    @import "../../css/idea.min.css";
+  </style>
+  <script type="text/javascript" src="../../js/highlight.min.js"></script>
+  <script type="text/javascript" src="../../js/highlightjs-line-numbers.min.js"></script>
+</head>
+
+<body>
+<div class="content">
+<div class="breadCrumbs">
+Current scope:     <a href="../../index.html">all classes</a>
+    <span class="separator">|</span>
+    <a href="../index.html">com.google.zxing.client.result</a>
+</div>
+
+<h1>Coverage Summary for Class: ExpandedProductParsedResult (com.google.zxing.client.result)</h1>
+
+<table class="coverageStats">
+<tr>
+  <th class="name">Class</th>
+<th class="coverageStat 
+">
+  Class, %
+</th>
+<th class="coverageStat 
+">
+  Method, %
+</th>
+<th class="coverageStat 
+">
+  Line, %
+</th>
+</tr>
+<tr>
+  <td class="name">ExpandedProductParsedResult</td>
+<td class="coverageStat">
+  <span class="percent">
+    100%
+  </span>
+  <span class="absValue">
+    (1/1)
+  </span>
+</td>
+<td class="coverageStat">
+  <span class="percent">
+    84.2%
+  </span>
+  <span class="absValue">
+    (16/19)
+  </span>
+</td>
+<td class="coverageStat">
+  <span class="percent">
+    72.6%
+  </span>
+  <span class="absValue">
+    (45/62)
+  </span>
+</td>
+</tr>
+
+</table>
+
+<br/>
+<br/>
+
+
+<pre>
+<code class="sourceCode" id="sourceCode">&nbsp;/*
+&nbsp; * Copyright (C) 2010 ZXing authors
+&nbsp; *
+&nbsp; * Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
+&nbsp; * you may not use this file except in compliance with the License.
+&nbsp; * You may obtain a copy of the License at
+&nbsp; *
+&nbsp; *      http://www.apache.org/licenses/LICENSE-2.0
+&nbsp; *
+&nbsp; * Unless required by applicable law or agreed to in writing, software
+&nbsp; * distributed under the License is distributed on an &quot;AS IS&quot; BASIS,
+&nbsp; * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+&nbsp; * See the License for the specific language governing permissions and
+&nbsp; * limitations under the License.
+&nbsp; */
+&nbsp;
+&nbsp;/*
+&nbsp; * These authors would like to acknowledge the Spanish Ministry of Industry,
+&nbsp; * Tourism and Trade, for the support in the project TSI020301-2008-2
+&nbsp; * &quot;PIRAmIDE: Personalizable Interactions with Resources on AmI-enabled
+&nbsp; * Mobile Dynamic Environments&quot;, led by Treelogic
+&nbsp; * ( http://www.treelogic.com/ ):
+&nbsp; *
+&nbsp; *   http://www.piramidepse.com/
+&nbsp; */
+&nbsp;
+&nbsp;package com.google.zxing.client.result;
+&nbsp;
+&nbsp;import java.util.Map;
+&nbsp;import java.util.Objects;
+&nbsp;
+&nbsp;/**
+&nbsp; * Represents a parsed result that encodes extended product information as encoded
+&nbsp; * by the RSS format, like weight, price, dates, etc.
+&nbsp; *
+&nbsp; * @author Antonio Manuel Benjumea Conde, Servinform, S.A.
+&nbsp; * @author Agustín Delgado, Servinform, S.A.
+&nbsp; */
+&nbsp;public final class ExpandedProductParsedResult extends ParsedResult {
+&nbsp;
+&nbsp;  public static final String KILOGRAM = &quot;KG&quot;;
+&nbsp;  public static final String POUND = &quot;LB&quot;;
+&nbsp;
+&nbsp;  private final String rawText;
+&nbsp;  private final String productID;
+&nbsp;  private final String sscc;
+&nbsp;  private final String lotNumber;
+&nbsp;  private final String productionDate;
+&nbsp;  private final String packagingDate;
+&nbsp;  private final String bestBeforeDate;
+&nbsp;  private final String expirationDate;
+&nbsp;  private final String weight;
+&nbsp;  private final String weightType;
+&nbsp;  private final String weightIncrement;
+&nbsp;  private final String price;
+&nbsp;  private final String priceIncrement;
+&nbsp;  private final String priceCurrency;
+&nbsp;  // For AIS that not exist in this object
+&nbsp;  private final Map&lt;String,String&gt; uncommonAIs;
+&nbsp;
+&nbsp;  public ExpandedProductParsedResult(String rawText,
+&nbsp;                                     String productID,
+&nbsp;                                     String sscc,
+&nbsp;                                     String lotNumber,
+&nbsp;                                     String productionDate,
+&nbsp;                                     String packagingDate,
+&nbsp;                                     String bestBeforeDate,
+&nbsp;                                     String expirationDate,
+&nbsp;                                     String weight,
+&nbsp;                                     String weightType,
+&nbsp;                                     String weightIncrement,
+&nbsp;                                     String price,
+&nbsp;                                     String priceIncrement,
+&nbsp;                                     String priceCurrency,
+&nbsp;                                     Map&lt;String,String&gt; uncommonAIs) {
+<b class="fc">&nbsp;    super(ParsedResultType.PRODUCT);</b>
+<b class="fc">&nbsp;    this.rawText = rawText;</b>
+<b class="fc">&nbsp;    this.productID = productID;</b>
+<b class="fc">&nbsp;    this.sscc = sscc;</b>
+<b class="fc">&nbsp;    this.lotNumber = lotNumber;</b>
+<b class="fc">&nbsp;    this.productionDate = productionDate;</b>
+<b class="fc">&nbsp;    this.packagingDate = packagingDate;</b>
+<b class="fc">&nbsp;    this.bestBeforeDate = bestBeforeDate;</b>
+<b class="fc">&nbsp;    this.expirationDate = expirationDate;</b>
+<b class="fc">&nbsp;    this.weight = weight;</b>
+<b class="fc">&nbsp;    this.weightType = weightType;</b>
+<b class="fc">&nbsp;    this.weightIncrement = weightIncrement;</b>
+<b class="fc">&nbsp;    this.price = price;</b>
+<b class="fc">&nbsp;    this.priceIncrement = priceIncrement;</b>
+<b class="fc">&nbsp;    this.priceCurrency = priceCurrency;</b>
+<b class="fc">&nbsp;    this.uncommonAIs = uncommonAIs;</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  @Override
+&nbsp;  public boolean equals(Object o) {
+<b class="fc">&nbsp;    if (!(o instanceof ExpandedProductParsedResult)) {</b>
+<b class="nc">&nbsp;      return false;</b>
+&nbsp;    }
+&nbsp;
+<b class="fc">&nbsp;    ExpandedProductParsedResult other = (ExpandedProductParsedResult) o;</b>
+&nbsp;
+<b class="fc">&nbsp;    return Objects.equals(productID, other.productID)</b>
+<b class="fc">&nbsp;        &amp;&amp; Objects.equals(sscc, other.sscc)</b>
+<b class="fc">&nbsp;        &amp;&amp; Objects.equals(lotNumber, other.lotNumber)</b>
+<b class="fc">&nbsp;        &amp;&amp; Objects.equals(productionDate, other.productionDate)</b>
+<b class="fc">&nbsp;        &amp;&amp; Objects.equals(bestBeforeDate, other.bestBeforeDate)</b>
+<b class="fc">&nbsp;        &amp;&amp; Objects.equals(expirationDate, other.expirationDate)</b>
+<b class="fc">&nbsp;        &amp;&amp; Objects.equals(weight, other.weight)</b>
+<b class="fc">&nbsp;        &amp;&amp; Objects.equals(weightType, other.weightType)</b>
+<b class="fc">&nbsp;        &amp;&amp; Objects.equals(weightIncrement, other.weightIncrement)</b>
+<b class="fc">&nbsp;        &amp;&amp; Objects.equals(price, other.price)</b>
+<b class="fc">&nbsp;        &amp;&amp; Objects.equals(priceIncrement, other.priceIncrement)</b>
+<b class="fc">&nbsp;        &amp;&amp; Objects.equals(priceCurrency, other.priceCurrency)</b>
+<b class="fc">&nbsp;        &amp;&amp; Objects.equals(uncommonAIs, other.uncommonAIs);</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  @Override
+&nbsp;  public int hashCode() {
+<b class="nc">&nbsp;    int hash = Objects.hashCode(productID);</b>
+<b class="nc">&nbsp;    hash ^= Objects.hashCode(sscc);</b>
+<b class="nc">&nbsp;    hash ^= Objects.hashCode(lotNumber);</b>
+<b class="nc">&nbsp;    hash ^= Objects.hashCode(productionDate);</b>
+<b class="nc">&nbsp;    hash ^= Objects.hashCode(bestBeforeDate);</b>
+<b class="nc">&nbsp;    hash ^= Objects.hashCode(expirationDate);</b>
+<b class="nc">&nbsp;    hash ^= Objects.hashCode(weight);</b>
+<b class="nc">&nbsp;    hash ^= Objects.hashCode(weightType);</b>
+<b class="nc">&nbsp;    hash ^= Objects.hashCode(weightIncrement);</b>
+<b class="nc">&nbsp;    hash ^= Objects.hashCode(price);</b>
+<b class="nc">&nbsp;    hash ^= Objects.hashCode(priceIncrement);</b>
+<b class="nc">&nbsp;    hash ^= Objects.hashCode(priceCurrency);</b>
+<b class="nc">&nbsp;    hash ^= Objects.hashCode(uncommonAIs);</b>
+<b class="nc">&nbsp;    return hash;</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  public String getRawText() {
+<b class="nc">&nbsp;    return rawText;</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  public String getProductID() {
+<b class="fc">&nbsp;    return productID;</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  public String getSscc() {
+<b class="fc">&nbsp;    return sscc;</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  public String getLotNumber() {
+<b class="fc">&nbsp;    return lotNumber;</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  public String getProductionDate() {
+<b class="fc">&nbsp;    return productionDate;</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  public String getPackagingDate() {
+<b class="fc">&nbsp;    return packagingDate;</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  public String getBestBeforeDate() {
+<b class="fc">&nbsp;    return bestBeforeDate;</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  public String getExpirationDate() {
+<b class="fc">&nbsp;    return expirationDate;</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  public String getWeight() {
+<b class="fc">&nbsp;    return weight;</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  public String getWeightType() {
+<b class="fc">&nbsp;    return weightType;</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  public String getWeightIncrement() {
+<b class="fc">&nbsp;    return weightIncrement;</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  public String getPrice() {
+<b class="fc">&nbsp;    return price;</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  public String getPriceIncrement() {
+<b class="fc">&nbsp;    return priceIncrement;</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  public String getPriceCurrency() {
+<b class="fc">&nbsp;    return priceCurrency;</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  public Map&lt;String,String&gt; getUncommonAIs() {
+<b class="fc">&nbsp;    return uncommonAIs;</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  @Override
+&nbsp;  public String getDisplayResult() {
+<b class="nc">&nbsp;    return String.valueOf(rawText);</b>
+&nbsp;  }
+&nbsp;}
+</code>
+</pre>
+</div>
+
+<script type="text/javascript">
+(function() {
+    var msie = false, msie9 = false;
+    /*@cc_on
+      msie = true;
+      @if (@_jscript_version >= 9)
+        msie9 = true;
+      @end
+    @*/
+
+    if (!msie || msie && msie9) {
+      hljs.highlightAll()
+      hljs.initLineNumbersOnLoad();
+    }
+})();
+</script>
+
+<div class="footer">
+    
+    <div style="float:right;">generated on 2023-11-12 23:26</div>
+</div>
+</body>
+</html>

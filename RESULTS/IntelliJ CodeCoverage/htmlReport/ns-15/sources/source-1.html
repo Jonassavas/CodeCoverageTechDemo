@@ -1,0 +1,246 @@
+
+
+
+<!DOCTYPE html>
+<html id="htmlId">
+<head>
+  <meta http-equiv="Content-Type" content="text/html;charset=windows-1252"> 
+  <title>Coverage Report > AbstractRSSReader</title>
+  <style type="text/css">
+    @import "../../css/coverage.css";
+    @import "../../css/idea.min.css";
+  </style>
+  <script type="text/javascript" src="../../js/highlight.min.js"></script>
+  <script type="text/javascript" src="../../js/highlightjs-line-numbers.min.js"></script>
+</head>
+
+<body>
+<div class="content">
+<div class="breadCrumbs">
+Current scope:     <a href="../../index.html">all classes</a>
+    <span class="separator">|</span>
+    <a href="../index.html">com.google.zxing.oned.rss</a>
+</div>
+
+<h1>Coverage Summary for Class: AbstractRSSReader (com.google.zxing.oned.rss)</h1>
+
+<table class="coverageStats">
+<tr>
+  <th class="name">Class</th>
+<th class="coverageStat 
+">
+  Class, %
+</th>
+<th class="coverageStat 
+">
+  Method, %
+</th>
+<th class="coverageStat 
+">
+  Line, %
+</th>
+</tr>
+<tr>
+  <td class="name">AbstractRSSReader</td>
+<td class="coverageStat">
+  <span class="percent">
+    100%
+  </span>
+  <span class="absValue">
+    (1/1)
+  </span>
+</td>
+<td class="coverageStat">
+  <span class="percent">
+    91.7%
+  </span>
+  <span class="absValue">
+    (11/12)
+  </span>
+</td>
+<td class="coverageStat">
+  <span class="percent">
+    97.8%
+  </span>
+  <span class="absValue">
+    (44/45)
+  </span>
+</td>
+</tr>
+
+</table>
+
+<br/>
+<br/>
+
+
+<pre>
+<code class="sourceCode" id="sourceCode">&nbsp;/*
+&nbsp; * Copyright (C) 2010 ZXing authors
+&nbsp; *
+&nbsp; * Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
+&nbsp; * you may not use this file except in compliance with the License.
+&nbsp; * You may obtain a copy of the License at
+&nbsp; *
+&nbsp; *      http://www.apache.org/licenses/LICENSE-2.0
+&nbsp; *
+&nbsp; * Unless required by applicable law or agreed to in writing, software
+&nbsp; * distributed under the License is distributed on an &quot;AS IS&quot; BASIS,
+&nbsp; * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+&nbsp; * See the License for the specific language governing permissions and
+&nbsp; * limitations under the License.
+&nbsp; */
+&nbsp;
+&nbsp;package com.google.zxing.oned.rss;
+&nbsp;
+&nbsp;import com.google.zxing.NotFoundException;
+&nbsp;import com.google.zxing.common.detector.MathUtils;
+&nbsp;import com.google.zxing.oned.OneDReader;
+&nbsp;
+&nbsp;/**
+&nbsp; * Superclass of {@link OneDReader} implementations that read barcodes in the RSS family
+&nbsp; * of formats.
+&nbsp; */
+&nbsp;public abstract class AbstractRSSReader extends OneDReader {
+&nbsp;
+&nbsp;  private static final float MAX_AVG_VARIANCE = 0.2f;
+&nbsp;  private static final float MAX_INDIVIDUAL_VARIANCE = 0.45f;
+&nbsp;
+&nbsp;  /** Minimum ratio 10:12 (minus 0.5 for variance), from section 7.2.7 of ISO/IEC 24724:2006. */
+&nbsp;  private static final float MIN_FINDER_PATTERN_RATIO = 9.5f / 12.0f;
+&nbsp;  /** Maximum ratio 12:14 (plus 0.5 for variance), from section 7.2.7 of ISO/IEC 24724:2006. */
+&nbsp;  private static final float MAX_FINDER_PATTERN_RATIO = 12.5f / 14.0f;
+&nbsp;
+&nbsp;  private final int[] decodeFinderCounters;
+&nbsp;  private final int[] dataCharacterCounters;
+&nbsp;  private final float[] oddRoundingErrors;
+&nbsp;  private final float[] evenRoundingErrors;
+&nbsp;  private final int[] oddCounts;
+&nbsp;  private final int[] evenCounts;
+&nbsp;
+<b class="fc">&nbsp;  protected AbstractRSSReader() {</b>
+<b class="fc">&nbsp;    decodeFinderCounters = new int[4];</b>
+<b class="fc">&nbsp;    dataCharacterCounters = new int[8];</b>
+<b class="fc">&nbsp;    oddRoundingErrors = new float[4];</b>
+<b class="fc">&nbsp;    evenRoundingErrors = new float[4];</b>
+<b class="fc">&nbsp;    oddCounts = new int[dataCharacterCounters.length / 2];</b>
+<b class="fc">&nbsp;    evenCounts = new int[dataCharacterCounters.length / 2];</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  protected final int[] getDecodeFinderCounters() {
+<b class="fc">&nbsp;    return decodeFinderCounters;</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  protected final int[] getDataCharacterCounters() {
+<b class="fc">&nbsp;    return dataCharacterCounters;</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  protected final float[] getOddRoundingErrors() {
+<b class="fc">&nbsp;    return oddRoundingErrors;</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  protected final float[] getEvenRoundingErrors() {
+<b class="fc">&nbsp;    return evenRoundingErrors;</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  protected final int[] getOddCounts() {
+<b class="fc">&nbsp;    return oddCounts;</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  protected final int[] getEvenCounts() {
+<b class="fc">&nbsp;    return evenCounts;</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  protected static int parseFinderValue(int[] counters,
+&nbsp;                                        int[][] finderPatterns) throws NotFoundException {
+<b class="fc">&nbsp;    for (int value = 0; value &lt; finderPatterns.length; value++) {</b>
+<b class="fc">&nbsp;      if (patternMatchVariance(counters, finderPatterns[value], MAX_INDIVIDUAL_VARIANCE) &lt;</b>
+&nbsp;          MAX_AVG_VARIANCE) {
+<b class="fc">&nbsp;        return value;</b>
+&nbsp;      }
+&nbsp;    }
+<b class="fc">&nbsp;    throw NotFoundException.getNotFoundInstance();</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  /**
+&nbsp;   * @param array values to sum
+&nbsp;   * @return sum of values
+&nbsp;   * @deprecated call {@link MathUtils#sum(int[])}
+&nbsp;   */
+&nbsp;  @Deprecated
+&nbsp;  protected static int count(int[] array) {
+<b class="nc">&nbsp;    return MathUtils.sum(array);</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  protected static void increment(int[] array, float[] errors) {
+<b class="fc">&nbsp;    int index = 0;</b>
+<b class="fc">&nbsp;    float biggestError = errors[0];</b>
+<b class="fc">&nbsp;    for (int i = 1; i &lt; array.length; i++) {</b>
+<b class="fc">&nbsp;      if (errors[i] &gt; biggestError) {</b>
+<b class="fc">&nbsp;        biggestError = errors[i];</b>
+<b class="fc">&nbsp;        index = i;</b>
+&nbsp;      }
+&nbsp;    }
+<b class="fc">&nbsp;    array[index]++;</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  protected static void decrement(int[] array, float[] errors) {
+<b class="fc">&nbsp;    int index = 0;</b>
+<b class="fc">&nbsp;    float biggestError = errors[0];</b>
+<b class="fc">&nbsp;    for (int i = 1; i &lt; array.length; i++) {</b>
+<b class="fc">&nbsp;      if (errors[i] &lt; biggestError) {</b>
+<b class="fc">&nbsp;        biggestError = errors[i];</b>
+<b class="fc">&nbsp;        index = i;</b>
+&nbsp;      }
+&nbsp;    }
+<b class="fc">&nbsp;    array[index]--;</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  protected static boolean isFinderPattern(int[] counters) {
+<b class="fc">&nbsp;    int firstTwoSum = counters[0] + counters[1];</b>
+<b class="fc">&nbsp;    int sum = firstTwoSum + counters[2] + counters[3];</b>
+<b class="fc">&nbsp;    float ratio = firstTwoSum / (float) sum;</b>
+<b class="fc">&nbsp;    if (ratio &gt;= MIN_FINDER_PATTERN_RATIO &amp;&amp; ratio &lt;= MAX_FINDER_PATTERN_RATIO) {</b>
+&nbsp;      // passes ratio test in spec, but see if the counts are unreasonable
+<b class="fc">&nbsp;      int minCounter = Integer.MAX_VALUE;</b>
+<b class="fc">&nbsp;      int maxCounter = Integer.MIN_VALUE;</b>
+<b class="fc">&nbsp;      for (int counter : counters) {</b>
+<b class="fc">&nbsp;        if (counter &gt; maxCounter) {</b>
+<b class="fc">&nbsp;          maxCounter = counter;</b>
+&nbsp;        }
+<b class="fc">&nbsp;        if (counter &lt; minCounter) {</b>
+<b class="fc">&nbsp;          minCounter = counter;</b>
+&nbsp;        }
+&nbsp;      }
+<b class="fc">&nbsp;      return maxCounter &lt; 10 * minCounter;</b>
+&nbsp;    }
+<b class="fc">&nbsp;    return false;</b>
+&nbsp;  }
+&nbsp;}
+</code>
+</pre>
+</div>
+
+<script type="text/javascript">
+(function() {
+    var msie = false, msie9 = false;
+    /*@cc_on
+      msie = true;
+      @if (@_jscript_version >= 9)
+        msie9 = true;
+      @end
+    @*/
+
+    if (!msie || msie && msie9) {
+      hljs.highlightAll()
+      hljs.initLineNumbersOnLoad();
+    }
+})();
+</script>
+
+<div class="footer">
+    
+    <div style="float:right;">generated on 2023-11-12 23:26</div>
+</div>
+</body>
+</html>

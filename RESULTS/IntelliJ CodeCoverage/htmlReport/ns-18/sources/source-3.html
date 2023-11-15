@@ -1,0 +1,275 @@
+
+
+
+<!DOCTYPE html>
+<html id="htmlId">
+<head>
+  <meta http-equiv="Content-Type" content="text/html;charset=windows-1252"> 
+  <title>Coverage Report > PDF417ResultMetadata</title>
+  <style type="text/css">
+    @import "../../css/coverage.css";
+    @import "../../css/idea.min.css";
+  </style>
+  <script type="text/javascript" src="../../js/highlight.min.js"></script>
+  <script type="text/javascript" src="../../js/highlightjs-line-numbers.min.js"></script>
+</head>
+
+<body>
+<div class="content">
+<div class="breadCrumbs">
+Current scope:     <a href="../../index.html">all classes</a>
+    <span class="separator">|</span>
+    <a href="../index.html">com.google.zxing.pdf417</a>
+</div>
+
+<h1>Coverage Summary for Class: PDF417ResultMetadata (com.google.zxing.pdf417)</h1>
+
+<table class="coverageStats">
+<tr>
+  <th class="name">Class</th>
+<th class="coverageStat 
+">
+  Class, %
+</th>
+<th class="coverageStat 
+">
+  Method, %
+</th>
+<th class="coverageStat 
+">
+  Line, %
+</th>
+</tr>
+<tr>
+  <td class="name">PDF417ResultMetadata</td>
+<td class="coverageStat">
+  <span class="percent">
+    100%
+  </span>
+  <span class="absValue">
+    (1/1)
+  </span>
+</td>
+<td class="coverageStat">
+  <span class="percent">
+    100%
+  </span>
+  <span class="absValue">
+    (23/23)
+  </span>
+</td>
+<td class="coverageStat">
+  <span class="percent">
+    100%
+  </span>
+  <span class="absValue">
+    (27/27)
+  </span>
+</td>
+</tr>
+
+</table>
+
+<br/>
+<br/>
+
+
+<pre>
+<code class="sourceCode" id="sourceCode">&nbsp;/*
+&nbsp; * Copyright 2013 ZXing authors
+&nbsp; *
+&nbsp; * Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
+&nbsp; * you may not use this file except in compliance with the License.
+&nbsp; * You may obtain a copy of the License at
+&nbsp; *
+&nbsp; *      http://www.apache.org/licenses/LICENSE-2.0
+&nbsp; *
+&nbsp; * Unless required by applicable law or agreed to in writing, software
+&nbsp; * distributed under the License is distributed on an &quot;AS IS&quot; BASIS,
+&nbsp; * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+&nbsp; * See the License for the specific language governing permissions and
+&nbsp; * limitations under the License.
+&nbsp; */
+&nbsp;
+&nbsp;package com.google.zxing.pdf417;
+&nbsp;
+&nbsp;/**
+&nbsp; * @author Guenther Grau
+&nbsp; */
+<b class="fc">&nbsp;public final class PDF417ResultMetadata {</b>
+&nbsp;
+&nbsp;  private int segmentIndex;
+&nbsp;  private String fileId;
+&nbsp;  private boolean lastSegment;
+<b class="fc">&nbsp;  private int segmentCount = -1;</b>
+&nbsp;  private String sender;
+&nbsp;  private String addressee;
+&nbsp;  private String fileName;
+<b class="fc">&nbsp;  private long fileSize = -1;</b>
+<b class="fc">&nbsp;  private long timestamp = -1;</b>
+<b class="fc">&nbsp;  private int checksum = -1;</b>
+&nbsp;  private int[] optionalData;
+&nbsp;
+&nbsp;  /**
+&nbsp;   * The Segment ID represents the segment of the whole file distributed over different symbols.
+&nbsp;   *
+&nbsp;   * @return File segment index
+&nbsp;   */
+&nbsp;  public int getSegmentIndex() {
+<b class="fc">&nbsp;    return segmentIndex;</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  public void setSegmentIndex(int segmentIndex) {
+<b class="fc">&nbsp;    this.segmentIndex = segmentIndex;</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  /**
+&nbsp;   * Is the same for each related PDF417 symbol
+&nbsp;   *
+&nbsp;   * @return File ID
+&nbsp;   */
+&nbsp;  public String getFileId() {
+<b class="fc">&nbsp;    return fileId;</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  public void setFileId(String fileId) {
+<b class="fc">&nbsp;    this.fileId = fileId;</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  /**
+&nbsp;   * @return always null
+&nbsp;   * @deprecated use dedicated already parsed fields
+&nbsp;   */
+&nbsp;  @Deprecated
+&nbsp;  public int[] getOptionalData() {
+<b class="fc">&nbsp;    return optionalData;</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  /**
+&nbsp;   * @param optionalData old optional data format as int array
+&nbsp;   * @deprecated parse and use new fields
+&nbsp;   */
+&nbsp;  @Deprecated
+&nbsp;  public void setOptionalData(int[] optionalData) {
+<b class="fc">&nbsp;    this.optionalData = optionalData;</b>
+&nbsp;  }
+&nbsp;
+&nbsp;
+&nbsp;  /**
+&nbsp;   * @return true if it is the last segment
+&nbsp;   */
+&nbsp;  public boolean isLastSegment() {
+<b class="fc">&nbsp;    return lastSegment;</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  public void setLastSegment(boolean lastSegment) {
+<b class="fc">&nbsp;    this.lastSegment = lastSegment;</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  /**
+&nbsp;   * @return count of segments, -1 if not set
+&nbsp;   */
+&nbsp;  public int getSegmentCount() {
+<b class="fc">&nbsp;    return segmentCount;</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  public void setSegmentCount(int segmentCount) {
+<b class="fc">&nbsp;    this.segmentCount = segmentCount;</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  public String getSender() {
+<b class="fc">&nbsp;    return sender;</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  public void setSender(String sender) {
+<b class="fc">&nbsp;    this.sender = sender;</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  public String getAddressee() {
+<b class="fc">&nbsp;    return addressee;</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  public void setAddressee(String addressee) {
+<b class="fc">&nbsp;    this.addressee = addressee;</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  /**
+&nbsp;   * Filename of the encoded file
+&nbsp;   *
+&nbsp;   * @return filename
+&nbsp;   */
+&nbsp;  public String getFileName() {
+<b class="fc">&nbsp;    return fileName;</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  public void setFileName(String fileName) {
+<b class="fc">&nbsp;    this.fileName = fileName;</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  /**
+&nbsp;   * filesize in bytes of the encoded file
+&nbsp;   *
+&nbsp;   * @return filesize in bytes, -1 if not set
+&nbsp;   */
+&nbsp;  public long getFileSize() {
+<b class="fc">&nbsp;    return fileSize;</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  public void setFileSize(long fileSize) {
+<b class="fc">&nbsp;    this.fileSize = fileSize;</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  /**
+&nbsp;   * 16-bit CRC checksum using CCITT-16
+&nbsp;   *
+&nbsp;   * @return crc checksum, -1 if not set
+&nbsp;   */
+&nbsp;  public int getChecksum() {
+<b class="fc">&nbsp;    return checksum;</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  public void setChecksum(int checksum) {
+<b class="fc">&nbsp;    this.checksum = checksum;</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  /**
+&nbsp;   * unix epock timestamp, elapsed seconds since 1970-01-01
+&nbsp;   *
+&nbsp;   * @return elapsed seconds, -1 if not set
+&nbsp;   */
+&nbsp;  public long getTimestamp() {
+<b class="fc">&nbsp;    return timestamp;</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  public void setTimestamp(long timestamp) {
+<b class="fc">&nbsp;    this.timestamp = timestamp;</b>
+&nbsp;  }
+&nbsp;
+&nbsp;}
+</code>
+</pre>
+</div>
+
+<script type="text/javascript">
+(function() {
+    var msie = false, msie9 = false;
+    /*@cc_on
+      msie = true;
+      @if (@_jscript_version >= 9)
+        msie9 = true;
+      @end
+    @*/
+
+    if (!msie || msie && msie9) {
+      hljs.highlightAll()
+      hljs.initLineNumbersOnLoad();
+    }
+})();
+</script>
+
+<div class="footer">
+    
+    <div style="float:right;">generated on 2023-11-12 23:26</div>
+</div>
+</body>
+</html>

@@ -1,0 +1,739 @@
+
+
+
+<!DOCTYPE html>
+<html id="htmlId">
+<head>
+  <meta http-equiv="Content-Type" content="text/html;charset=windows-1252"> 
+  <title>Coverage Report > DecodedBitStreamParser</title>
+  <style type="text/css">
+    @import "../../css/coverage.css";
+    @import "../../css/idea.min.css";
+  </style>
+  <script type="text/javascript" src="../../js/highlight.min.js"></script>
+  <script type="text/javascript" src="../../js/highlightjs-line-numbers.min.js"></script>
+</head>
+
+<body>
+<div class="content">
+<div class="breadCrumbs">
+Current scope:     <a href="../../index.html">all classes</a>
+    <span class="separator">|</span>
+    <a href="../index.html">com.google.zxing.datamatrix.decoder</a>
+</div>
+
+<h1>Coverage Summary for Class: DecodedBitStreamParser (com.google.zxing.datamatrix.decoder)</h1>
+
+<table class="coverageStats">
+
+<tr>
+  <th class="name">Class</th>
+<th class="coverageStat 
+">
+  Method, %
+</th>
+<th class="coverageStat 
+">
+  Line, %
+</th>
+</tr>
+<tr>
+  <td class="name">DecodedBitStreamParser</td>
+<td class="coverageStat">
+  <span class="percent">
+    90.9%
+  </span>
+  <span class="absValue">
+    (10/11)
+  </span>
+</td>
+<td class="coverageStat">
+  <span class="percent">
+    56.3%
+  </span>
+  <span class="absValue">
+    (143/254)
+  </span>
+</td>
+</tr>
+  <tr>
+    <td class="name">DecodedBitStreamParser$1</td>
+<td class="coverageStat">
+  <span class="percent">
+    100%
+  </span>
+  <span class="absValue">
+    (1/1)
+  </span>
+</td>
+<td class="coverageStat">
+  <span class="percent">
+    100%
+  </span>
+  <span class="absValue">
+    (1/1)
+  </span>
+</td>
+  </tr>
+  <tr>
+    <td class="name">DecodedBitStreamParser$Mode</td>
+<td class="coverageStat">
+  <span class="percent">
+    100%
+  </span>
+  <span class="absValue">
+    (2/2)
+  </span>
+</td>
+<td class="coverageStat">
+  <span class="percent">
+    100%
+  </span>
+  <span class="absValue">
+    (9/9)
+  </span>
+</td>
+  </tr>
+<tr>
+  <td class="name"><strong>Total</strong></td>
+<td class="coverageStat">
+  <span class="percent">
+    92.9%
+  </span>
+  <span class="absValue">
+    (13/14)
+  </span>
+</td>
+<td class="coverageStat">
+  <span class="percent">
+    58%
+  </span>
+  <span class="absValue">
+    (153/264)
+  </span>
+</td>
+</tr>
+</table>
+
+<br/>
+<br/>
+
+
+<pre>
+<code class="sourceCode" id="sourceCode">&nbsp;/*
+&nbsp; * Copyright 2008 ZXing authors
+&nbsp; *
+&nbsp; * Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
+&nbsp; * you may not use this file except in compliance with the License.
+&nbsp; * You may obtain a copy of the License at
+&nbsp; *
+&nbsp; *      http://www.apache.org/licenses/LICENSE-2.0
+&nbsp; *
+&nbsp; * Unless required by applicable law or agreed to in writing, software
+&nbsp; * distributed under the License is distributed on an &quot;AS IS&quot; BASIS,
+&nbsp; * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+&nbsp; * See the License for the specific language governing permissions and
+&nbsp; * limitations under the License.
+&nbsp; */
+&nbsp;
+&nbsp;package com.google.zxing.datamatrix.decoder;
+&nbsp;
+&nbsp;import com.google.zxing.FormatException;
+&nbsp;import com.google.zxing.common.BitSource;
+&nbsp;import com.google.zxing.common.DecoderResult;
+&nbsp;import com.google.zxing.common.ECIStringBuilder;
+&nbsp;
+&nbsp;import java.nio.charset.StandardCharsets;
+&nbsp;import java.util.ArrayList;
+&nbsp;import java.util.Collection;
+&nbsp;import java.util.HashSet;
+&nbsp;import java.util.List;
+&nbsp;import java.util.Set;
+&nbsp;
+&nbsp;/**
+&nbsp; * &lt;p&gt;Data Matrix Codes can encode text as bits in one of several modes, and can use multiple modes
+&nbsp; * in one Data Matrix Code. This class decodes the bits back into text.&lt;/p&gt;
+&nbsp; *
+&nbsp; * &lt;p&gt;See ISO 16022:2006, 5.2.1 - 5.2.9.2&lt;/p&gt;
+&nbsp; *
+&nbsp; * @author bbrown@google.com (Brian Brown)
+&nbsp; * @author Sean Owen
+&nbsp; */
+&nbsp;final class DecodedBitStreamParser {
+&nbsp;
+<b class="fc">&nbsp;  private enum Mode {</b>
+<b class="fc">&nbsp;    PAD_ENCODE, // Not really a mode</b>
+<b class="fc">&nbsp;    ASCII_ENCODE,</b>
+<b class="fc">&nbsp;    C40_ENCODE,</b>
+<b class="fc">&nbsp;    TEXT_ENCODE,</b>
+<b class="fc">&nbsp;    ANSIX12_ENCODE,</b>
+<b class="fc">&nbsp;    EDIFACT_ENCODE,</b>
+<b class="fc">&nbsp;    BASE256_ENCODE,</b>
+<b class="fc">&nbsp;    ECI_ENCODE</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  /**
+&nbsp;   * See ISO 16022:2006, Annex C Table C.1
+&nbsp;   * The C40 Basic Character Set (*&#39;s used for placeholders for the shift values)
+&nbsp;   */
+<b class="fc">&nbsp;  private static final char[] C40_BASIC_SET_CHARS = {</b>
+&nbsp;    &#39;*&#39;, &#39;*&#39;, &#39;*&#39;, &#39; &#39;, &#39;0&#39;, &#39;1&#39;, &#39;2&#39;, &#39;3&#39;, &#39;4&#39;, &#39;5&#39;, &#39;6&#39;, &#39;7&#39;, &#39;8&#39;, &#39;9&#39;,
+&nbsp;    &#39;A&#39;, &#39;B&#39;, &#39;C&#39;, &#39;D&#39;, &#39;E&#39;, &#39;F&#39;, &#39;G&#39;, &#39;H&#39;, &#39;I&#39;, &#39;J&#39;, &#39;K&#39;, &#39;L&#39;, &#39;M&#39;, &#39;N&#39;,
+&nbsp;    &#39;O&#39;, &#39;P&#39;, &#39;Q&#39;, &#39;R&#39;, &#39;S&#39;, &#39;T&#39;, &#39;U&#39;, &#39;V&#39;, &#39;W&#39;, &#39;X&#39;, &#39;Y&#39;, &#39;Z&#39;
+&nbsp;  };
+&nbsp;
+<b class="fc">&nbsp;  private static final char[] C40_SHIFT2_SET_CHARS = {</b>
+&nbsp;    &#39;!&#39;, &#39;&quot;&#39;, &#39;#&#39;, &#39;$&#39;, &#39;%&#39;, &#39;&amp;&#39;, &#39;\&#39;&#39;, &#39;(&#39;, &#39;)&#39;, &#39;*&#39;,  &#39;+&#39;, &#39;,&#39;, &#39;-&#39;, &#39;.&#39;,
+&nbsp;    &#39;/&#39;, &#39;:&#39;, &#39;;&#39;, &#39;&lt;&#39;, &#39;=&#39;, &#39;&gt;&#39;, &#39;?&#39;,  &#39;@&#39;, &#39;[&#39;, &#39;\\&#39;, &#39;]&#39;, &#39;^&#39;, &#39;_&#39;
+&nbsp;  };
+&nbsp;
+&nbsp;  /**
+&nbsp;   * See ISO 16022:2006, Annex C Table C.2
+&nbsp;   * The Text Basic Character Set (*&#39;s used for placeholders for the shift values)
+&nbsp;   */
+<b class="fc">&nbsp;  private static final char[] TEXT_BASIC_SET_CHARS = {</b>
+&nbsp;    &#39;*&#39;, &#39;*&#39;, &#39;*&#39;, &#39; &#39;, &#39;0&#39;, &#39;1&#39;, &#39;2&#39;, &#39;3&#39;, &#39;4&#39;, &#39;5&#39;, &#39;6&#39;, &#39;7&#39;, &#39;8&#39;, &#39;9&#39;,
+&nbsp;    &#39;a&#39;, &#39;b&#39;, &#39;c&#39;, &#39;d&#39;, &#39;e&#39;, &#39;f&#39;, &#39;g&#39;, &#39;h&#39;, &#39;i&#39;, &#39;j&#39;, &#39;k&#39;, &#39;l&#39;, &#39;m&#39;, &#39;n&#39;,
+&nbsp;    &#39;o&#39;, &#39;p&#39;, &#39;q&#39;, &#39;r&#39;, &#39;s&#39;, &#39;t&#39;, &#39;u&#39;, &#39;v&#39;, &#39;w&#39;, &#39;x&#39;, &#39;y&#39;, &#39;z&#39;
+&nbsp;  };
+&nbsp;
+&nbsp;  // Shift 2 for Text is the same encoding as C40
+<b class="fc">&nbsp;  private static final char[] TEXT_SHIFT2_SET_CHARS = C40_SHIFT2_SET_CHARS;</b>
+&nbsp;
+<b class="fc">&nbsp;  private static final char[] TEXT_SHIFT3_SET_CHARS = {</b>
+&nbsp;    &#39;`&#39;, &#39;A&#39;, &#39;B&#39;, &#39;C&#39;, &#39;D&#39;, &#39;E&#39;, &#39;F&#39;, &#39;G&#39;, &#39;H&#39;, &#39;I&#39;, &#39;J&#39;, &#39;K&#39;, &#39;L&#39;, &#39;M&#39;, &#39;N&#39;,
+&nbsp;    &#39;O&#39;,  &#39;P&#39;, &#39;Q&#39;, &#39;R&#39;, &#39;S&#39;, &#39;T&#39;, &#39;U&#39;, &#39;V&#39;, &#39;W&#39;, &#39;X&#39;, &#39;Y&#39;, &#39;Z&#39;, &#39;{&#39;, &#39;|&#39;, &#39;}&#39;, &#39;~&#39;, (char) 127
+&nbsp;  };
+&nbsp;
+&nbsp;  private DecodedBitStreamParser() {
+&nbsp;  }
+&nbsp;
+&nbsp;  static DecoderResult decode(byte[] bytes) throws FormatException {
+<b class="fc">&nbsp;    BitSource bits = new BitSource(bytes);</b>
+<b class="fc">&nbsp;    ECIStringBuilder result = new ECIStringBuilder(100);</b>
+<b class="fc">&nbsp;    StringBuilder resultTrailer = new StringBuilder(0);</b>
+<b class="fc">&nbsp;    List&lt;byte[]&gt; byteSegments = new ArrayList&lt;&gt;(1);</b>
+<b class="fc">&nbsp;    Mode mode = Mode.ASCII_ENCODE;</b>
+&nbsp;    // Could look directly at &#39;bytes&#39;, if we&#39;re sure of not having to account for multi byte values
+<b class="fc">&nbsp;    Set&lt;Integer&gt; fnc1Positions = new HashSet&lt;&gt;();</b>
+&nbsp;    int symbologyModifier;
+<b class="fc">&nbsp;    boolean isECIencoded = false;</b>
+&nbsp;    do {
+<b class="fc">&nbsp;      if (mode == Mode.ASCII_ENCODE) {</b>
+<b class="fc">&nbsp;        mode = decodeAsciiSegment(bits, result, resultTrailer, fnc1Positions);</b>
+&nbsp;      } else {
+<b class="fc">&nbsp;        switch (mode) {</b>
+&nbsp;          case C40_ENCODE:
+<b class="fc">&nbsp;            decodeC40Segment(bits, result, fnc1Positions);</b>
+<b class="fc">&nbsp;            break;</b>
+&nbsp;          case TEXT_ENCODE:
+<b class="fc">&nbsp;            decodeTextSegment(bits, result, fnc1Positions);</b>
+<b class="fc">&nbsp;            break;</b>
+&nbsp;          case ANSIX12_ENCODE:
+<b class="fc">&nbsp;            decodeAnsiX12Segment(bits, result);</b>
+<b class="fc">&nbsp;            break;</b>
+&nbsp;          case EDIFACT_ENCODE:
+<b class="fc">&nbsp;            decodeEdifactSegment(bits, result);</b>
+<b class="fc">&nbsp;            break;</b>
+&nbsp;          case BASE256_ENCODE:
+<b class="fc">&nbsp;            decodeBase256Segment(bits, result, byteSegments);</b>
+<b class="fc">&nbsp;            break;</b>
+&nbsp;          case ECI_ENCODE:
+<b class="nc">&nbsp;            decodeECISegment(bits, result);</b>
+<b class="nc">&nbsp;            isECIencoded = true; // ECI detection only, atm continue decoding as ASCII</b>
+<b class="nc">&nbsp;            break;</b>
+&nbsp;          default:
+<b class="nc">&nbsp;            throw FormatException.getFormatInstance();</b>
+&nbsp;        }
+<b class="fc">&nbsp;        mode = Mode.ASCII_ENCODE;</b>
+&nbsp;      }
+<b class="fc">&nbsp;    } while (mode != Mode.PAD_ENCODE &amp;&amp; bits.available() &gt; 0);</b>
+<b class="fc">&nbsp;    if (resultTrailer.length() &gt; 0) {</b>
+<b class="nc">&nbsp;      result.appendCharacters(resultTrailer);</b>
+&nbsp;    }
+<b class="fc">&nbsp;    if (isECIencoded) {</b>
+&nbsp;      // Examples for this numbers can be found in this documentation of a hardware barcode scanner:
+&nbsp;      // https://honeywellaidc.force.com/supportppr/s/article/List-of-barcode-symbology-AIM-Identifiers
+<b class="nc">&nbsp;      if (fnc1Positions.contains(0) || fnc1Positions.contains(4)) {</b>
+<b class="nc">&nbsp;        symbologyModifier = 5;</b>
+<b class="nc">&nbsp;      } else if (fnc1Positions.contains(1) || fnc1Positions.contains(5)) {</b>
+<b class="nc">&nbsp;        symbologyModifier = 6;</b>
+&nbsp;      } else {
+<b class="nc">&nbsp;        symbologyModifier = 4;</b>
+&nbsp;      }
+&nbsp;    } else {
+<b class="fc">&nbsp;      if (fnc1Positions.contains(0) || fnc1Positions.contains(4)) {</b>
+<b class="nc">&nbsp;        symbologyModifier = 2;</b>
+<b class="fc">&nbsp;      } else if (fnc1Positions.contains(1) || fnc1Positions.contains(5)) {</b>
+<b class="nc">&nbsp;        symbologyModifier = 3;</b>
+&nbsp;      } else {
+<b class="fc">&nbsp;        symbologyModifier = 1;</b>
+&nbsp;      }
+&nbsp;    }
+&nbsp;
+<b class="fc">&nbsp;    return new DecoderResult(bytes,</b>
+<b class="fc">&nbsp;                             result.toString(),</b>
+<b class="fc">&nbsp;                             byteSegments.isEmpty() ? null : byteSegments,</b>
+&nbsp;                             null,
+&nbsp;                             symbologyModifier);
+&nbsp;  }
+&nbsp;
+&nbsp;  /**
+&nbsp;   * See ISO 16022:2006, 5.2.3 and Annex C, Table C.2
+&nbsp;   */
+&nbsp;  private static Mode decodeAsciiSegment(BitSource bits,
+&nbsp;                                         ECIStringBuilder result,
+&nbsp;                                         StringBuilder resultTrailer,
+&nbsp;                                         Set&lt;Integer&gt; fnc1positions) throws FormatException {
+<b class="fc">&nbsp;    boolean upperShift = false;</b>
+&nbsp;    do {
+<b class="fc">&nbsp;      int oneByte = bits.readBits(8);</b>
+<b class="fc">&nbsp;      if (oneByte == 0) {</b>
+<b class="nc">&nbsp;        throw FormatException.getFormatInstance();</b>
+<b class="fc">&nbsp;      } else if (oneByte &lt;= 128) {  // ASCII data (ASCII value + 1)</b>
+<b class="fc">&nbsp;        if (upperShift) {</b>
+<b class="nc">&nbsp;          oneByte += 128;</b>
+&nbsp;          //upperShift = false;
+&nbsp;        }
+<b class="fc">&nbsp;        result.append((char) (oneByte - 1));</b>
+<b class="fc">&nbsp;        return Mode.ASCII_ENCODE;</b>
+<b class="fc">&nbsp;      } else if (oneByte == 129) {  // Pad</b>
+<b class="fc">&nbsp;        return Mode.PAD_ENCODE;</b>
+<b class="fc">&nbsp;      } else if (oneByte &lt;= 229) {  // 2-digit data 00-99 (Numeric Value + 130)</b>
+<b class="fc">&nbsp;        int value = oneByte - 130;</b>
+<b class="fc">&nbsp;        if (value &lt; 10) { // pad with &#39;0&#39; for single digit values</b>
+<b class="fc">&nbsp;          result.append(&#39;0&#39;);</b>
+&nbsp;        }
+<b class="fc">&nbsp;        result.append(value);</b>
+<b class="fc">&nbsp;      } else {</b>
+<b class="fc">&nbsp;        switch (oneByte) {</b>
+&nbsp;          case 230: // Latch to C40 encodation
+<b class="fc">&nbsp;            return Mode.C40_ENCODE;</b>
+&nbsp;          case 231: // Latch to Base 256 encodation
+<b class="fc">&nbsp;            return Mode.BASE256_ENCODE;</b>
+&nbsp;          case 232: // FNC1
+<b class="nc">&nbsp;            fnc1positions.add(result.length());</b>
+<b class="nc">&nbsp;            result.append((char) 29); // translate as ASCII 29</b>
+<b class="nc">&nbsp;            break;</b>
+&nbsp;          case 233: // Structured Append
+&nbsp;          case 234: // Reader Programming
+&nbsp;            // Ignore these symbols for now
+&nbsp;            //throw ReaderException.getInstance();
+<b class="nc">&nbsp;            break;</b>
+&nbsp;          case 235: // Upper Shift (shift to Extended ASCII)
+<b class="nc">&nbsp;            upperShift = true;</b>
+<b class="nc">&nbsp;            break;</b>
+&nbsp;          case 236: // 05 Macro
+<b class="nc">&nbsp;            result.append(&quot;[)&gt;\u001E05\u001D&quot;);</b>
+<b class="nc">&nbsp;            resultTrailer.insert(0, &quot;\u001E\u0004&quot;);</b>
+<b class="nc">&nbsp;            break;</b>
+&nbsp;          case 237: // 06 Macro
+<b class="nc">&nbsp;            result.append(&quot;[)&gt;\u001E06\u001D&quot;);</b>
+<b class="nc">&nbsp;            resultTrailer.insert(0, &quot;\u001E\u0004&quot;);</b>
+<b class="nc">&nbsp;            break;</b>
+&nbsp;          case 238: // Latch to ANSI X12 encodation
+<b class="fc">&nbsp;            return Mode.ANSIX12_ENCODE;</b>
+&nbsp;          case 239: // Latch to Text encodation
+<b class="fc">&nbsp;            return Mode.TEXT_ENCODE;</b>
+&nbsp;          case 240: // Latch to EDIFACT encodation
+<b class="fc">&nbsp;            return Mode.EDIFACT_ENCODE;</b>
+&nbsp;          case 241: // ECI Character
+<b class="nc">&nbsp;            return Mode.ECI_ENCODE;</b>
+&nbsp;          default:
+&nbsp;            // Not to be used in ASCII encodation
+&nbsp;            // but work around encoders that end with 254, latch back to ASCII
+<b class="nc">&nbsp;            if (oneByte != 254 || bits.available() != 0) {</b>
+<b class="nc">&nbsp;              throw FormatException.getFormatInstance();</b>
+&nbsp;            }
+&nbsp;            break;
+&nbsp;        }
+&nbsp;      }
+<b class="fc">&nbsp;    } while (bits.available() &gt; 0);</b>
+<b class="fc">&nbsp;    return Mode.ASCII_ENCODE;</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  /**
+&nbsp;   * See ISO 16022:2006, 5.2.5 and Annex C, Table C.1
+&nbsp;   */
+&nbsp;  private static void decodeC40Segment(BitSource bits, ECIStringBuilder result, Set&lt;Integer&gt; fnc1positions)
+&nbsp;      throws FormatException {
+&nbsp;    // Three C40 values are encoded in a 16-bit value as
+&nbsp;    // (1600 * C1) + (40 * C2) + C3 + 1
+&nbsp;    // TODO(bbrown): The Upper Shift with C40 doesn&#39;t work in the 4 value scenario all the time
+<b class="fc">&nbsp;    boolean upperShift = false;</b>
+&nbsp;
+<b class="fc">&nbsp;    int[] cValues = new int[3];</b>
+<b class="fc">&nbsp;    int shift = 0;</b>
+&nbsp;
+&nbsp;    do {
+&nbsp;      // If there is only one byte left then it will be encoded as ASCII
+<b class="fc">&nbsp;      if (bits.available() == 8) {</b>
+&nbsp;        return;
+&nbsp;      }
+<b class="fc">&nbsp;      int firstByte = bits.readBits(8);</b>
+<b class="fc">&nbsp;      if (firstByte == 254) {  // Unlatch codeword</b>
+&nbsp;        return;
+&nbsp;      }
+&nbsp;
+<b class="fc">&nbsp;      parseTwoBytes(firstByte, bits.readBits(8), cValues);</b>
+&nbsp;
+<b class="fc">&nbsp;      for (int i = 0; i &lt; 3; i++) {</b>
+<b class="fc">&nbsp;        int cValue = cValues[i];</b>
+<b class="fc">&nbsp;        switch (shift) {</b>
+&nbsp;          case 0:
+<b class="fc">&nbsp;            if (cValue &lt; 3) {</b>
+<b class="fc">&nbsp;              shift = cValue + 1;</b>
+<b class="fc">&nbsp;            } else if (cValue &lt; C40_BASIC_SET_CHARS.length) {</b>
+<b class="fc">&nbsp;              char c40char = C40_BASIC_SET_CHARS[cValue];</b>
+<b class="fc">&nbsp;              if (upperShift) {</b>
+<b class="nc">&nbsp;                result.append((char) (c40char + 128));</b>
+<b class="nc">&nbsp;                upperShift = false;</b>
+&nbsp;              } else {
+<b class="fc">&nbsp;                result.append(c40char);</b>
+&nbsp;              }
+<b class="fc">&nbsp;            } else {</b>
+<b class="nc">&nbsp;              throw FormatException.getFormatInstance();</b>
+&nbsp;            }
+&nbsp;            break;
+&nbsp;          case 1:
+<b class="nc">&nbsp;            if (upperShift) {</b>
+<b class="nc">&nbsp;              result.append((char) (cValue + 128));</b>
+<b class="nc">&nbsp;              upperShift = false;</b>
+&nbsp;            } else {
+<b class="nc">&nbsp;              result.append((char) cValue);</b>
+&nbsp;            }
+<b class="nc">&nbsp;            shift = 0;</b>
+<b class="nc">&nbsp;            break;</b>
+&nbsp;          case 2:
+<b class="nc">&nbsp;            if (cValue &lt; C40_SHIFT2_SET_CHARS.length) {</b>
+<b class="nc">&nbsp;              char c40char = C40_SHIFT2_SET_CHARS[cValue];</b>
+<b class="nc">&nbsp;              if (upperShift) {</b>
+<b class="nc">&nbsp;                result.append((char) (c40char + 128));</b>
+<b class="nc">&nbsp;                upperShift = false;</b>
+&nbsp;              } else {
+<b class="nc">&nbsp;                result.append(c40char);</b>
+&nbsp;              }
+<b class="nc">&nbsp;            } else {</b>
+<b class="nc">&nbsp;              switch (cValue) {</b>
+&nbsp;                case 27: // FNC1
+<b class="nc">&nbsp;                  fnc1positions.add(result.length());</b>
+<b class="nc">&nbsp;                  result.append((char) 29); // translate as ASCII 29</b>
+<b class="nc">&nbsp;                  break;</b>
+&nbsp;                case 30: // Upper Shift
+<b class="nc">&nbsp;                  upperShift = true;</b>
+<b class="nc">&nbsp;                  break;</b>
+&nbsp;                default:
+<b class="nc">&nbsp;                  throw FormatException.getFormatInstance();</b>
+&nbsp;              }
+&nbsp;            }
+<b class="nc">&nbsp;            shift = 0;</b>
+<b class="nc">&nbsp;            break;</b>
+&nbsp;          case 3:
+<b class="fc">&nbsp;            if (upperShift) {</b>
+<b class="nc">&nbsp;              result.append((char) (cValue + 224));</b>
+<b class="nc">&nbsp;              upperShift = false;</b>
+&nbsp;            } else {
+<b class="fc">&nbsp;              result.append((char) (cValue + 96));</b>
+&nbsp;            }
+<b class="fc">&nbsp;            shift = 0;</b>
+<b class="fc">&nbsp;            break;</b>
+&nbsp;          default:
+<b class="nc">&nbsp;            throw FormatException.getFormatInstance();</b>
+&nbsp;        }
+&nbsp;      }
+<b class="fc">&nbsp;    } while (bits.available() &gt; 0);</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  /**
+&nbsp;   * See ISO 16022:2006, 5.2.6 and Annex C, Table C.2
+&nbsp;   */
+&nbsp;  private static void decodeTextSegment(BitSource bits, ECIStringBuilder result, Set&lt;Integer&gt; fnc1positions)
+&nbsp;      throws FormatException {
+&nbsp;    // Three Text values are encoded in a 16-bit value as
+&nbsp;    // (1600 * C1) + (40 * C2) + C3 + 1
+&nbsp;    // TODO(bbrown): The Upper Shift with Text doesn&#39;t work in the 4 value scenario all the time
+<b class="fc">&nbsp;    boolean upperShift = false;</b>
+&nbsp;
+<b class="fc">&nbsp;    int[] cValues = new int[3];</b>
+<b class="fc">&nbsp;    int shift = 0;</b>
+&nbsp;    do {
+&nbsp;      // If there is only one byte left then it will be encoded as ASCII
+<b class="fc">&nbsp;      if (bits.available() == 8) {</b>
+&nbsp;        return;
+&nbsp;      }
+<b class="fc">&nbsp;      int firstByte = bits.readBits(8);</b>
+<b class="fc">&nbsp;      if (firstByte == 254) {  // Unlatch codeword</b>
+&nbsp;        return;
+&nbsp;      }
+&nbsp;
+<b class="fc">&nbsp;      parseTwoBytes(firstByte, bits.readBits(8), cValues);</b>
+&nbsp;
+<b class="fc">&nbsp;      for (int i = 0; i &lt; 3; i++) {</b>
+<b class="fc">&nbsp;        int cValue = cValues[i];</b>
+<b class="fc">&nbsp;        switch (shift) {</b>
+&nbsp;          case 0:
+<b class="fc">&nbsp;            if (cValue &lt; 3) {</b>
+<b class="nc">&nbsp;              shift = cValue + 1;</b>
+<b class="fc">&nbsp;            } else if (cValue &lt; TEXT_BASIC_SET_CHARS.length) {</b>
+<b class="fc">&nbsp;              char textChar = TEXT_BASIC_SET_CHARS[cValue];</b>
+<b class="fc">&nbsp;              if (upperShift) {</b>
+<b class="nc">&nbsp;                result.append((char) (textChar + 128));</b>
+<b class="nc">&nbsp;                upperShift = false;</b>
+&nbsp;              } else {
+<b class="fc">&nbsp;                result.append(textChar);</b>
+&nbsp;              }
+<b class="fc">&nbsp;            } else {</b>
+<b class="nc">&nbsp;              throw FormatException.getFormatInstance();</b>
+&nbsp;            }
+&nbsp;            break;
+&nbsp;          case 1:
+<b class="nc">&nbsp;            if (upperShift) {</b>
+<b class="nc">&nbsp;              result.append((char) (cValue + 128));</b>
+<b class="nc">&nbsp;              upperShift = false;</b>
+&nbsp;            } else {
+<b class="nc">&nbsp;              result.append((char) cValue);</b>
+&nbsp;            }
+<b class="nc">&nbsp;            shift = 0;</b>
+<b class="nc">&nbsp;            break;</b>
+&nbsp;          case 2:
+&nbsp;            // Shift 2 for Text is the same encoding as C40
+<b class="nc">&nbsp;            if (cValue &lt; TEXT_SHIFT2_SET_CHARS.length) {</b>
+<b class="nc">&nbsp;              char textChar = TEXT_SHIFT2_SET_CHARS[cValue];</b>
+<b class="nc">&nbsp;              if (upperShift) {</b>
+<b class="nc">&nbsp;                result.append((char) (textChar + 128));</b>
+<b class="nc">&nbsp;                upperShift = false;</b>
+&nbsp;              } else {
+<b class="nc">&nbsp;                result.append(textChar);</b>
+&nbsp;              }
+<b class="nc">&nbsp;            } else {</b>
+<b class="nc">&nbsp;              switch (cValue) {</b>
+&nbsp;                case 27: // FNC1
+<b class="nc">&nbsp;                  fnc1positions.add(result.length());</b>
+<b class="nc">&nbsp;                  result.append((char) 29); // translate as ASCII 29</b>
+<b class="nc">&nbsp;                  break;</b>
+&nbsp;                case 30: // Upper Shift
+<b class="nc">&nbsp;                  upperShift = true;</b>
+<b class="nc">&nbsp;                  break;</b>
+&nbsp;                default:
+<b class="nc">&nbsp;                  throw FormatException.getFormatInstance();</b>
+&nbsp;              }
+&nbsp;            }
+<b class="nc">&nbsp;            shift = 0;</b>
+<b class="nc">&nbsp;            break;</b>
+&nbsp;          case 3:
+<b class="nc">&nbsp;            if (cValue &lt; TEXT_SHIFT3_SET_CHARS.length) {</b>
+<b class="nc">&nbsp;              char textChar = TEXT_SHIFT3_SET_CHARS[cValue];</b>
+<b class="nc">&nbsp;              if (upperShift) {</b>
+<b class="nc">&nbsp;                result.append((char) (textChar + 128));</b>
+<b class="nc">&nbsp;                upperShift = false;</b>
+&nbsp;              } else {
+<b class="nc">&nbsp;                result.append(textChar);</b>
+&nbsp;              }
+<b class="nc">&nbsp;              shift = 0;</b>
+<b class="nc">&nbsp;            } else {</b>
+<b class="nc">&nbsp;              throw FormatException.getFormatInstance();</b>
+&nbsp;            }
+&nbsp;            break;
+&nbsp;          default:
+<b class="nc">&nbsp;            throw FormatException.getFormatInstance();</b>
+&nbsp;        }
+&nbsp;      }
+<b class="fc">&nbsp;    } while (bits.available() &gt; 0);</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  /**
+&nbsp;   * See ISO 16022:2006, 5.2.7
+&nbsp;   */
+&nbsp;  private static void decodeAnsiX12Segment(BitSource bits,
+&nbsp;                                           ECIStringBuilder result) throws FormatException {
+&nbsp;    // Three ANSI X12 values are encoded in a 16-bit value as
+&nbsp;    // (1600 * C1) + (40 * C2) + C3 + 1
+&nbsp;
+<b class="fc">&nbsp;    int[] cValues = new int[3];</b>
+&nbsp;    do {
+&nbsp;      // If there is only one byte left then it will be encoded as ASCII
+<b class="fc">&nbsp;      if (bits.available() == 8) {</b>
+&nbsp;        return;
+&nbsp;      }
+<b class="fc">&nbsp;      int firstByte = bits.readBits(8);</b>
+<b class="fc">&nbsp;      if (firstByte == 254) {  // Unlatch codeword</b>
+&nbsp;        return;
+&nbsp;      }
+&nbsp;
+<b class="fc">&nbsp;      parseTwoBytes(firstByte, bits.readBits(8), cValues);</b>
+&nbsp;
+<b class="fc">&nbsp;      for (int i = 0; i &lt; 3; i++) {</b>
+<b class="fc">&nbsp;        int cValue = cValues[i];</b>
+<b class="fc">&nbsp;        switch (cValue) {</b>
+&nbsp;          case 0: // X12 segment terminator &lt;CR&gt;
+<b class="nc">&nbsp;            result.append(&#39;\r&#39;);</b>
+<b class="nc">&nbsp;            break;</b>
+&nbsp;          case 1: // X12 segment separator *
+<b class="nc">&nbsp;            result.append(&#39;*&#39;);</b>
+<b class="nc">&nbsp;            break;</b>
+&nbsp;          case 2: // X12 sub-element separator &gt;
+<b class="nc">&nbsp;            result.append(&#39;&gt;&#39;);</b>
+<b class="nc">&nbsp;            break;</b>
+&nbsp;          case 3: // space
+<b class="nc">&nbsp;            result.append(&#39; &#39;);</b>
+<b class="nc">&nbsp;            break;</b>
+&nbsp;          default:
+<b class="fc">&nbsp;            if (cValue &lt; 14) {  // 0 - 9</b>
+<b class="fc">&nbsp;              result.append((char) (cValue + 44));</b>
+<b class="fc">&nbsp;            } else if (cValue &lt; 40) {  // A - Z</b>
+<b class="fc">&nbsp;              result.append((char) (cValue + 51));</b>
+&nbsp;            } else {
+<b class="nc">&nbsp;              throw FormatException.getFormatInstance();</b>
+&nbsp;            }
+&nbsp;            break;
+&nbsp;        }
+&nbsp;      }
+<b class="fc">&nbsp;    } while (bits.available() &gt; 0);</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  private static void parseTwoBytes(int firstByte, int secondByte, int[] result) {
+<b class="fc">&nbsp;    int fullBitValue = (firstByte &lt;&lt; 8) + secondByte - 1;</b>
+<b class="fc">&nbsp;    int temp = fullBitValue / 1600;</b>
+<b class="fc">&nbsp;    result[0] = temp;</b>
+<b class="fc">&nbsp;    fullBitValue -= temp * 1600;</b>
+<b class="fc">&nbsp;    temp = fullBitValue / 40;</b>
+<b class="fc">&nbsp;    result[1] = temp;</b>
+<b class="fc">&nbsp;    result[2] = fullBitValue - temp * 40;</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  /**
+&nbsp;   * See ISO 16022:2006, 5.2.8 and Annex C Table C.3
+&nbsp;   */
+&nbsp;  private static void decodeEdifactSegment(BitSource bits, ECIStringBuilder result) {
+&nbsp;    do {
+&nbsp;      // If there is only two or less bytes left then it will be encoded as ASCII
+<b class="fc">&nbsp;      if (bits.available() &lt;= 16) {</b>
+&nbsp;        return;
+&nbsp;      }
+&nbsp;
+<b class="fc">&nbsp;      for (int i = 0; i &lt; 4; i++) {</b>
+<b class="fc">&nbsp;        int edifactValue = bits.readBits(6);</b>
+&nbsp;
+&nbsp;        // Check for the unlatch character
+<b class="fc">&nbsp;        if (edifactValue == 0x1F) {  // 011111</b>
+&nbsp;          // Read rest of byte, which should be 0, and stop
+<b class="fc">&nbsp;          int bitsLeft = 8 - bits.getBitOffset();</b>
+<b class="fc">&nbsp;          if (bitsLeft != 8) {</b>
+<b class="fc">&nbsp;            bits.readBits(bitsLeft);</b>
+&nbsp;          }
+&nbsp;          return;
+&nbsp;        }
+&nbsp;
+<b class="fc">&nbsp;        if ((edifactValue &amp; 0x20) == 0) {  // no 1 in the leading (6th) bit</b>
+<b class="fc">&nbsp;          edifactValue |= 0x40;  // Add a leading 01 to the 6 bit binary value</b>
+&nbsp;        }
+<b class="fc">&nbsp;        result.append((char) edifactValue);</b>
+&nbsp;      }
+<b class="fc">&nbsp;    } while (bits.available() &gt; 0);</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  /**
+&nbsp;   * See ISO 16022:2006, 5.2.9 and Annex B, B.2
+&nbsp;   */
+&nbsp;  private static void decodeBase256Segment(BitSource bits,
+&nbsp;                                           ECIStringBuilder result,
+&nbsp;                                           Collection&lt;byte[]&gt; byteSegments)
+&nbsp;      throws FormatException {
+&nbsp;    // Figure out how long the Base 256 Segment is.
+<b class="fc">&nbsp;    int codewordPosition = 1 + bits.getByteOffset(); // position is 1-indexed</b>
+<b class="fc">&nbsp;    int d1 = unrandomize255State(bits.readBits(8), codewordPosition++);</b>
+&nbsp;    int count;
+<b class="fc">&nbsp;    if (d1 == 0) {  // Read the remainder of the symbol</b>
+<b class="nc">&nbsp;      count = bits.available() / 8;</b>
+<b class="fc">&nbsp;    } else if (d1 &lt; 250) {</b>
+<b class="fc">&nbsp;      count = d1;</b>
+&nbsp;    } else {
+<b class="nc">&nbsp;      count = 250 * (d1 - 249) + unrandomize255State(bits.readBits(8), codewordPosition++);</b>
+&nbsp;    }
+&nbsp;
+&nbsp;    // We&#39;re seeing NegativeArraySizeException errors from users.
+<b class="fc">&nbsp;    if (count &lt; 0) {</b>
+<b class="nc">&nbsp;      throw FormatException.getFormatInstance();</b>
+&nbsp;    }
+&nbsp;
+<b class="fc">&nbsp;    byte[] bytes = new byte[count];</b>
+<b class="fc">&nbsp;    for (int i = 0; i &lt; count; i++) {</b>
+&nbsp;      // Have seen this particular error in the wild, such as at
+&nbsp;      // http://www.bcgen.com/demo/IDAutomationStreamingDataMatrix.aspx?MODE=3&amp;D=Fred&amp;PFMT=3&amp;PT=F&amp;X=0.3&amp;O=0&amp;LM=0.2
+<b class="fc">&nbsp;      if (bits.available() &lt; 8) {</b>
+<b class="nc">&nbsp;        throw FormatException.getFormatInstance();</b>
+&nbsp;      }
+<b class="fc">&nbsp;      bytes[i] = (byte) unrandomize255State(bits.readBits(8), codewordPosition++);</b>
+&nbsp;    }
+<b class="fc">&nbsp;    byteSegments.add(bytes);</b>
+<b class="fc">&nbsp;    result.append(new String(bytes, StandardCharsets.ISO_8859_1));</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  /**
+&nbsp;   * See ISO 16022:2007, 5.4.1
+&nbsp;   */
+&nbsp;  private static void decodeECISegment(BitSource bits,
+&nbsp;                                           ECIStringBuilder result)
+&nbsp;      throws FormatException {
+<b class="nc">&nbsp;    if (bits.available() &lt; 8) {</b>
+<b class="nc">&nbsp;      throw FormatException.getFormatInstance();</b>
+&nbsp;    }
+<b class="nc">&nbsp;    int c1 = bits.readBits(8);</b>
+<b class="nc">&nbsp;    if (c1 &lt;= 127) {</b>
+<b class="nc">&nbsp;      result.appendECI(c1 - 1);</b>
+&nbsp;    }
+&nbsp;    //currently we only support character set ECIs
+&nbsp;    /*} else {
+&nbsp;      if (bits.available() &lt; 8) {
+&nbsp;        throw FormatException.getFormatInstance();
+&nbsp;      }
+&nbsp;      int c2 = bits.readBits(8);
+&nbsp;      if (c1 &gt;= 128 &amp;&amp; c1 &lt;= 191) {
+&nbsp;      } else {
+&nbsp;        if (bits.available() &lt; 8) {
+&nbsp;          throw FormatException.getFormatInstance();
+&nbsp;        }
+&nbsp;        int c3 = bits.readBits(8);
+&nbsp;      }
+&nbsp;    }*/
+&nbsp;  }
+&nbsp;
+&nbsp;
+&nbsp;  /**
+&nbsp;   * See ISO 16022:2006, Annex B, B.2
+&nbsp;   */
+&nbsp;  private static int unrandomize255State(int randomizedBase256Codeword,
+&nbsp;                                          int base256CodewordPosition) {
+<b class="fc">&nbsp;    int pseudoRandomNumber = ((149 * base256CodewordPosition) % 255) + 1;</b>
+<b class="fc">&nbsp;    int tempVariable = randomizedBase256Codeword - pseudoRandomNumber;</b>
+<b class="fc">&nbsp;    return tempVariable &gt;= 0 ? tempVariable : tempVariable + 256;</b>
+&nbsp;  }
+&nbsp;
+&nbsp;}
+</code>
+</pre>
+</div>
+
+<script type="text/javascript">
+(function() {
+    var msie = false, msie9 = false;
+    /*@cc_on
+      msie = true;
+      @if (@_jscript_version >= 9)
+        msie9 = true;
+      @end
+    @*/
+
+    if (!msie || msie && msie9) {
+      hljs.highlightAll()
+      hljs.initLineNumbersOnLoad();
+    }
+})();
+</script>
+
+<div class="footer">
+    
+    <div style="float:right;">generated on 2023-11-12 23:26</div>
+</div>
+</body>
+</html>

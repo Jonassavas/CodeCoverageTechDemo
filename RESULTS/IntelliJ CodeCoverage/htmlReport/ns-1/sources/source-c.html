@@ -1,0 +1,235 @@
+
+
+
+<!DOCTYPE html>
+<html id="htmlId">
+<head>
+  <meta http-equiv="Content-Type" content="text/html;charset=windows-1252"> 
+  <title>Coverage Report > MultiFormatWriter</title>
+  <style type="text/css">
+    @import "../../css/coverage.css";
+    @import "../../css/idea.min.css";
+  </style>
+  <script type="text/javascript" src="../../js/highlight.min.js"></script>
+  <script type="text/javascript" src="../../js/highlightjs-line-numbers.min.js"></script>
+</head>
+
+<body>
+<div class="content">
+<div class="breadCrumbs">
+Current scope:     <a href="../../index.html">all classes</a>
+    <span class="separator">|</span>
+    <a href="../index.html">com.google.zxing</a>
+</div>
+
+<h1>Coverage Summary for Class: MultiFormatWriter (com.google.zxing)</h1>
+
+<table class="coverageStats">
+
+<tr>
+  <th class="name">Class</th>
+<th class="coverageStat 
+">
+  Method, %
+</th>
+<th class="coverageStat 
+">
+  Line, %
+</th>
+</tr>
+<tr>
+  <td class="name">MultiFormatWriter</td>
+<td class="coverageStat">
+  <span class="percent">
+    0%
+  </span>
+  <span class="absValue">
+    (0/3)
+  </span>
+</td>
+<td class="coverageStat">
+  <span class="percent">
+    0%
+  </span>
+  <span class="absValue">
+    (0/31)
+  </span>
+</td>
+</tr>
+  <tr>
+    <td class="name">MultiFormatWriter$1</td>
+<td class="coverageStat">
+  <span class="percent">
+    0%
+  </span>
+  <span class="absValue">
+    (0/1)
+  </span>
+</td>
+<td class="coverageStat">
+  <span class="percent">
+    0%
+  </span>
+  <span class="absValue">
+    (0/1)
+  </span>
+</td>
+  </tr>
+<tr>
+  <td class="name"><strong>Total</strong></td>
+<td class="coverageStat">
+  <span class="percent">
+    0%
+  </span>
+  <span class="absValue">
+    (0/4)
+  </span>
+</td>
+<td class="coverageStat">
+  <span class="percent">
+    0%
+  </span>
+  <span class="absValue">
+    (0/32)
+  </span>
+</td>
+</tr>
+</table>
+
+<br/>
+<br/>
+
+
+<pre>
+<code class="sourceCode" id="sourceCode">&nbsp;/*
+&nbsp; * Copyright 2008 ZXing authors
+&nbsp; *
+&nbsp; * Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
+&nbsp; * you may not use this file except in compliance with the License.
+&nbsp; * You may obtain a copy of the License at
+&nbsp; *
+&nbsp; *      http://www.apache.org/licenses/LICENSE-2.0
+&nbsp; *
+&nbsp; * Unless required by applicable law or agreed to in writing, software
+&nbsp; * distributed under the License is distributed on an &quot;AS IS&quot; BASIS,
+&nbsp; * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+&nbsp; * See the License for the specific language governing permissions and
+&nbsp; * limitations under the License.
+&nbsp; */
+&nbsp;
+&nbsp;package com.google.zxing;
+&nbsp;
+&nbsp;import com.google.zxing.aztec.AztecWriter;
+&nbsp;import com.google.zxing.common.BitMatrix;
+&nbsp;import com.google.zxing.datamatrix.DataMatrixWriter;
+&nbsp;import com.google.zxing.oned.CodaBarWriter;
+&nbsp;import com.google.zxing.oned.Code128Writer;
+&nbsp;import com.google.zxing.oned.Code39Writer;
+&nbsp;import com.google.zxing.oned.Code93Writer;
+&nbsp;import com.google.zxing.oned.EAN13Writer;
+&nbsp;import com.google.zxing.oned.EAN8Writer;
+&nbsp;import com.google.zxing.oned.ITFWriter;
+&nbsp;import com.google.zxing.oned.UPCAWriter;
+&nbsp;import com.google.zxing.oned.UPCEWriter;
+&nbsp;import com.google.zxing.pdf417.PDF417Writer;
+&nbsp;import com.google.zxing.qrcode.QRCodeWriter;
+&nbsp;
+&nbsp;import java.util.Map;
+&nbsp;
+&nbsp;/**
+&nbsp; * This is a factory class which finds the appropriate Writer subclass for the BarcodeFormat
+&nbsp; * requested and encodes the barcode with the supplied contents.
+&nbsp; *
+&nbsp; * @author dswitkin@google.com (Daniel Switkin)
+&nbsp; */
+<b class="nc">&nbsp;public final class MultiFormatWriter implements Writer {</b>
+&nbsp;
+&nbsp;  @Override
+&nbsp;  public BitMatrix encode(String contents,
+&nbsp;                          BarcodeFormat format,
+&nbsp;                          int width,
+&nbsp;                          int height) throws WriterException {
+<b class="nc">&nbsp;    return encode(contents, format, width, height, null);</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  @Override
+&nbsp;  public BitMatrix encode(String contents,
+&nbsp;                          BarcodeFormat format,
+&nbsp;                          int width, int height,
+&nbsp;                          Map&lt;EncodeHintType,?&gt; hints) throws WriterException {
+&nbsp;
+&nbsp;    Writer writer;
+<b class="nc">&nbsp;    switch (format) {</b>
+&nbsp;      case EAN_8:
+<b class="nc">&nbsp;        writer = new EAN8Writer();</b>
+<b class="nc">&nbsp;        break;</b>
+&nbsp;      case UPC_E:
+<b class="nc">&nbsp;        writer = new UPCEWriter();</b>
+<b class="nc">&nbsp;        break;</b>
+&nbsp;      case EAN_13:
+<b class="nc">&nbsp;        writer = new EAN13Writer();</b>
+<b class="nc">&nbsp;        break;</b>
+&nbsp;      case UPC_A:
+<b class="nc">&nbsp;        writer = new UPCAWriter();</b>
+<b class="nc">&nbsp;        break;</b>
+&nbsp;      case QR_CODE:
+<b class="nc">&nbsp;        writer = new QRCodeWriter();</b>
+<b class="nc">&nbsp;        break;</b>
+&nbsp;      case CODE_39:
+<b class="nc">&nbsp;        writer = new Code39Writer();</b>
+<b class="nc">&nbsp;        break;</b>
+&nbsp;      case CODE_93:
+<b class="nc">&nbsp;        writer = new Code93Writer();</b>
+<b class="nc">&nbsp;        break;</b>
+&nbsp;      case CODE_128:
+<b class="nc">&nbsp;        writer = new Code128Writer();</b>
+<b class="nc">&nbsp;        break;</b>
+&nbsp;      case ITF:
+<b class="nc">&nbsp;        writer = new ITFWriter();</b>
+<b class="nc">&nbsp;        break;</b>
+&nbsp;      case PDF_417:
+<b class="nc">&nbsp;        writer = new PDF417Writer();</b>
+<b class="nc">&nbsp;        break;</b>
+&nbsp;      case CODABAR:
+<b class="nc">&nbsp;        writer = new CodaBarWriter();</b>
+<b class="nc">&nbsp;        break;</b>
+&nbsp;      case DATA_MATRIX:
+<b class="nc">&nbsp;        writer = new DataMatrixWriter();</b>
+<b class="nc">&nbsp;        break;</b>
+&nbsp;      case AZTEC:
+<b class="nc">&nbsp;        writer = new AztecWriter();</b>
+<b class="nc">&nbsp;        break;</b>
+&nbsp;      default:
+<b class="nc">&nbsp;        throw new IllegalArgumentException(&quot;No encoder available for format &quot; + format);</b>
+&nbsp;    }
+<b class="nc">&nbsp;    return writer.encode(contents, format, width, height, hints);</b>
+&nbsp;  }
+&nbsp;
+&nbsp;}
+</code>
+</pre>
+</div>
+
+<script type="text/javascript">
+(function() {
+    var msie = false, msie9 = false;
+    /*@cc_on
+      msie = true;
+      @if (@_jscript_version >= 9)
+        msie9 = true;
+      @end
+    @*/
+
+    if (!msie || msie && msie9) {
+      hljs.highlightAll()
+      hljs.initLineNumbersOnLoad();
+    }
+})();
+</script>
+
+<div class="footer">
+    
+    <div style="float:right;">generated on 2023-11-12 23:26</div>
+</div>
+</body>
+</html>

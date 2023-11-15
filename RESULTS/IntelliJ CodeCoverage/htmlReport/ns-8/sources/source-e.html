@@ -1,0 +1,260 @@
+
+
+
+<!DOCTYPE html>
+<html id="htmlId">
+<head>
+  <meta http-equiv="Content-Type" content="text/html;charset=windows-1252"> 
+  <title>Coverage Report > PerspectiveTransform</title>
+  <style type="text/css">
+    @import "../../css/coverage.css";
+    @import "../../css/idea.min.css";
+  </style>
+  <script type="text/javascript" src="../../js/highlight.min.js"></script>
+  <script type="text/javascript" src="../../js/highlightjs-line-numbers.min.js"></script>
+</head>
+
+<body>
+<div class="content">
+<div class="breadCrumbs">
+Current scope:     <a href="../../index.html">all classes</a>
+    <span class="separator">|</span>
+    <a href="../index.html">com.google.zxing.common</a>
+</div>
+
+<h1>Coverage Summary for Class: PerspectiveTransform (com.google.zxing.common)</h1>
+
+<table class="coverageStats">
+<tr>
+  <th class="name">Class</th>
+<th class="coverageStat 
+">
+  Class, %
+</th>
+<th class="coverageStat 
+">
+  Method, %
+</th>
+<th class="coverageStat 
+">
+  Line, %
+</th>
+</tr>
+<tr>
+  <td class="name">PerspectiveTransform</td>
+<td class="coverageStat">
+  <span class="percent">
+    100%
+  </span>
+  <span class="absValue">
+    (1/1)
+  </span>
+</td>
+<td class="coverageStat">
+  <span class="percent">
+    87.5%
+  </span>
+  <span class="absValue">
+    (7/8)
+  </span>
+</td>
+<td class="coverageStat">
+  <span class="percent">
+    86.3%
+  </span>
+  <span class="absValue">
+    (44/51)
+  </span>
+</td>
+</tr>
+
+</table>
+
+<br/>
+<br/>
+
+
+<pre>
+<code class="sourceCode" id="sourceCode">&nbsp;/*
+&nbsp; * Copyright 2007 ZXing authors
+&nbsp; *
+&nbsp; * Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
+&nbsp; * you may not use this file except in compliance with the License.
+&nbsp; * You may obtain a copy of the License at
+&nbsp; *
+&nbsp; *      http://www.apache.org/licenses/LICENSE-2.0
+&nbsp; *
+&nbsp; * Unless required by applicable law or agreed to in writing, software
+&nbsp; * distributed under the License is distributed on an &quot;AS IS&quot; BASIS,
+&nbsp; * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+&nbsp; * See the License for the specific language governing permissions and
+&nbsp; * limitations under the License.
+&nbsp; */
+&nbsp;
+&nbsp;package com.google.zxing.common;
+&nbsp;
+&nbsp;/**
+&nbsp; * &lt;p&gt;This class implements a perspective transform in two dimensions. Given four source and four
+&nbsp; * destination points, it will compute the transformation implied between them. The code is based
+&nbsp; * directly upon section 3.4.2 of George Wolberg&#39;s &quot;Digital Image Warping&quot;; see pages 54-56.&lt;/p&gt;
+&nbsp; *
+&nbsp; * @author Sean Owen
+&nbsp; */
+&nbsp;public final class PerspectiveTransform {
+&nbsp;
+&nbsp;  private final float a11;
+&nbsp;  private final float a12;
+&nbsp;  private final float a13;
+&nbsp;  private final float a21;
+&nbsp;  private final float a22;
+&nbsp;  private final float a23;
+&nbsp;  private final float a31;
+&nbsp;  private final float a32;
+&nbsp;  private final float a33;
+&nbsp;
+&nbsp;  private PerspectiveTransform(float a11, float a21, float a31,
+&nbsp;                               float a12, float a22, float a32,
+<b class="fc">&nbsp;                               float a13, float a23, float a33) {</b>
+<b class="fc">&nbsp;    this.a11 = a11;</b>
+<b class="fc">&nbsp;    this.a12 = a12;</b>
+<b class="fc">&nbsp;    this.a13 = a13;</b>
+<b class="fc">&nbsp;    this.a21 = a21;</b>
+<b class="fc">&nbsp;    this.a22 = a22;</b>
+<b class="fc">&nbsp;    this.a23 = a23;</b>
+<b class="fc">&nbsp;    this.a31 = a31;</b>
+<b class="fc">&nbsp;    this.a32 = a32;</b>
+<b class="fc">&nbsp;    this.a33 = a33;</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  public static PerspectiveTransform quadrilateralToQuadrilateral(float x0, float y0,
+&nbsp;                                                                  float x1, float y1,
+&nbsp;                                                                  float x2, float y2,
+&nbsp;                                                                  float x3, float y3,
+&nbsp;                                                                  float x0p, float y0p,
+&nbsp;                                                                  float x1p, float y1p,
+&nbsp;                                                                  float x2p, float y2p,
+&nbsp;                                                                  float x3p, float y3p) {
+&nbsp;
+<b class="fc">&nbsp;    PerspectiveTransform qToS = quadrilateralToSquare(x0, y0, x1, y1, x2, y2, x3, y3);</b>
+<b class="fc">&nbsp;    PerspectiveTransform sToQ = squareToQuadrilateral(x0p, y0p, x1p, y1p, x2p, y2p, x3p, y3p);</b>
+<b class="fc">&nbsp;    return sToQ.times(qToS);</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  public void transformPoints(float[] points) {
+<b class="fc">&nbsp;    float a11 = this.a11;</b>
+<b class="fc">&nbsp;    float a12 = this.a12;</b>
+<b class="fc">&nbsp;    float a13 = this.a13;</b>
+<b class="fc">&nbsp;    float a21 = this.a21;</b>
+<b class="fc">&nbsp;    float a22 = this.a22;</b>
+<b class="fc">&nbsp;    float a23 = this.a23;</b>
+<b class="fc">&nbsp;    float a31 = this.a31;</b>
+<b class="fc">&nbsp;    float a32 = this.a32;</b>
+<b class="fc">&nbsp;    float a33 = this.a33;</b>
+<b class="fc">&nbsp;    int maxI = points.length - 1; // points.length must be even</b>
+<b class="fc">&nbsp;    for (int i = 0; i &lt; maxI; i += 2) {</b>
+<b class="fc">&nbsp;      float x = points[i];</b>
+<b class="fc">&nbsp;      float y = points[i + 1];</b>
+<b class="fc">&nbsp;      float denominator = a13 * x + a23 * y + a33;</b>
+<b class="fc">&nbsp;      points[i] = (a11 * x + a21 * y + a31) / denominator;</b>
+<b class="fc">&nbsp;      points[i + 1] = (a12 * x + a22 * y + a32) / denominator;</b>
+&nbsp;    }
+&nbsp;  }
+&nbsp;
+&nbsp;  public void transformPoints(float[] xValues, float[] yValues) {
+<b class="nc">&nbsp;    int n = xValues.length;</b>
+<b class="nc">&nbsp;    for (int i = 0; i &lt; n; i++) {</b>
+<b class="nc">&nbsp;      float x = xValues[i];</b>
+<b class="nc">&nbsp;      float y = yValues[i];</b>
+<b class="nc">&nbsp;      float denominator = a13 * x + a23 * y + a33;</b>
+<b class="nc">&nbsp;      xValues[i] = (a11 * x + a21 * y + a31) / denominator;</b>
+<b class="nc">&nbsp;      yValues[i] = (a12 * x + a22 * y + a32) / denominator;</b>
+&nbsp;    }
+&nbsp;  }
+&nbsp;
+&nbsp;  public static PerspectiveTransform squareToQuadrilateral(float x0, float y0,
+&nbsp;                                                           float x1, float y1,
+&nbsp;                                                           float x2, float y2,
+&nbsp;                                                           float x3, float y3) {
+<b class="fc">&nbsp;    float dx3 = x0 - x1 + x2 - x3;</b>
+<b class="fc">&nbsp;    float dy3 = y0 - y1 + y2 - y3;</b>
+<b class="fc">&nbsp;    if (dx3 == 0.0f &amp;&amp; dy3 == 0.0f) {</b>
+&nbsp;      // Affine
+<b class="fc">&nbsp;      return new PerspectiveTransform(x1 - x0, x2 - x1, x0,</b>
+&nbsp;                                      y1 - y0, y2 - y1, y0,
+&nbsp;                                      0.0f,    0.0f,    1.0f);
+&nbsp;    } else {
+<b class="fc">&nbsp;      float dx1 = x1 - x2;</b>
+<b class="fc">&nbsp;      float dx2 = x3 - x2;</b>
+<b class="fc">&nbsp;      float dy1 = y1 - y2;</b>
+<b class="fc">&nbsp;      float dy2 = y3 - y2;</b>
+<b class="fc">&nbsp;      float denominator = dx1 * dy2 - dx2 * dy1;</b>
+<b class="fc">&nbsp;      float a13 = (dx3 * dy2 - dx2 * dy3) / denominator;</b>
+<b class="fc">&nbsp;      float a23 = (dx1 * dy3 - dx3 * dy1) / denominator;</b>
+<b class="fc">&nbsp;      return new PerspectiveTransform(x1 - x0 + a13 * x1, x3 - x0 + a23 * x3, x0,</b>
+&nbsp;                                      y1 - y0 + a13 * y1, y3 - y0 + a23 * y3, y0,
+&nbsp;                                      a13,                a23,                1.0f);
+&nbsp;    }
+&nbsp;  }
+&nbsp;
+&nbsp;  public static PerspectiveTransform quadrilateralToSquare(float x0, float y0,
+&nbsp;                                                           float x1, float y1,
+&nbsp;                                                           float x2, float y2,
+&nbsp;                                                           float x3, float y3) {
+&nbsp;    // Here, the adjoint serves as the inverse:
+<b class="fc">&nbsp;    return squareToQuadrilateral(x0, y0, x1, y1, x2, y2, x3, y3).buildAdjoint();</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  PerspectiveTransform buildAdjoint() {
+&nbsp;    // Adjoint is the transpose of the cofactor matrix:
+<b class="fc">&nbsp;    return new PerspectiveTransform(a22 * a33 - a23 * a32,</b>
+&nbsp;        a23 * a31 - a21 * a33,
+&nbsp;        a21 * a32 - a22 * a31,
+&nbsp;        a13 * a32 - a12 * a33,
+&nbsp;        a11 * a33 - a13 * a31,
+&nbsp;        a12 * a31 - a11 * a32,
+&nbsp;        a12 * a23 - a13 * a22,
+&nbsp;        a13 * a21 - a11 * a23,
+&nbsp;        a11 * a22 - a12 * a21);
+&nbsp;  }
+&nbsp;
+&nbsp;  PerspectiveTransform times(PerspectiveTransform other) {
+<b class="fc">&nbsp;    return new PerspectiveTransform(a11 * other.a11 + a21 * other.a12 + a31 * other.a13,</b>
+&nbsp;        a11 * other.a21 + a21 * other.a22 + a31 * other.a23,
+&nbsp;        a11 * other.a31 + a21 * other.a32 + a31 * other.a33,
+&nbsp;        a12 * other.a11 + a22 * other.a12 + a32 * other.a13,
+&nbsp;        a12 * other.a21 + a22 * other.a22 + a32 * other.a23,
+&nbsp;        a12 * other.a31 + a22 * other.a32 + a32 * other.a33,
+&nbsp;        a13 * other.a11 + a23 * other.a12 + a33 * other.a13,
+&nbsp;        a13 * other.a21 + a23 * other.a22 + a33 * other.a23,
+&nbsp;        a13 * other.a31 + a23 * other.a32 + a33 * other.a33);
+&nbsp;
+&nbsp;  }
+&nbsp;
+&nbsp;}
+</code>
+</pre>
+</div>
+
+<script type="text/javascript">
+(function() {
+    var msie = false, msie9 = false;
+    /*@cc_on
+      msie = true;
+      @if (@_jscript_version >= 9)
+        msie9 = true;
+      @end
+    @*/
+
+    if (!msie || msie && msie9) {
+      hljs.highlightAll()
+      hljs.initLineNumbersOnLoad();
+    }
+})();
+</script>
+
+<div class="footer">
+    
+    <div style="float:right;">generated on 2023-11-12 23:26</div>
+</div>
+</body>
+</html>

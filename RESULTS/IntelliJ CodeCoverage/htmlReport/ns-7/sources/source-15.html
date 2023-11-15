@@ -1,0 +1,365 @@
+
+
+
+<!DOCTYPE html>
+<html id="htmlId">
+<head>
+  <meta http-equiv="Content-Type" content="text/html;charset=windows-1252"> 
+  <title>Coverage Report > ResultParser</title>
+  <style type="text/css">
+    @import "../../css/coverage.css";
+    @import "../../css/idea.min.css";
+  </style>
+  <script type="text/javascript" src="../../js/highlight.min.js"></script>
+  <script type="text/javascript" src="../../js/highlightjs-line-numbers.min.js"></script>
+</head>
+
+<body>
+<div class="content">
+<div class="breadCrumbs">
+Current scope:     <a href="../../index.html">all classes</a>
+    <span class="separator">|</span>
+    <a href="../index.html">com.google.zxing.client.result</a>
+</div>
+
+<h1>Coverage Summary for Class: ResultParser (com.google.zxing.client.result)</h1>
+
+<table class="coverageStats">
+<tr>
+  <th class="name">Class</th>
+<th class="coverageStat 
+">
+  Class, %
+</th>
+<th class="coverageStat 
+">
+  Method, %
+</th>
+<th class="coverageStat 
+">
+  Line, %
+</th>
+</tr>
+<tr>
+  <td class="name">ResultParser</td>
+<td class="coverageStat">
+  <span class="percent">
+    100%
+  </span>
+  <span class="absValue">
+    (1/1)
+  </span>
+</td>
+<td class="coverageStat">
+  <span class="percent">
+    88.2%
+  </span>
+  <span class="absValue">
+    (15/17)
+  </span>
+</td>
+<td class="coverageStat">
+  <span class="percent">
+    85.7%
+  </span>
+  <span class="absValue">
+    (90/105)
+  </span>
+</td>
+</tr>
+
+</table>
+
+<br/>
+<br/>
+
+
+<pre>
+<code class="sourceCode" id="sourceCode">&nbsp;/*
+&nbsp; * Copyright 2007 ZXing authors
+&nbsp; *
+&nbsp; * Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
+&nbsp; * you may not use this file except in compliance with the License.
+&nbsp; * You may obtain a copy of the License at
+&nbsp; *
+&nbsp; *      http://www.apache.org/licenses/LICENSE-2.0
+&nbsp; *
+&nbsp; * Unless required by applicable law or agreed to in writing, software
+&nbsp; * distributed under the License is distributed on an &quot;AS IS&quot; BASIS,
+&nbsp; * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+&nbsp; * See the License for the specific language governing permissions and
+&nbsp; * limitations under the License.
+&nbsp; */
+&nbsp;
+&nbsp;package com.google.zxing.client.result;
+&nbsp;
+&nbsp;import com.google.zxing.Result;
+&nbsp;
+&nbsp;import java.io.UnsupportedEncodingException;
+&nbsp;import java.net.URLDecoder;
+&nbsp;import java.util.ArrayList;
+&nbsp;import java.util.HashMap;
+&nbsp;import java.util.List;
+&nbsp;import java.util.Map;
+&nbsp;import java.util.regex.Pattern;
+&nbsp;
+&nbsp;/**
+&nbsp; * &lt;p&gt;Abstract class representing the result of decoding a barcode, as more than
+&nbsp; * a String -- as some type of structured data. This might be a subclass which represents
+&nbsp; * a URL, or an e-mail address. {@link #parseResult(Result)} will turn a raw
+&nbsp; * decoded string into the most appropriate type of structured representation.&lt;/p&gt;
+&nbsp; *
+&nbsp; * &lt;p&gt;Thanks to Jeff Griffin for proposing rewrite of these classes that relies less
+&nbsp; * on exception-based mechanisms during parsing.&lt;/p&gt;
+&nbsp; *
+&nbsp; * @author Sean Owen
+&nbsp; */
+<b class="fc">&nbsp;public abstract class ResultParser {</b>
+&nbsp;
+<b class="fc">&nbsp;  private static final ResultParser[] PARSERS = {</b>
+&nbsp;      new BookmarkDoCoMoResultParser(),
+&nbsp;      new AddressBookDoCoMoResultParser(),
+&nbsp;      new EmailDoCoMoResultParser(),
+&nbsp;      new AddressBookAUResultParser(),
+&nbsp;      new VCardResultParser(),
+&nbsp;      new BizcardResultParser(),
+&nbsp;      new VEventResultParser(),
+&nbsp;      new EmailAddressResultParser(),
+&nbsp;      new SMTPResultParser(),
+&nbsp;      new TelResultParser(),
+&nbsp;      new SMSMMSResultParser(),
+&nbsp;      new SMSTOMMSTOResultParser(),
+&nbsp;      new GeoResultParser(),
+&nbsp;      new WifiResultParser(),
+&nbsp;      new URLTOResultParser(),
+&nbsp;      new URIResultParser(),
+&nbsp;      new ISBNResultParser(),
+&nbsp;      new ProductResultParser(),
+&nbsp;      new ExpandedProductResultParser(),
+&nbsp;      new VINResultParser(),
+&nbsp;  };
+&nbsp;
+<b class="fc">&nbsp;  private static final Pattern DIGITS = Pattern.compile(&quot;\\d+&quot;);</b>
+<b class="fc">&nbsp;  private static final Pattern AMPERSAND = Pattern.compile(&quot;&amp;&quot;);</b>
+<b class="fc">&nbsp;  private static final Pattern EQUALS = Pattern.compile(&quot;=&quot;);</b>
+&nbsp;  private static final String BYTE_ORDER_MARK = &quot;\ufeff&quot;;
+&nbsp;
+<b class="fc">&nbsp;  static final String[] EMPTY_STR_ARRAY = new String[0];</b>
+&nbsp;
+&nbsp;  /**
+&nbsp;   * Attempts to parse the raw {@link Result}&#39;s contents as a particular type
+&nbsp;   * of information (email, URL, etc.) and return a {@link ParsedResult} encapsulating
+&nbsp;   * the result of parsing.
+&nbsp;   *
+&nbsp;   * @param theResult the raw {@link Result} to parse
+&nbsp;   * @return {@link ParsedResult} encapsulating the parsing result
+&nbsp;   */
+&nbsp;  public abstract ParsedResult parse(Result theResult);
+&nbsp;
+&nbsp;  protected static String getMassagedText(Result result) {
+<b class="fc">&nbsp;    String text = result.getText();</b>
+<b class="fc">&nbsp;    if (text.startsWith(BYTE_ORDER_MARK)) {</b>
+<b class="nc">&nbsp;      text = text.substring(1);</b>
+&nbsp;    }
+<b class="fc">&nbsp;    return text;</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  public static ParsedResult parseResult(Result theResult) {
+<b class="fc">&nbsp;    for (ResultParser parser : PARSERS) {</b>
+<b class="fc">&nbsp;      ParsedResult result = parser.parse(theResult);</b>
+<b class="fc">&nbsp;      if (result != null) {</b>
+<b class="fc">&nbsp;        return result;</b>
+&nbsp;      }
+&nbsp;    }
+<b class="fc">&nbsp;    return new TextParsedResult(theResult.getText(), null);</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  protected static void maybeAppend(String value, StringBuilder result) {
+<b class="nc">&nbsp;    if (value != null) {</b>
+<b class="nc">&nbsp;      result.append(&#39;\n&#39;);</b>
+<b class="nc">&nbsp;      result.append(value);</b>
+&nbsp;    }
+&nbsp;  }
+&nbsp;
+&nbsp;  protected static void maybeAppend(String[] value, StringBuilder result) {
+<b class="nc">&nbsp;    if (value != null) {</b>
+<b class="nc">&nbsp;      for (String s : value) {</b>
+<b class="nc">&nbsp;        result.append(&#39;\n&#39;);</b>
+<b class="nc">&nbsp;        result.append(s);</b>
+&nbsp;      }
+&nbsp;    }
+&nbsp;  }
+&nbsp;
+&nbsp;  protected static String[] maybeWrap(String value) {
+<b class="fc">&nbsp;    return value == null ? null : new String[] { value };</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  protected static String unescapeBackslash(String escaped) {
+<b class="fc">&nbsp;    int backslash = escaped.indexOf(&#39;\\&#39;);</b>
+<b class="fc">&nbsp;    if (backslash &lt; 0) {</b>
+<b class="fc">&nbsp;      return escaped;</b>
+&nbsp;    }
+<b class="fc">&nbsp;    int max = escaped.length();</b>
+<b class="fc">&nbsp;    StringBuilder unescaped = new StringBuilder(max - 1);</b>
+<b class="fc">&nbsp;    unescaped.append(escaped.toCharArray(), 0, backslash);</b>
+<b class="fc">&nbsp;    boolean nextIsEscaped = false;</b>
+<b class="fc">&nbsp;    for (int i = backslash; i &lt; max; i++) {</b>
+<b class="fc">&nbsp;      char c = escaped.charAt(i);</b>
+<b class="fc">&nbsp;      if (nextIsEscaped || c != &#39;\\&#39;) {</b>
+<b class="fc">&nbsp;        unescaped.append(c);</b>
+<b class="fc">&nbsp;        nextIsEscaped = false;</b>
+&nbsp;      } else {
+<b class="fc">&nbsp;        nextIsEscaped = true;</b>
+&nbsp;      }
+&nbsp;    }
+<b class="fc">&nbsp;    return unescaped.toString();</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  protected static int parseHexDigit(char c) {
+<b class="fc">&nbsp;    if (c &gt;= &#39;0&#39; &amp;&amp; c &lt;= &#39;9&#39;) {</b>
+<b class="fc">&nbsp;      return c - &#39;0&#39;;</b>
+&nbsp;    }
+<b class="fc">&nbsp;    if (c &gt;= &#39;a&#39; &amp;&amp; c &lt;= &#39;f&#39;) {</b>
+<b class="nc">&nbsp;      return 10 + (c - &#39;a&#39;);</b>
+&nbsp;    }
+<b class="fc">&nbsp;    if (c &gt;= &#39;A&#39; &amp;&amp; c &lt;= &#39;F&#39;) {</b>
+<b class="fc">&nbsp;      return 10 + (c - &#39;A&#39;);</b>
+&nbsp;    }
+<b class="nc">&nbsp;    return -1;</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  protected static boolean isStringOfDigits(CharSequence value, int length) {
+<b class="fc">&nbsp;    return value != null &amp;&amp; length &gt; 0 &amp;&amp; length == value.length() &amp;&amp; DIGITS.matcher(value).matches();</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  protected static boolean isSubstringOfDigits(CharSequence value, int offset, int length) {
+<b class="fc">&nbsp;    if (value == null || length &lt;= 0) {</b>
+<b class="fc">&nbsp;      return false;</b>
+&nbsp;    }
+<b class="fc">&nbsp;    int max = offset + length;</b>
+<b class="fc">&nbsp;    return value.length() &gt;= max &amp;&amp; DIGITS.matcher(value.subSequence(offset, max)).matches();</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  static Map&lt;String,String&gt; parseNameValuePairs(String uri) {
+<b class="fc">&nbsp;    int paramStart = uri.indexOf(&#39;?&#39;);</b>
+<b class="fc">&nbsp;    if (paramStart &lt; 0) {</b>
+<b class="fc">&nbsp;      return null;</b>
+&nbsp;    }
+<b class="fc">&nbsp;    Map&lt;String,String&gt; result = new HashMap&lt;&gt;(3);</b>
+<b class="fc">&nbsp;    for (String keyValue : AMPERSAND.split(uri.substring(paramStart + 1))) {</b>
+<b class="fc">&nbsp;      appendKeyValue(keyValue, result);</b>
+&nbsp;    }
+<b class="fc">&nbsp;    return result;</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  private static void appendKeyValue(CharSequence keyValue, Map&lt;String,String&gt; result) {
+<b class="fc">&nbsp;    String[] keyValueTokens = EQUALS.split(keyValue, 2);</b>
+<b class="fc">&nbsp;    if (keyValueTokens.length == 2) {</b>
+<b class="fc">&nbsp;      String key = keyValueTokens[0];</b>
+<b class="fc">&nbsp;      String value = keyValueTokens[1];</b>
+&nbsp;      try {
+<b class="fc">&nbsp;        value = urlDecode(value);</b>
+<b class="fc">&nbsp;        result.put(key, value);</b>
+<b class="nc">&nbsp;      } catch (IllegalArgumentException iae) {</b>
+&nbsp;        // continue; invalid data such as an escape like %0t
+<b class="fc">&nbsp;      }</b>
+&nbsp;    }
+&nbsp;  }
+&nbsp;
+&nbsp;  static String urlDecode(String encoded) {
+&nbsp;    try {
+<b class="fc">&nbsp;      return URLDecoder.decode(encoded, &quot;UTF-8&quot;);</b>
+<b class="nc">&nbsp;    } catch (UnsupportedEncodingException uee) {</b>
+<b class="nc">&nbsp;      throw new IllegalStateException(uee); // can&#39;t happen</b>
+&nbsp;    }
+&nbsp;  }
+&nbsp;
+&nbsp;  static String[] matchPrefixedField(String prefix, String rawText, char endChar, boolean trim) {
+<b class="fc">&nbsp;    List&lt;String&gt; matches = null;</b>
+<b class="fc">&nbsp;    int i = 0;</b>
+<b class="fc">&nbsp;    int max = rawText.length();</b>
+<b class="fc">&nbsp;    while (i &lt; max) {</b>
+<b class="fc">&nbsp;      i = rawText.indexOf(prefix, i);</b>
+<b class="fc">&nbsp;      if (i &lt; 0) {</b>
+<b class="fc">&nbsp;        break;</b>
+&nbsp;      }
+<b class="fc">&nbsp;      i += prefix.length(); // Skip past this prefix we found to start</b>
+<b class="fc">&nbsp;      int start = i; // Found the start of a match here</b>
+<b class="fc">&nbsp;      boolean more = true;</b>
+<b class="fc">&nbsp;      while (more) {</b>
+<b class="fc">&nbsp;        i = rawText.indexOf(endChar, i);</b>
+<b class="fc">&nbsp;        if (i &lt; 0) {</b>
+&nbsp;          // No terminating end character? uh, done. Set i such that loop terminates and break
+<b class="nc">&nbsp;          i = rawText.length();</b>
+<b class="nc">&nbsp;          more = false;</b>
+<b class="fc">&nbsp;        } else if (countPrecedingBackslashes(rawText, i) % 2 != 0) {</b>
+&nbsp;          // semicolon was escaped (odd count of preceding backslashes) so continue
+<b class="fc">&nbsp;          i++;</b>
+&nbsp;        } else {
+&nbsp;          // found a match
+<b class="fc">&nbsp;          if (matches == null) {</b>
+<b class="fc">&nbsp;            matches = new ArrayList&lt;&gt;(3); // lazy init</b>
+&nbsp;          }
+<b class="fc">&nbsp;          String element = unescapeBackslash(rawText.substring(start, i));</b>
+<b class="fc">&nbsp;          if (trim) {</b>
+<b class="fc">&nbsp;            element = element.trim();</b>
+&nbsp;          }
+<b class="fc">&nbsp;          if (!element.isEmpty()) {</b>
+<b class="fc">&nbsp;            matches.add(element);</b>
+&nbsp;          }
+<b class="fc">&nbsp;          i++;</b>
+<b class="fc">&nbsp;          more = false;</b>
+<b class="fc">&nbsp;        }</b>
+&nbsp;      }
+<b class="fc">&nbsp;    }</b>
+<b class="fc">&nbsp;    if (matches == null || matches.isEmpty()) {</b>
+<b class="fc">&nbsp;      return null;</b>
+&nbsp;    }
+<b class="fc">&nbsp;    return matches.toArray(EMPTY_STR_ARRAY);</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  private static int countPrecedingBackslashes(CharSequence s, int pos) {
+<b class="fc">&nbsp;    int count = 0;</b>
+<b class="fc">&nbsp;    for (int i = pos - 1; i &gt;= 0; i--) {</b>
+<b class="fc">&nbsp;      if (s.charAt(i) == &#39;\\&#39;) {</b>
+<b class="fc">&nbsp;        count++;</b>
+&nbsp;      } else {
+&nbsp;        break;
+&nbsp;      }
+&nbsp;    }
+<b class="fc">&nbsp;    return count;</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  static String matchSinglePrefixedField(String prefix, String rawText, char endChar, boolean trim) {
+<b class="fc">&nbsp;    String[] matches = matchPrefixedField(prefix, rawText, endChar, trim);</b>
+<b class="fc">&nbsp;    return matches == null ? null : matches[0];</b>
+&nbsp;  }
+&nbsp;
+&nbsp;}
+</code>
+</pre>
+</div>
+
+<script type="text/javascript">
+(function() {
+    var msie = false, msie9 = false;
+    /*@cc_on
+      msie = true;
+      @if (@_jscript_version >= 9)
+        msie9 = true;
+      @end
+    @*/
+
+    if (!msie || msie && msie9) {
+      hljs.highlightAll()
+      hljs.initLineNumbersOnLoad();
+    }
+})();
+</script>
+
+<div class="footer">
+    
+    <div style="float:right;">generated on 2023-11-12 23:26</div>
+</div>
+</body>
+</html>

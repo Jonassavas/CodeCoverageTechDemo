@@ -1,0 +1,200 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>ECIEncoderSet.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">ZXing Core</a> &gt; <a href="index.source.html" class="el_package">com.google.zxing.common</a> &gt; <span class="el_source">ECIEncoderSet.java</span></div><h1>ECIEncoderSet.java</h1><pre class="source lang-java linenums">/*
+ * Copyright 2021 ZXing authors
+ *
+ * Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an &quot;AS IS&quot; BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+package com.google.zxing.common;
+
+import java.nio.charset.Charset;
+import java.nio.charset.CharsetEncoder;
+import java.nio.charset.StandardCharsets;
+import java.nio.charset.UnsupportedCharsetException;
+import java.util.ArrayList;
+import java.util.List;
+
+/**
+ * Set of CharsetEncoders for a given input string
+ *
+ * Invariants:
+ * - The list contains only encoders from CharacterSetECI (list is shorter then the list of encoders available on
+ *   the platform for which ECI values are defined).
+ * - The list contains encoders at least one encoder for every character in the input.
+ * - The first encoder in the list is always the ISO-8859-1 encoder even of no character in the input can be encoded
+ *       by it.
+ * - If the input contains a character that is not in ISO-8859-1 then the last two entries in the list will be the
+ *   UTF-8 encoder and the UTF-16BE encoder.
+ *
+ * @author Alex Geller
+ */
+public final class ECIEncoderSet {
+
+  // List of encoders that potentially encode characters not in ISO-8859-1 in one byte.
+<span class="fc" id="L43">  private static final List&lt;CharsetEncoder&gt; ENCODERS = new ArrayList&lt;&gt;();</span>
+  static {
+<span class="fc" id="L45">    String[] names = { &quot;IBM437&quot;,</span>
+                       &quot;ISO-8859-2&quot;,
+                       &quot;ISO-8859-3&quot;,
+                       &quot;ISO-8859-4&quot;,
+                       &quot;ISO-8859-5&quot;,
+                       &quot;ISO-8859-6&quot;,
+                       &quot;ISO-8859-7&quot;,
+                       &quot;ISO-8859-8&quot;,
+                       &quot;ISO-8859-9&quot;,
+                       &quot;ISO-8859-10&quot;,
+                       &quot;ISO-8859-11&quot;,
+                       &quot;ISO-8859-13&quot;,
+                       &quot;ISO-8859-14&quot;,
+                       &quot;ISO-8859-15&quot;,
+                       &quot;ISO-8859-16&quot;,
+                       &quot;windows-1250&quot;,
+                       &quot;windows-1251&quot;,
+                       &quot;windows-1252&quot;,
+                       &quot;windows-1256&quot;,
+                       &quot;Shift_JIS&quot; };
+<span class="fc bfc" id="L65" title="All 2 branches covered.">    for (String name : names) {</span>
+<span class="fc bfc" id="L66" title="All 2 branches covered.">      if (CharacterSetECI.getCharacterSetECIByName(name) != null) {</span>
+        try {
+<span class="fc" id="L68">          ENCODERS.add(Charset.forName(name).newEncoder());</span>
+<span class="nc" id="L69">        } catch (UnsupportedCharsetException e) {</span>
+          // continue
+<span class="fc" id="L71">        }</span>
+      }
+    }
+<span class="fc" id="L74">  }</span>
+
+  private final CharsetEncoder[] encoders;
+  private final int priorityEncoderIndex;
+
+  /**
+   * Constructs an encoder set
+   *
+   * @param stringToEncode the string that needs to be encoded
+   * @param priorityCharset The preferred {@link Charset} or null.
+   * @param fnc1 fnc1 denotes the character in the input that represents the FNC1 character or -1 for a non-GS1 bar
+   * code. When specified, it is considered an error to pass it as argument to the methods canEncode() or encode().
+   */
+<span class="fc" id="L87">  public ECIEncoderSet(String stringToEncode, Charset priorityCharset, int fnc1) {</span>
+<span class="fc" id="L88">    List&lt;CharsetEncoder&gt; neededEncoders = new ArrayList&lt;&gt;();</span>
+
+    //we always need the ISO-8859-1 encoder. It is the default encoding
+<span class="fc" id="L91">    neededEncoders.add(StandardCharsets.ISO_8859_1.newEncoder());</span>
+<span class="pc bpc" id="L92" title="1 of 4 branches missed.">    boolean needUnicodeEncoder = priorityCharset != null &amp;&amp; priorityCharset.name().startsWith(&quot;UTF&quot;);</span>
+
+    //Walk over the input string and see if all characters can be encoded with the list of encoders 
+<span class="fc bfc" id="L95" title="All 2 branches covered.">    for (int i = 0; i &lt; stringToEncode.length(); i++) {</span>
+<span class="fc" id="L96">      boolean canEncode = false;</span>
+<span class="fc bfc" id="L97" title="All 2 branches covered.">      for (CharsetEncoder encoder : neededEncoders) {</span>
+<span class="fc" id="L98">        char c = stringToEncode.charAt(i);</span>
+<span class="pc bpc" id="L99" title="1 of 4 branches missed.">        if (c == fnc1 || encoder.canEncode(c)) {</span>
+<span class="fc" id="L100">          canEncode = true;</span>
+<span class="fc" id="L101">          break;</span>
+        }
+<span class="fc" id="L103">      }</span>
+
+<span class="fc bfc" id="L105" title="All 2 branches covered.">      if (!canEncode) {</span>
+        //for the character at position i we don't yet have an encoder in the list
+<span class="fc bfc" id="L107" title="All 2 branches covered.">        for (CharsetEncoder encoder : ENCODERS) {</span>
+<span class="fc bfc" id="L108" title="All 2 branches covered.">          if (encoder.canEncode(stringToEncode.charAt(i))) {</span>
+            //Good, we found an encoder that can encode the character. We add him to the list and continue scanning
+            //the input
+<span class="fc" id="L111">            neededEncoders.add(encoder);</span>
+<span class="fc" id="L112">            canEncode = true;</span>
+<span class="fc" id="L113">            break;</span>
+          }
+<span class="fc" id="L115">        }</span>
+      }
+
+<span class="fc bfc" id="L118" title="All 2 branches covered.">      if (!canEncode) {</span>
+        //The character is not encodeable by any of the single byte encoders so we remember that we will need a
+        //Unicode encoder.
+<span class="fc" id="L121">        needUnicodeEncoder = true;</span>
+      }
+    }
+  
+<span class="fc bfc" id="L125" title="All 4 branches covered.">    if (neededEncoders.size() == 1 &amp;&amp; !needUnicodeEncoder) {</span>
+      //the entire input can be encoded by the ISO-8859-1 encoder
+<span class="fc" id="L127">      encoders = new CharsetEncoder[] { neededEncoders.get(0) };</span>
+    } else {
+      // we need more than one single byte encoder or we need a Unicode encoder.
+      // In this case we append a UTF-8 and UTF-16 encoder to the list
+<span class="fc" id="L131">      encoders = new CharsetEncoder[neededEncoders.size() + 2];</span>
+<span class="fc" id="L132">      int index = 0;</span>
+<span class="fc bfc" id="L133" title="All 2 branches covered.">      for (CharsetEncoder encoder : neededEncoders) {</span>
+<span class="fc" id="L134">        encoders[index++] = encoder;</span>
+<span class="fc" id="L135">      }</span>
+
+<span class="fc" id="L137">      encoders[index] = StandardCharsets.UTF_8.newEncoder();</span>
+<span class="fc" id="L138">      encoders[index + 1] = StandardCharsets.UTF_16BE.newEncoder();</span>
+    }
+  
+    //Compute priorityEncoderIndex by looking up priorityCharset in encoders
+<span class="fc" id="L142">    int priorityEncoderIndexValue = -1;</span>
+<span class="fc bfc" id="L143" title="All 2 branches covered.">    if (priorityCharset != null) {</span>
+<span class="pc bpc" id="L144" title="1 of 2 branches missed.">      for (int i = 0; i &lt; encoders.length; i++) {</span>
+<span class="pc bpc" id="L145" title="1 of 4 branches missed.">        if (encoders[i] != null &amp;&amp; priorityCharset.name().equals(encoders[i].charset().name())) {</span>
+<span class="fc" id="L146">          priorityEncoderIndexValue = i;</span>
+<span class="fc" id="L147">          break;</span>
+        }
+      }
+    }
+<span class="fc" id="L151">    priorityEncoderIndex = priorityEncoderIndexValue;</span>
+    //invariants
+<span class="pc bpc" id="L153" title="1 of 2 branches missed.">    assert encoders[0].charset().equals(StandardCharsets.ISO_8859_1);</span>
+<span class="fc" id="L154">  }</span>
+
+  public int length() {
+<span class="fc" id="L157">    return encoders.length;</span>
+  }
+
+  public String getCharsetName(int index) {
+<span class="nc bnc" id="L161" title="All 2 branches missed.">    assert index &lt; length();</span>
+<span class="nc" id="L162">    return encoders[index].charset().name();</span>
+  }
+
+  public Charset getCharset(int index) {
+<span class="pc bpc" id="L166" title="1 of 2 branches missed.">    assert index &lt; length();</span>
+<span class="fc" id="L167">    return encoders[index].charset();</span>
+  }
+
+  public int getECIValue(int encoderIndex) {
+<span class="fc" id="L171">    return CharacterSetECI.getCharacterSetECI(encoders[encoderIndex].charset()).getValue();</span>
+  }
+
+  /*
+   *  returns -1 if no priority charset was defined
+   */
+  public int getPriorityEncoderIndex() {
+<span class="fc" id="L178">    return priorityEncoderIndex;</span>
+  }
+
+  public boolean canEncode(char c, int encoderIndex) {
+<span class="pc bpc" id="L182" title="1 of 2 branches missed.">    assert encoderIndex &lt; length();</span>
+<span class="fc" id="L183">    CharsetEncoder encoder = encoders[encoderIndex];</span>
+<span class="fc" id="L184">    return encoder.canEncode(&quot;&quot; + c);</span>
+  }
+
+  public byte[] encode(char c, int encoderIndex) {
+<span class="pc bpc" id="L188" title="1 of 2 branches missed.">    assert encoderIndex &lt; length();</span>
+<span class="fc" id="L189">    CharsetEncoder encoder = encoders[encoderIndex];</span>
+<span class="pc bpc" id="L190" title="1 of 2 branches missed.">    assert encoder.canEncode(&quot;&quot; + c);</span>
+<span class="fc" id="L191">    return (&quot;&quot; + c).getBytes(encoder.charset());</span>
+  }
+
+  public byte[] encode(String s, int encoderIndex) {
+<span class="pc bpc" id="L195" title="1 of 2 branches missed.">    assert encoderIndex &lt; length();</span>
+<span class="fc" id="L196">    CharsetEncoder encoder = encoders[encoderIndex];</span>
+<span class="fc" id="L197">    return s.getBytes(encoder.charset());</span>
+  }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.11.202310140853</span></div></body></html>

@@ -1,0 +1,310 @@
+
+
+
+<!DOCTYPE html>
+<html id="htmlId">
+<head>
+  <meta http-equiv="Content-Type" content="text/html;charset=windows-1252"> 
+  <title>Coverage Report > ReedSolomonDecoder</title>
+  <style type="text/css">
+    @import "../../css/coverage.css";
+    @import "../../css/idea.min.css";
+  </style>
+  <script type="text/javascript" src="../../js/highlight.min.js"></script>
+  <script type="text/javascript" src="../../js/highlightjs-line-numbers.min.js"></script>
+</head>
+
+<body>
+<div class="content">
+<div class="breadCrumbs">
+Current scope:     <a href="../../index.html">all classes</a>
+    <span class="separator">|</span>
+    <a href="../index.html">com.google.zxing.common.reedsolomon</a>
+</div>
+
+<h1>Coverage Summary for Class: ReedSolomonDecoder (com.google.zxing.common.reedsolomon)</h1>
+
+<table class="coverageStats">
+<tr>
+  <th class="name">Class</th>
+<th class="coverageStat 
+">
+  Class, %
+</th>
+<th class="coverageStat 
+">
+  Method, %
+</th>
+<th class="coverageStat 
+">
+  Line, %
+</th>
+</tr>
+<tr>
+  <td class="name">ReedSolomonDecoder</td>
+<td class="coverageStat">
+  <span class="percent">
+    100%
+  </span>
+  <span class="absValue">
+    (1/1)
+  </span>
+</td>
+<td class="coverageStat">
+  <span class="percent">
+    100%
+  </span>
+  <span class="absValue">
+    (6/6)
+  </span>
+</td>
+<td class="coverageStat">
+  <span class="percent">
+    94.4%
+  </span>
+  <span class="absValue">
+    (84/89)
+  </span>
+</td>
+</tr>
+
+</table>
+
+<br/>
+<br/>
+
+
+<pre>
+<code class="sourceCode" id="sourceCode">&nbsp;/*
+&nbsp; * Copyright 2007 ZXing authors
+&nbsp; *
+&nbsp; * Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
+&nbsp; * you may not use this file except in compliance with the License.
+&nbsp; * You may obtain a copy of the License at
+&nbsp; *
+&nbsp; *      http://www.apache.org/licenses/LICENSE-2.0
+&nbsp; *
+&nbsp; * Unless required by applicable law or agreed to in writing, software
+&nbsp; * distributed under the License is distributed on an &quot;AS IS&quot; BASIS,
+&nbsp; * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+&nbsp; * See the License for the specific language governing permissions and
+&nbsp; * limitations under the License.
+&nbsp; */
+&nbsp;
+&nbsp;package com.google.zxing.common.reedsolomon;
+&nbsp;
+&nbsp;/**
+&nbsp; * &lt;p&gt;Implements Reed-Solomon decoding, as the name implies.&lt;/p&gt;
+&nbsp; *
+&nbsp; * &lt;p&gt;The algorithm will not be explained here, but the following references were helpful
+&nbsp; * in creating this implementation:&lt;/p&gt;
+&nbsp; *
+&nbsp; * &lt;ul&gt;
+&nbsp; * &lt;li&gt;Bruce Maggs.
+&nbsp; * &lt;a href=&quot;http://www.cs.cmu.edu/afs/cs.cmu.edu/project/pscico-guyb/realworld/www/rs_decode.ps&quot;&gt;
+&nbsp; * &quot;Decoding Reed-Solomon Codes&quot;&lt;/a&gt; (see discussion of Forney&#39;s Formula)&lt;/li&gt;
+&nbsp; * &lt;li&gt;J.I. Hall. &lt;a href=&quot;www.mth.msu.edu/~jhall/classes/codenotes/GRS.pdf&quot;&gt;
+&nbsp; * &quot;Chapter 5. Generalized Reed-Solomon Codes&quot;&lt;/a&gt;
+&nbsp; * (see discussion of Euclidean algorithm)&lt;/li&gt;
+&nbsp; * &lt;/ul&gt;
+&nbsp; *
+&nbsp; * &lt;p&gt;Much credit is due to William Rucklidge since portions of this code are an indirect
+&nbsp; * port of his C++ Reed-Solomon implementation.&lt;/p&gt;
+&nbsp; *
+&nbsp; * @author Sean Owen
+&nbsp; * @author William Rucklidge
+&nbsp; * @author sanfordsquires
+&nbsp; */
+&nbsp;public final class ReedSolomonDecoder {
+&nbsp;
+&nbsp;  private final GenericGF field;
+&nbsp;
+<b class="fc">&nbsp;  public ReedSolomonDecoder(GenericGF field) {</b>
+<b class="fc">&nbsp;    this.field = field;</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  /**
+&nbsp;   * &lt;p&gt;Decodes given set of received codewords, which include both data and error-correction
+&nbsp;   * codewords. Really, this means it uses Reed-Solomon to detect and correct errors, in-place,
+&nbsp;   * in the input.&lt;/p&gt;
+&nbsp;   *
+&nbsp;   * @param received data and error-correction codewords
+&nbsp;   * @param twoS number of error-correction codewords available
+&nbsp;   * @throws ReedSolomonException if decoding fails for any reason
+&nbsp;   */
+&nbsp;  public void decode(int[] received, int twoS) throws ReedSolomonException {
+<b class="fc">&nbsp;    decodeWithECCount(received, twoS);</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  /**
+&nbsp;   * &lt;p&gt;Decodes given set of received codewords, which include both data and error-correction
+&nbsp;   * codewords. Really, this means it uses Reed-Solomon to detect and correct errors, in-place,
+&nbsp;   * in the input.&lt;/p&gt;
+&nbsp;   *
+&nbsp;   * @param received data and error-correction codewords
+&nbsp;   * @param twoS number of error-correction codewords available
+&nbsp;   * @return the number of errors corrected
+&nbsp;   * @throws ReedSolomonException if decoding fails for any reason
+&nbsp;   */
+&nbsp;  public int decodeWithECCount(int[] received, int twoS) throws ReedSolomonException {
+<b class="fc">&nbsp;    GenericGFPoly poly = new GenericGFPoly(field, received);</b>
+<b class="fc">&nbsp;    int[] syndromeCoefficients = new int[twoS];</b>
+<b class="fc">&nbsp;    boolean noError = true;</b>
+<b class="fc">&nbsp;    for (int i = 0; i &lt; twoS; i++) {</b>
+<b class="fc">&nbsp;      int eval = poly.evaluateAt(field.exp(i + field.getGeneratorBase()));</b>
+<b class="fc">&nbsp;      syndromeCoefficients[syndromeCoefficients.length - 1 - i] = eval;</b>
+<b class="fc">&nbsp;      if (eval != 0) {</b>
+<b class="fc">&nbsp;        noError = false;</b>
+&nbsp;      }
+&nbsp;    }
+<b class="fc">&nbsp;    if (noError) {</b>
+<b class="fc">&nbsp;      return 0;</b>
+&nbsp;    }
+<b class="fc">&nbsp;    GenericGFPoly syndrome = new GenericGFPoly(field, syndromeCoefficients);</b>
+<b class="fc">&nbsp;    GenericGFPoly[] sigmaOmega =</b>
+<b class="fc">&nbsp;        runEuclideanAlgorithm(field.buildMonomial(twoS, 1), syndrome, twoS);</b>
+<b class="fc">&nbsp;    GenericGFPoly sigma = sigmaOmega[0];</b>
+<b class="fc">&nbsp;    GenericGFPoly omega = sigmaOmega[1];</b>
+<b class="fc">&nbsp;    int[] errorLocations = findErrorLocations(sigma);</b>
+<b class="fc">&nbsp;    int[] errorMagnitudes = findErrorMagnitudes(omega, errorLocations);</b>
+<b class="fc">&nbsp;    for (int i = 0; i &lt; errorLocations.length; i++) {</b>
+<b class="fc">&nbsp;      int position = received.length - 1 - field.log(errorLocations[i]);</b>
+<b class="fc">&nbsp;      if (position &lt; 0) {</b>
+<b class="fc">&nbsp;        throw new ReedSolomonException(&quot;Bad error location&quot;);</b>
+&nbsp;      }
+<b class="fc">&nbsp;      received[position] = GenericGF.addOrSubtract(received[position], errorMagnitudes[i]);</b>
+&nbsp;    }
+<b class="fc">&nbsp;    return errorLocations.length;</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  private GenericGFPoly[] runEuclideanAlgorithm(GenericGFPoly a, GenericGFPoly b, int R)
+&nbsp;      throws ReedSolomonException {
+&nbsp;    // Assume a&#39;s degree is &gt;= b&#39;s
+<b class="fc">&nbsp;    if (a.getDegree() &lt; b.getDegree()) {</b>
+<b class="nc">&nbsp;      GenericGFPoly temp = a;</b>
+<b class="nc">&nbsp;      a = b;</b>
+<b class="nc">&nbsp;      b = temp;</b>
+&nbsp;    }
+&nbsp;
+<b class="fc">&nbsp;    GenericGFPoly rLast = a;</b>
+<b class="fc">&nbsp;    GenericGFPoly r = b;</b>
+<b class="fc">&nbsp;    GenericGFPoly tLast = field.getZero();</b>
+<b class="fc">&nbsp;    GenericGFPoly t = field.getOne();</b>
+&nbsp;
+&nbsp;    // Run Euclidean algorithm until r&#39;s degree is less than R/2
+<b class="fc">&nbsp;    while (2 * r.getDegree() &gt;= R) {</b>
+<b class="fc">&nbsp;      GenericGFPoly rLastLast = rLast;</b>
+<b class="fc">&nbsp;      GenericGFPoly tLastLast = tLast;</b>
+<b class="fc">&nbsp;      rLast = r;</b>
+<b class="fc">&nbsp;      tLast = t;</b>
+&nbsp;
+&nbsp;      // Divide rLastLast by rLast, with quotient in q and remainder in r
+<b class="fc">&nbsp;      if (rLast.isZero()) {</b>
+&nbsp;        // Oops, Euclidean algorithm already terminated?
+<b class="nc">&nbsp;        throw new ReedSolomonException(&quot;r_{i-1} was zero&quot;);</b>
+&nbsp;      }
+<b class="fc">&nbsp;      r = rLastLast;</b>
+<b class="fc">&nbsp;      GenericGFPoly q = field.getZero();</b>
+<b class="fc">&nbsp;      int denominatorLeadingTerm = rLast.getCoefficient(rLast.getDegree());</b>
+<b class="fc">&nbsp;      int dltInverse = field.inverse(denominatorLeadingTerm);</b>
+<b class="fc">&nbsp;      while (r.getDegree() &gt;= rLast.getDegree() &amp;&amp; !r.isZero()) {</b>
+<b class="fc">&nbsp;        int degreeDiff = r.getDegree() - rLast.getDegree();</b>
+<b class="fc">&nbsp;        int scale = field.multiply(r.getCoefficient(r.getDegree()), dltInverse);</b>
+<b class="fc">&nbsp;        q = q.addOrSubtract(field.buildMonomial(degreeDiff, scale));</b>
+<b class="fc">&nbsp;        r = r.addOrSubtract(rLast.multiplyByMonomial(degreeDiff, scale));</b>
+<b class="fc">&nbsp;      }</b>
+&nbsp;
+<b class="fc">&nbsp;      t = q.multiply(tLast).addOrSubtract(tLastLast);</b>
+&nbsp;
+<b class="fc">&nbsp;      if (r.getDegree() &gt;= rLast.getDegree()) {</b>
+<b class="nc">&nbsp;        throw new IllegalStateException(&quot;Division algorithm failed to reduce polynomial? &quot; +</b>
+&nbsp;          &quot;r: &quot; + r + &quot;, rLast: &quot; + rLast);
+&nbsp;      }
+<b class="fc">&nbsp;    }</b>
+&nbsp;
+<b class="fc">&nbsp;    int sigmaTildeAtZero = t.getCoefficient(0);</b>
+<b class="fc">&nbsp;    if (sigmaTildeAtZero == 0) {</b>
+<b class="fc">&nbsp;      throw new ReedSolomonException(&quot;sigmaTilde(0) was zero&quot;);</b>
+&nbsp;    }
+&nbsp;
+<b class="fc">&nbsp;    int inverse = field.inverse(sigmaTildeAtZero);</b>
+<b class="fc">&nbsp;    GenericGFPoly sigma = t.multiply(inverse);</b>
+<b class="fc">&nbsp;    GenericGFPoly omega = r.multiply(inverse);</b>
+<b class="fc">&nbsp;    return new GenericGFPoly[]{sigma, omega};</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  private int[] findErrorLocations(GenericGFPoly errorLocator) throws ReedSolomonException {
+&nbsp;    // This is a direct application of Chien&#39;s search
+<b class="fc">&nbsp;    int numErrors = errorLocator.getDegree();</b>
+<b class="fc">&nbsp;    if (numErrors == 1) { // shortcut</b>
+<b class="fc">&nbsp;      return new int[] { errorLocator.getCoefficient(1) };</b>
+&nbsp;    }
+<b class="fc">&nbsp;    int[] result = new int[numErrors];</b>
+<b class="fc">&nbsp;    int e = 0;</b>
+<b class="fc">&nbsp;    for (int i = 1; i &lt; field.getSize() &amp;&amp; e &lt; numErrors; i++) {</b>
+<b class="fc">&nbsp;      if (errorLocator.evaluateAt(i) == 0) {</b>
+<b class="fc">&nbsp;        result[e] = field.inverse(i);</b>
+<b class="fc">&nbsp;        e++;</b>
+&nbsp;      }
+&nbsp;    }
+<b class="fc">&nbsp;    if (e != numErrors) {</b>
+<b class="fc">&nbsp;      throw new ReedSolomonException(&quot;Error locator degree does not match number of roots&quot;);</b>
+&nbsp;    }
+<b class="fc">&nbsp;    return result;</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  private int[] findErrorMagnitudes(GenericGFPoly errorEvaluator, int[] errorLocations) {
+&nbsp;    // This is directly applying Forney&#39;s Formula
+<b class="fc">&nbsp;    int s = errorLocations.length;</b>
+<b class="fc">&nbsp;    int[] result = new int[s];</b>
+<b class="fc">&nbsp;    for (int i = 0; i &lt; s; i++) {</b>
+<b class="fc">&nbsp;      int xiInverse = field.inverse(errorLocations[i]);</b>
+<b class="fc">&nbsp;      int denominator = 1;</b>
+<b class="fc">&nbsp;      for (int j = 0; j &lt; s; j++) {</b>
+<b class="fc">&nbsp;        if (i != j) {</b>
+&nbsp;          //denominator = field.multiply(denominator,
+&nbsp;          //    GenericGF.addOrSubtract(1, field.multiply(errorLocations[j], xiInverse)));
+&nbsp;          // Above should work but fails on some Apple and Linux JDKs due to a Hotspot bug.
+&nbsp;          // Below is a funny-looking workaround from Steven Parkes
+<b class="fc">&nbsp;          int term = field.multiply(errorLocations[j], xiInverse);</b>
+<b class="fc">&nbsp;          int termPlus1 = (term &amp; 0x1) == 0 ? term | 1 : term &amp; ~1;</b>
+<b class="fc">&nbsp;          denominator = field.multiply(denominator, termPlus1);</b>
+&nbsp;        }
+&nbsp;      }
+<b class="fc">&nbsp;      result[i] = field.multiply(errorEvaluator.evaluateAt(xiInverse),</b>
+<b class="fc">&nbsp;          field.inverse(denominator));</b>
+<b class="fc">&nbsp;      if (field.getGeneratorBase() != 0) {</b>
+<b class="fc">&nbsp;        result[i] = field.multiply(result[i], xiInverse);</b>
+&nbsp;      }
+&nbsp;    }
+<b class="fc">&nbsp;    return result;</b>
+&nbsp;  }
+&nbsp;
+&nbsp;}
+</code>
+</pre>
+</div>
+
+<script type="text/javascript">
+(function() {
+    var msie = false, msie9 = false;
+    /*@cc_on
+      msie = true;
+      @if (@_jscript_version >= 9)
+        msie9 = true;
+      @end
+    @*/
+
+    if (!msie || msie && msie9) {
+      hljs.highlightAll()
+      hljs.initLineNumbersOnLoad();
+    }
+})();
+</script>
+
+<div class="footer">
+    
+    <div style="float:right;">generated on 2023-11-12 23:26</div>
+</div>
+</body>
+</html>

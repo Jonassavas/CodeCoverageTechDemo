@@ -1,0 +1,141 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>CodaBarWriter.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">ZXing Core</a> &gt; <a href="index.source.html" class="el_package">com.google.zxing.oned</a> &gt; <span class="el_source">CodaBarWriter.java</span></div><h1>CodaBarWriter.java</h1><pre class="source lang-java linenums">/*
+ * Copyright 2011 ZXing authors
+ *
+ * Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an &quot;AS IS&quot; BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+package com.google.zxing.oned;
+
+import com.google.zxing.BarcodeFormat;
+
+import java.util.Collection;
+import java.util.Collections;
+
+/**
+ * This class renders CodaBar as {@code boolean[]}.
+ *
+ * @author dsbnatut@gmail.com (Kazuki Nishiura)
+ */
+<span class="fc" id="L29">public final class CodaBarWriter extends OneDimensionalCodeWriter {</span>
+
+<span class="fc" id="L31">  private static final char[] START_END_CHARS = {'A', 'B', 'C', 'D'};</span>
+<span class="fc" id="L32">  private static final char[] ALT_START_END_CHARS = {'T', 'N', '*', 'E'};</span>
+<span class="fc" id="L33">  private static final char[] CHARS_WHICH_ARE_TEN_LENGTH_EACH_AFTER_DECODED = {'/', ':', '+', '.'};</span>
+<span class="fc" id="L34">  private static final char DEFAULT_GUARD = START_END_CHARS[0];</span>
+
+  @Override
+  protected Collection&lt;BarcodeFormat&gt; getSupportedWriteFormats() {
+<span class="fc" id="L38">    return Collections.singleton(BarcodeFormat.CODABAR);</span>
+  }
+
+  @Override
+  public boolean[] encode(String contents) {
+
+<span class="pc bpc" id="L44" title="1 of 2 branches missed.">    if (contents.length() &lt; 2) {</span>
+      // Can't have a start/end guard, so tentatively add default guards
+<span class="nc" id="L46">      contents = DEFAULT_GUARD + contents + DEFAULT_GUARD;</span>
+    } else {
+      // Verify input and calculate decoded length.
+<span class="fc" id="L49">      char firstChar = Character.toUpperCase(contents.charAt(0));</span>
+<span class="fc" id="L50">      char lastChar = Character.toUpperCase(contents.charAt(contents.length() - 1));</span>
+<span class="fc" id="L51">      boolean startsNormal = CodaBarReader.arrayContains(START_END_CHARS, firstChar);</span>
+<span class="fc" id="L52">      boolean endsNormal = CodaBarReader.arrayContains(START_END_CHARS, lastChar);</span>
+<span class="fc" id="L53">      boolean startsAlt = CodaBarReader.arrayContains(ALT_START_END_CHARS, firstChar);</span>
+<span class="fc" id="L54">      boolean endsAlt = CodaBarReader.arrayContains(ALT_START_END_CHARS, lastChar);</span>
+<span class="fc bfc" id="L55" title="All 2 branches covered.">      if (startsNormal) {</span>
+<span class="pc bpc" id="L56" title="1 of 2 branches missed.">        if (!endsNormal) {</span>
+<span class="nc" id="L57">          throw new IllegalArgumentException(&quot;Invalid start/end guards: &quot; + contents);</span>
+        }
+        // else already has valid start/end
+<span class="pc bpc" id="L60" title="1 of 2 branches missed.">      } else if (startsAlt) {</span>
+<span class="pc bpc" id="L61" title="1 of 2 branches missed.">        if (!endsAlt) {</span>
+<span class="nc" id="L62">          throw new IllegalArgumentException(&quot;Invalid start/end guards: &quot; + contents);</span>
+        }
+        // else already has valid start/end
+      } else {
+        // Doesn't start with a guard
+<span class="nc bnc" id="L67" title="All 4 branches missed.">        if (endsNormal || endsAlt) {</span>
+<span class="nc" id="L68">          throw new IllegalArgumentException(&quot;Invalid start/end guards: &quot; + contents);</span>
+        }
+        // else doesn't end with guard either, so add a default
+<span class="nc" id="L71">        contents = DEFAULT_GUARD + contents + DEFAULT_GUARD;</span>
+      }
+    }
+
+    // The start character and the end character are decoded to 10 length each.
+<span class="fc" id="L76">    int resultLength = 20;</span>
+<span class="fc bfc" id="L77" title="All 2 branches covered.">    for (int i = 1; i &lt; contents.length() - 1; i++) {</span>
+<span class="fc bfc" id="L78" title="All 6 branches covered.">      if (Character.isDigit(contents.charAt(i)) || contents.charAt(i) == '-' || contents.charAt(i) == '$') {</span>
+<span class="fc" id="L79">        resultLength += 9;</span>
+<span class="pc bpc" id="L80" title="1 of 2 branches missed.">      } else if (CodaBarReader.arrayContains(CHARS_WHICH_ARE_TEN_LENGTH_EACH_AFTER_DECODED, contents.charAt(i))) {</span>
+<span class="fc" id="L81">        resultLength += 10;</span>
+      } else {
+<span class="nc" id="L83">        throw new IllegalArgumentException(&quot;Cannot encode : '&quot; + contents.charAt(i) + '\'');</span>
+      }
+    }
+    // A blank is placed between each character.
+<span class="fc" id="L87">    resultLength += contents.length() - 1;</span>
+
+<span class="fc" id="L89">    boolean[] result = new boolean[resultLength];</span>
+<span class="fc" id="L90">    int position = 0;</span>
+<span class="fc bfc" id="L91" title="All 2 branches covered.">    for (int index = 0; index &lt; contents.length(); index++) {</span>
+<span class="fc" id="L92">      char c = Character.toUpperCase(contents.charAt(index));</span>
+<span class="fc bfc" id="L93" title="All 4 branches covered.">      if (index == 0 || index == contents.length() - 1) {</span>
+        // The start/end chars are not in the CodaBarReader.ALPHABET.
+<span class="pc bpc" id="L95" title="3 of 5 branches missed.">        switch (c) {</span>
+          case 'T':
+<span class="fc" id="L97">            c = 'A';</span>
+<span class="fc" id="L98">            break;</span>
+          case 'N':
+<span class="nc" id="L100">            c = 'B';</span>
+<span class="nc" id="L101">            break;</span>
+          case '*':
+<span class="nc" id="L103">            c = 'C';</span>
+<span class="nc" id="L104">            break;</span>
+          case 'E':
+<span class="nc" id="L106">            c = 'D';</span>
+            break;
+        }
+      }
+<span class="fc" id="L110">      int code = 0;</span>
+<span class="pc bpc" id="L111" title="1 of 2 branches missed.">      for (int i = 0; i &lt; CodaBarReader.ALPHABET.length; i++) {</span>
+        // Found any, because I checked above.
+<span class="fc bfc" id="L113" title="All 2 branches covered.">        if (c == CodaBarReader.ALPHABET[i]) {</span>
+<span class="fc" id="L114">          code = CodaBarReader.CHARACTER_ENCODINGS[i];</span>
+<span class="fc" id="L115">          break;</span>
+        }
+      }
+<span class="fc" id="L118">      boolean color = true;</span>
+<span class="fc" id="L119">      int counter = 0;</span>
+<span class="fc" id="L120">      int bit = 0;</span>
+<span class="fc bfc" id="L121" title="All 2 branches covered.">      while (bit &lt; 7) { // A character consists of 7 digit.</span>
+<span class="fc" id="L122">        result[position] = color;</span>
+<span class="fc" id="L123">        position++;</span>
+<span class="fc bfc" id="L124" title="All 4 branches covered.">        if (((code &gt;&gt; (6 - bit)) &amp; 1) == 0 || counter == 1) {</span>
+<span class="fc bfc" id="L125" title="All 2 branches covered.">          color = !color; // Flip the color.</span>
+<span class="fc" id="L126">          bit++;</span>
+<span class="fc" id="L127">          counter = 0;</span>
+        } else {
+<span class="fc" id="L129">          counter++;</span>
+        }
+      }
+<span class="fc bfc" id="L132" title="All 2 branches covered.">      if (index &lt; contents.length() - 1) {</span>
+<span class="fc" id="L133">        result[position] = false;</span>
+<span class="fc" id="L134">        position++;</span>
+      }
+    }
+<span class="fc" id="L137">    return result;</span>
+  }
+}
+
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.11.202310140853</span></div></body></html>

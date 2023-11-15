@@ -1,0 +1,261 @@
+
+
+
+<!DOCTYPE html>
+<html id="htmlId">
+<head>
+  <meta http-equiv="Content-Type" content="text/html;charset=windows-1252"> 
+  <title>Coverage Report > FormatInformation</title>
+  <style type="text/css">
+    @import "../../css/coverage.css";
+    @import "../../css/idea.min.css";
+  </style>
+  <script type="text/javascript" src="../../js/highlight.min.js"></script>
+  <script type="text/javascript" src="../../js/highlightjs-line-numbers.min.js"></script>
+</head>
+
+<body>
+<div class="content">
+<div class="breadCrumbs">
+Current scope:     <a href="../../index.html">all classes</a>
+    <span class="separator">|</span>
+    <a href="../index.html">com.google.zxing.qrcode.decoder</a>
+</div>
+
+<h1>Coverage Summary for Class: FormatInformation (com.google.zxing.qrcode.decoder)</h1>
+
+<table class="coverageStats">
+<tr>
+  <th class="name">Class</th>
+<th class="coverageStat 
+">
+  Class, %
+</th>
+<th class="coverageStat 
+">
+  Method, %
+</th>
+<th class="coverageStat 
+">
+  Line, %
+</th>
+</tr>
+<tr>
+  <td class="name">FormatInformation</td>
+<td class="coverageStat">
+  <span class="percent">
+    100%
+  </span>
+  <span class="absValue">
+    (1/1)
+  </span>
+</td>
+<td class="coverageStat">
+  <span class="percent">
+    88.9%
+  </span>
+  <span class="absValue">
+    (8/9)
+  </span>
+</td>
+<td class="coverageStat">
+  <span class="percent">
+    94.1%
+  </span>
+  <span class="absValue">
+    (32/34)
+  </span>
+</td>
+</tr>
+
+</table>
+
+<br/>
+<br/>
+
+
+<pre>
+<code class="sourceCode" id="sourceCode">&nbsp;/*
+&nbsp; * Copyright 2007 ZXing authors
+&nbsp; *
+&nbsp; * Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
+&nbsp; * you may not use this file except in compliance with the License.
+&nbsp; * You may obtain a copy of the License at
+&nbsp; *
+&nbsp; *      http://www.apache.org/licenses/LICENSE-2.0
+&nbsp; *
+&nbsp; * Unless required by applicable law or agreed to in writing, software
+&nbsp; * distributed under the License is distributed on an &quot;AS IS&quot; BASIS,
+&nbsp; * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+&nbsp; * See the License for the specific language governing permissions and
+&nbsp; * limitations under the License.
+&nbsp; */
+&nbsp;
+&nbsp;package com.google.zxing.qrcode.decoder;
+&nbsp;
+&nbsp;/**
+&nbsp; * &lt;p&gt;Encapsulates a QR Code&#39;s format information, including the data mask used and
+&nbsp; * error correction level.&lt;/p&gt;
+&nbsp; *
+&nbsp; * @author Sean Owen
+&nbsp; * @see DataMask
+&nbsp; * @see ErrorCorrectionLevel
+&nbsp; */
+&nbsp;final class FormatInformation {
+&nbsp;
+&nbsp;  private static final int FORMAT_INFO_MASK_QR = 0x5412;
+&nbsp;
+&nbsp;  /**
+&nbsp;   * See ISO 18004:2006, Annex C, Table C.1
+&nbsp;   */
+<b class="fc">&nbsp;  private static final int[][] FORMAT_INFO_DECODE_LOOKUP = {</b>
+&nbsp;      {0x5412, 0x00},
+&nbsp;      {0x5125, 0x01},
+&nbsp;      {0x5E7C, 0x02},
+&nbsp;      {0x5B4B, 0x03},
+&nbsp;      {0x45F9, 0x04},
+&nbsp;      {0x40CE, 0x05},
+&nbsp;      {0x4F97, 0x06},
+&nbsp;      {0x4AA0, 0x07},
+&nbsp;      {0x77C4, 0x08},
+&nbsp;      {0x72F3, 0x09},
+&nbsp;      {0x7DAA, 0x0A},
+&nbsp;      {0x789D, 0x0B},
+&nbsp;      {0x662F, 0x0C},
+&nbsp;      {0x6318, 0x0D},
+&nbsp;      {0x6C41, 0x0E},
+&nbsp;      {0x6976, 0x0F},
+&nbsp;      {0x1689, 0x10},
+&nbsp;      {0x13BE, 0x11},
+&nbsp;      {0x1CE7, 0x12},
+&nbsp;      {0x19D0, 0x13},
+&nbsp;      {0x0762, 0x14},
+&nbsp;      {0x0255, 0x15},
+&nbsp;      {0x0D0C, 0x16},
+&nbsp;      {0x083B, 0x17},
+&nbsp;      {0x355F, 0x18},
+&nbsp;      {0x3068, 0x19},
+&nbsp;      {0x3F31, 0x1A},
+&nbsp;      {0x3A06, 0x1B},
+&nbsp;      {0x24B4, 0x1C},
+&nbsp;      {0x2183, 0x1D},
+&nbsp;      {0x2EDA, 0x1E},
+&nbsp;      {0x2BED, 0x1F},
+&nbsp;  };
+&nbsp;
+&nbsp;  private final ErrorCorrectionLevel errorCorrectionLevel;
+&nbsp;  private final byte dataMask;
+&nbsp;
+<b class="fc">&nbsp;  private FormatInformation(int formatInfo) {</b>
+&nbsp;    // Bits 3,4
+<b class="fc">&nbsp;    errorCorrectionLevel = ErrorCorrectionLevel.forBits((formatInfo &gt;&gt; 3) &amp; 0x03);</b>
+&nbsp;    // Bottom 3 bits
+<b class="fc">&nbsp;    dataMask = (byte) (formatInfo &amp; 0x07);</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  static int numBitsDiffering(int a, int b) {
+<b class="fc">&nbsp;    return Integer.bitCount(a ^ b);</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  /**
+&nbsp;   * @param maskedFormatInfo1 format info indicator, with mask still applied
+&nbsp;   * @param maskedFormatInfo2 second copy of same info; both are checked at the same time
+&nbsp;   *  to establish best match
+&nbsp;   * @return information about the format it specifies, or {@code null}
+&nbsp;   *  if doesn&#39;t seem to match any known pattern
+&nbsp;   */
+&nbsp;  static FormatInformation decodeFormatInformation(int maskedFormatInfo1, int maskedFormatInfo2) {
+<b class="fc">&nbsp;    FormatInformation formatInfo = doDecodeFormatInformation(maskedFormatInfo1, maskedFormatInfo2);</b>
+<b class="fc">&nbsp;    if (formatInfo != null) {</b>
+<b class="fc">&nbsp;      return formatInfo;</b>
+&nbsp;    }
+&nbsp;    // Should return null, but, some QR codes apparently
+&nbsp;    // do not mask this info. Try again by actually masking the pattern
+&nbsp;    // first
+<b class="fc">&nbsp;    return doDecodeFormatInformation(maskedFormatInfo1 ^ FORMAT_INFO_MASK_QR,</b>
+&nbsp;                                     maskedFormatInfo2 ^ FORMAT_INFO_MASK_QR);
+&nbsp;  }
+&nbsp;
+&nbsp;  private static FormatInformation doDecodeFormatInformation(int maskedFormatInfo1, int maskedFormatInfo2) {
+&nbsp;    // Find the int in FORMAT_INFO_DECODE_LOOKUP with fewest bits differing
+<b class="fc">&nbsp;    int bestDifference = Integer.MAX_VALUE;</b>
+<b class="fc">&nbsp;    int bestFormatInfo = 0;</b>
+<b class="fc">&nbsp;    for (int[] decodeInfo : FORMAT_INFO_DECODE_LOOKUP) {</b>
+<b class="fc">&nbsp;      int targetInfo = decodeInfo[0];</b>
+<b class="fc">&nbsp;      if (targetInfo == maskedFormatInfo1 || targetInfo == maskedFormatInfo2) {</b>
+&nbsp;        // Found an exact match
+<b class="fc">&nbsp;        return new FormatInformation(decodeInfo[1]);</b>
+&nbsp;      }
+<b class="fc">&nbsp;      int bitsDifference = numBitsDiffering(maskedFormatInfo1, targetInfo);</b>
+<b class="fc">&nbsp;      if (bitsDifference &lt; bestDifference) {</b>
+<b class="fc">&nbsp;        bestFormatInfo = decodeInfo[1];</b>
+<b class="fc">&nbsp;        bestDifference = bitsDifference;</b>
+&nbsp;      }
+<b class="fc">&nbsp;      if (maskedFormatInfo1 != maskedFormatInfo2) {</b>
+&nbsp;        // also try the other option
+<b class="fc">&nbsp;        bitsDifference = numBitsDiffering(maskedFormatInfo2, targetInfo);</b>
+<b class="fc">&nbsp;        if (bitsDifference &lt; bestDifference) {</b>
+<b class="fc">&nbsp;          bestFormatInfo = decodeInfo[1];</b>
+<b class="fc">&nbsp;          bestDifference = bitsDifference;</b>
+&nbsp;        }
+&nbsp;      }
+&nbsp;    }
+&nbsp;    // Hamming distance of the 32 masked codes is 7, by construction, so &lt;= 3 bits
+&nbsp;    // differing means we found a match
+<b class="fc">&nbsp;    if (bestDifference &lt;= 3) {</b>
+<b class="fc">&nbsp;      return new FormatInformation(bestFormatInfo);</b>
+&nbsp;    }
+<b class="fc">&nbsp;    return null;</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  ErrorCorrectionLevel getErrorCorrectionLevel() {
+<b class="fc">&nbsp;    return errorCorrectionLevel;</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  byte getDataMask() {
+<b class="fc">&nbsp;    return dataMask;</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  @Override
+&nbsp;  public int hashCode() {
+<b class="nc">&nbsp;    return (errorCorrectionLevel.ordinal() &lt;&lt; 3) | dataMask;</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  @Override
+&nbsp;  public boolean equals(Object o) {
+<b class="fc">&nbsp;    if (!(o instanceof FormatInformation)) {</b>
+<b class="nc">&nbsp;      return false;</b>
+&nbsp;    }
+<b class="fc">&nbsp;    FormatInformation other = (FormatInformation) o;</b>
+<b class="fc">&nbsp;    return this.errorCorrectionLevel == other.errorCorrectionLevel &amp;&amp;</b>
+&nbsp;        this.dataMask == other.dataMask;
+&nbsp;  }
+&nbsp;
+&nbsp;}
+</code>
+</pre>
+</div>
+
+<script type="text/javascript">
+(function() {
+    var msie = false, msie9 = false;
+    /*@cc_on
+      msie = true;
+      @if (@_jscript_version >= 9)
+        msie9 = true;
+      @end
+    @*/
+
+    if (!msie || msie && msie9) {
+      hljs.highlightAll()
+      hljs.initLineNumbersOnLoad();
+    }
+})();
+</script>
+
+<div class="footer">
+    
+    <div style="float:right;">generated on 2023-11-12 23:26</div>
+</div>
+</body>
+</html>

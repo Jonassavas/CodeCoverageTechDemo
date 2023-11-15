@@ -1,0 +1,339 @@
+
+
+
+<!DOCTYPE html>
+<html id="htmlId">
+<head>
+  <meta http-equiv="Content-Type" content="text/html;charset=windows-1252"> 
+  <title>Coverage Report > StringsResourceTranslator</title>
+  <style type="text/css">
+    @import "../../css/coverage.css";
+    @import "../../css/idea.min.css";
+  </style>
+  <script type="text/javascript" src="../../js/highlight.min.js"></script>
+  <script type="text/javascript" src="../../js/highlightjs-line-numbers.min.js"></script>
+</head>
+
+<body>
+<div class="content">
+<div class="breadCrumbs">
+Current scope:     <a href="../../index.html">all classes</a>
+    <span class="separator">|</span>
+    <a href="../index.html">com.google.zxing.client.j2se</a>
+</div>
+
+<h1>Coverage Summary for Class: StringsResourceTranslator (com.google.zxing.client.j2se)</h1>
+
+<table class="coverageStats">
+<tr>
+  <th class="name">Class</th>
+<th class="coverageStat 
+">
+  Class, %
+</th>
+<th class="coverageStat 
+">
+  Method, %
+</th>
+<th class="coverageStat 
+">
+  Line, %
+</th>
+</tr>
+<tr>
+  <td class="name">StringsResourceTranslator</td>
+<td class="coverageStat">
+  <span class="percent">
+    0%
+  </span>
+  <span class="absValue">
+    (0/1)
+  </span>
+</td>
+<td class="coverageStat">
+  <span class="percent">
+    0%
+  </span>
+  <span class="absValue">
+    (0/7)
+  </span>
+</td>
+<td class="coverageStat">
+  <span class="percent">
+    0%
+  </span>
+  <span class="absValue">
+    (0/101)
+  </span>
+</td>
+</tr>
+
+</table>
+
+<br/>
+<br/>
+
+
+<pre>
+<code class="sourceCode" id="sourceCode">&nbsp;/*
+&nbsp; * Copyright 2010 ZXing authors
+&nbsp; *
+&nbsp; * Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
+&nbsp; * you may not use this file except in compliance with the License.
+&nbsp; * You may obtain a copy of the License at
+&nbsp; *
+&nbsp; *      http://www.apache.org/licenses/LICENSE-2.0
+&nbsp; *
+&nbsp; * Unless required by applicable law or agreed to in writing, software
+&nbsp; * distributed under the License is distributed on an &quot;AS IS&quot; BASIS,
+&nbsp; * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+&nbsp; * See the License for the specific language governing permissions and
+&nbsp; * limitations under the License.
+&nbsp; */
+&nbsp;
+&nbsp;package com.google.zxing.client.j2se;
+&nbsp;
+&nbsp;import java.io.BufferedReader;
+&nbsp;import java.io.IOException;
+&nbsp;import java.io.InputStreamReader;
+&nbsp;import java.io.Writer;
+&nbsp;import java.net.URI;
+&nbsp;import java.net.URLConnection;
+&nbsp;import java.net.URLEncoder;
+&nbsp;import java.nio.charset.StandardCharsets;
+&nbsp;import java.nio.file.DirectoryStream;
+&nbsp;import java.nio.file.Files;
+&nbsp;import java.nio.file.Path;
+&nbsp;import java.nio.file.Paths;
+&nbsp;import java.nio.file.StandardCopyOption;
+&nbsp;import java.util.Arrays;
+&nbsp;import java.util.Collection;
+&nbsp;import java.util.Collections;
+&nbsp;import java.util.HashMap;
+&nbsp;import java.util.Map;
+&nbsp;import java.util.TreeMap;
+&nbsp;import java.util.regex.Matcher;
+&nbsp;import java.util.regex.Pattern;
+&nbsp;
+&nbsp;/**
+&nbsp; * &lt;p&gt;A utility which auto-translates English strings in Android string resources using
+&nbsp; * Google Translate.&lt;/p&gt;
+&nbsp; *
+&nbsp; * &lt;p&gt;Pass the Android client res/ directory as first argument, and optionally message keys
+&nbsp; * who should be forced to retranslate.
+&nbsp; * Usage: {@code StringsResourceTranslator android/res/ [key_1 ...]}&lt;/p&gt;
+&nbsp; *
+&nbsp; * &lt;p&gt;You must set your Google Translate API key into the environment with -DtranslateAPI.key=...&lt;/p&gt;
+&nbsp; *
+&nbsp; * @author Sean Owen
+&nbsp; * @deprecated without replacement since 3.4.2
+&nbsp; */
+&nbsp;@Deprecated
+&nbsp;public final class StringsResourceTranslator {
+&nbsp;
+<b class="nc">&nbsp;  private static final String API_KEY = System.getProperty(&quot;translateAPI.key&quot;);</b>
+&nbsp;  static {
+<b class="nc">&nbsp;    if (API_KEY == null) {</b>
+<b class="nc">&nbsp;      throw new IllegalArgumentException(&quot;translateAPI.key is not specified&quot;);</b>
+&nbsp;    }
+&nbsp;  }
+&nbsp;
+<b class="nc">&nbsp;  private static final Pattern ENTRY_PATTERN = Pattern.compile(&quot;&lt;string name=\&quot;([^\&quot;]+)\&quot;.*&gt;([^&lt;]+)&lt;/string&gt;&quot;);</b>
+<b class="nc">&nbsp;  private static final Pattern STRINGS_FILE_NAME_PATTERN = Pattern.compile(&quot;values-(.+)&quot;);</b>
+<b class="nc">&nbsp;  private static final Pattern TRANSLATE_RESPONSE_PATTERN = Pattern.compile(&quot;translatedText\&quot;:\\s*\&quot;([^\&quot;]+)\&quot;&quot;);</b>
+<b class="nc">&nbsp;  private static final Pattern VALUES_DIR_PATTERN = Pattern.compile(&quot;values-[a-z]{2}(-[a-zA-Z]{2,3})?&quot;);</b>
+&nbsp;
+&nbsp;  private static final String APACHE_2_LICENSE =
+&nbsp;      &quot;&lt;!--\n&quot; +
+&nbsp;      &quot; Copyright (C) 2015 ZXing authors\n&quot; +
+&nbsp;      &#39;\n&#39; +
+&nbsp;      &quot; Licensed under the Apache License, Version 2.0 (the \&quot;License\&quot;);\n&quot; +
+&nbsp;      &quot; you may not use this file except in compliance with the License.\n&quot; +
+&nbsp;      &quot; You may obtain a copy of the License at\n&quot; +
+&nbsp;      &#39;\n&#39; +
+&nbsp;      &quot;      http://www.apache.org/licenses/LICENSE-2.0\n&quot; +
+&nbsp;      &#39;\n&#39; +
+&nbsp;      &quot; Unless required by applicable law or agreed to in writing, software\n&quot; +
+&nbsp;      &quot; distributed under the License is distributed on an \&quot;AS IS\&quot; BASIS,\n&quot; +
+&nbsp;      &quot; WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.\n&quot; +
+&nbsp;      &quot; See the License for the specific language governing permissions and\n&quot; +
+&nbsp;      &quot; limitations under the License.\n&quot; +
+&nbsp;      &quot; --&gt;\n&quot;;
+&nbsp;
+<b class="nc">&nbsp;  private static final Map&lt;String,String&gt; LANGUAGE_CODE_MASSAGINGS = new HashMap&lt;&gt;(3);</b>
+&nbsp;  static {
+<b class="nc">&nbsp;    LANGUAGE_CODE_MASSAGINGS.put(&quot;zh-rCN&quot;, &quot;zh-cn&quot;);</b>
+<b class="nc">&nbsp;    LANGUAGE_CODE_MASSAGINGS.put(&quot;zh-rTW&quot;, &quot;zh-tw&quot;);</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  private StringsResourceTranslator() {}
+&nbsp;
+&nbsp;  public static void main(String[] args) throws IOException {
+<b class="nc">&nbsp;    Path resDir = Paths.get(args[0]);</b>
+<b class="nc">&nbsp;    Path valueDir = resDir.resolve(&quot;values&quot;);</b>
+<b class="nc">&nbsp;    Path stringsFile = valueDir.resolve(&quot;strings.xml&quot;);</b>
+<b class="nc">&nbsp;    Collection&lt;String&gt; forceRetranslation = Arrays.asList(args).subList(1, args.length);</b>
+&nbsp;
+<b class="nc">&nbsp;    DirectoryStream.Filter&lt;Path&gt; filter = entry -&gt;</b>
+<b class="nc">&nbsp;        Files.isDirectory(entry) &amp;&amp; !Files.isSymbolicLink(entry) &amp;&amp;</b>
+<b class="nc">&nbsp;        VALUES_DIR_PATTERN.matcher(entry.getFileName().toString()).matches();</b>
+<b class="nc">&nbsp;    try (DirectoryStream&lt;Path&gt; dirs = Files.newDirectoryStream(resDir, filter)) {</b>
+<b class="nc">&nbsp;      for (Path dir : dirs) {</b>
+<b class="nc">&nbsp;        translate(stringsFile, dir.resolve(&quot;strings.xml&quot;), forceRetranslation);</b>
+<b class="nc">&nbsp;      }</b>
+<b class="nc">&nbsp;    }</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  private static void translate(Path englishFile,
+&nbsp;                                Path translatedFile,
+&nbsp;                                Collection&lt;String&gt; forceRetranslation) throws IOException {
+&nbsp;
+<b class="nc">&nbsp;    Map&lt;String, String&gt; english = readLines(englishFile);</b>
+<b class="nc">&nbsp;    Map&lt;String,String&gt; translated = readLines(translatedFile);</b>
+<b class="nc">&nbsp;    String parentName = translatedFile.getParent().getFileName().toString();</b>
+&nbsp;
+<b class="nc">&nbsp;    Matcher stringsFileNameMatcher = STRINGS_FILE_NAME_PATTERN.matcher(parentName);</b>
+<b class="nc">&nbsp;    if (!stringsFileNameMatcher.find()) {</b>
+<b class="nc">&nbsp;      throw new IllegalArgumentException(&quot;Invalid parent dir: &quot; + parentName);</b>
+&nbsp;    }
+<b class="nc">&nbsp;    String language = stringsFileNameMatcher.group(1);</b>
+<b class="nc">&nbsp;    String massagedLanguage = LANGUAGE_CODE_MASSAGINGS.get(language);</b>
+<b class="nc">&nbsp;    if (massagedLanguage != null) {</b>
+<b class="nc">&nbsp;      language = massagedLanguage;</b>
+&nbsp;    }
+&nbsp;
+<b class="nc">&nbsp;    System.out.println(&quot;Translating &quot; + language);</b>
+&nbsp;
+<b class="nc">&nbsp;    Path resultTempFile = Files.createTempFile(null, null);</b>
+&nbsp;
+<b class="nc">&nbsp;    boolean anyChange = false;</b>
+<b class="nc">&nbsp;    try (Writer out = Files.newBufferedWriter(resultTempFile, StandardCharsets.UTF_8)) {</b>
+<b class="nc">&nbsp;      out.write(&quot;&lt;?xml version=\&quot;1.0\&quot; encoding=\&quot;UTF-8\&quot;?&gt;\n&quot;);</b>
+<b class="nc">&nbsp;      out.write(APACHE_2_LICENSE);</b>
+<b class="nc">&nbsp;      out.write(&quot;&lt;resources&gt;\n&quot;);</b>
+&nbsp;
+<b class="nc">&nbsp;      for (Map.Entry&lt;String,String&gt; englishEntry : english.entrySet()) {</b>
+<b class="nc">&nbsp;        String key = englishEntry.getKey();</b>
+<b class="nc">&nbsp;        String value = englishEntry.getValue();</b>
+<b class="nc">&nbsp;        out.write(&quot;  &lt;string name=\&quot;&quot;);</b>
+<b class="nc">&nbsp;        out.write(key);</b>
+<b class="nc">&nbsp;        out.write(&#39;&quot;&#39;);</b>
+<b class="nc">&nbsp;        if (value.contains(&quot;%s&quot;) || value.contains(&quot;%f&quot;)) {</b>
+&nbsp;          // Need to specify that there&#39;s a value placeholder
+<b class="nc">&nbsp;          out.write(&quot; formatted=\&quot;false\&quot;&quot;);</b>
+&nbsp;        }
+<b class="nc">&nbsp;        out.write(&#39;&gt;&#39;);</b>
+&nbsp;
+<b class="nc">&nbsp;        String translatedString = translated.get(key);</b>
+<b class="nc">&nbsp;        if (translatedString == null || forceRetranslation.contains(key)) {</b>
+<b class="nc">&nbsp;          anyChange = true;</b>
+<b class="nc">&nbsp;          translatedString = translateString(value, language);</b>
+&nbsp;          // Specially for string resources, escape &#39; with \
+<b class="nc">&nbsp;          translatedString = translatedString.replaceAll(&quot;&#39;&quot;, &quot;\\\\&#39;&quot;);</b>
+&nbsp;        }
+<b class="nc">&nbsp;        out.write(translatedString);</b>
+&nbsp;
+<b class="nc">&nbsp;        out.write(&quot;&lt;/string&gt;\n&quot;);</b>
+<b class="nc">&nbsp;      }</b>
+&nbsp;
+<b class="nc">&nbsp;      out.write(&quot;&lt;/resources&gt;\n&quot;);</b>
+<b class="nc">&nbsp;      out.flush();</b>
+<b class="nc">&nbsp;    }</b>
+&nbsp;
+<b class="nc">&nbsp;    if (anyChange) {</b>
+<b class="nc">&nbsp;      System.out.println(&quot;  Writing translations&quot;);</b>
+<b class="nc">&nbsp;      Files.move(resultTempFile, translatedFile, StandardCopyOption.REPLACE_EXISTING);</b>
+&nbsp;    } else {
+<b class="nc">&nbsp;      Files.delete(resultTempFile);</b>
+&nbsp;    }
+&nbsp;  }
+&nbsp;
+&nbsp;  static String translateString(String english, String language) throws IOException {
+<b class="nc">&nbsp;    if (&quot;en&quot;.equals(language)) {</b>
+<b class="nc">&nbsp;      return english;</b>
+&nbsp;    }
+<b class="nc">&nbsp;    String massagedLanguage = LANGUAGE_CODE_MASSAGINGS.get(language);</b>
+<b class="nc">&nbsp;    if (massagedLanguage != null) {</b>
+<b class="nc">&nbsp;      language = massagedLanguage;</b>
+&nbsp;    }
+<b class="nc">&nbsp;    System.out.println(&quot;  Need translation for &quot; + english);</b>
+&nbsp;
+<b class="nc">&nbsp;    URI translateURI = URI.create(</b>
+&nbsp;        &quot;https://www.googleapis.com/language/translate/v2?key=&quot; + API_KEY + &quot;&amp;q=&quot; +
+<b class="nc">&nbsp;            URLEncoder.encode(english, &quot;UTF-8&quot;) +</b>
+&nbsp;            &quot;&amp;source=en&amp;target=&quot; + language);
+<b class="nc">&nbsp;    CharSequence translateResult = fetch(translateURI);</b>
+<b class="nc">&nbsp;    Matcher m = TRANSLATE_RESPONSE_PATTERN.matcher(translateResult);</b>
+<b class="nc">&nbsp;    if (!m.find()) {</b>
+<b class="nc">&nbsp;      System.err.println(&quot;No translate result&quot;);</b>
+<b class="nc">&nbsp;      System.err.println(translateResult);</b>
+<b class="nc">&nbsp;      return english;</b>
+&nbsp;    }
+<b class="nc">&nbsp;    String translation = m.group(1);</b>
+&nbsp;
+&nbsp;    // This is a little crude; unescape some common escapes in the raw response
+<b class="nc">&nbsp;    translation = translation.replaceAll(&quot;&amp;(amp;)?quot;&quot;, &quot;\&quot;&quot;);</b>
+<b class="nc">&nbsp;    translation = translation.replaceAll(&quot;&amp;(amp;)?#39;&quot;, &quot;&#39;&quot;);</b>
+&nbsp;
+<b class="nc">&nbsp;    System.out.println(&quot;  Got translation &quot; + translation);</b>
+<b class="nc">&nbsp;    return translation;</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  private static CharSequence fetch(URI translateURI) throws IOException {
+<b class="nc">&nbsp;    URLConnection connection = translateURI.toURL().openConnection();</b>
+<b class="nc">&nbsp;    connection.connect();</b>
+<b class="nc">&nbsp;    StringBuilder translateResult = new StringBuilder(200);</b>
+<b class="nc">&nbsp;    try (BufferedReader in =</b>
+<b class="nc">&nbsp;           new BufferedReader(new InputStreamReader(connection.getInputStream(), StandardCharsets.UTF_8))) {</b>
+<b class="nc">&nbsp;      char[] buffer = new char[8192];</b>
+&nbsp;      int charsRead;
+<b class="nc">&nbsp;      while ((charsRead = in.read(buffer)) &gt; 0) {</b>
+<b class="nc">&nbsp;        translateResult.append(buffer, 0, charsRead);</b>
+&nbsp;      }
+<b class="nc">&nbsp;    }</b>
+<b class="nc">&nbsp;    return translateResult;</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  private static Map&lt;String,String&gt; readLines(Path file) throws IOException {
+<b class="nc">&nbsp;    if (Files.exists(file)) {</b>
+<b class="nc">&nbsp;      Map&lt;String,String&gt; entries = new TreeMap&lt;&gt;();</b>
+<b class="nc">&nbsp;      for (String line : Files.readAllLines(file, StandardCharsets.UTF_8)) {</b>
+<b class="nc">&nbsp;        Matcher m = ENTRY_PATTERN.matcher(line);</b>
+<b class="nc">&nbsp;        if (m.find()) {</b>
+<b class="nc">&nbsp;          entries.put(m.group(1), m.group(2));</b>
+&nbsp;        }
+<b class="nc">&nbsp;      }</b>
+<b class="nc">&nbsp;      return entries;</b>
+&nbsp;    } else {
+<b class="nc">&nbsp;      return Collections.emptyMap();</b>
+&nbsp;    }
+&nbsp;  }
+&nbsp;
+&nbsp;}
+</code>
+</pre>
+</div>
+
+<script type="text/javascript">
+(function() {
+    var msie = false, msie9 = false;
+    /*@cc_on
+      msie = true;
+      @if (@_jscript_version >= 9)
+        msie9 = true;
+      @end
+    @*/
+
+    if (!msie || msie && msie9) {
+      hljs.highlightAll()
+      hljs.initLineNumbersOnLoad();
+    }
+})();
+</script>
+
+<div class="footer">
+    
+    <div style="float:right;">generated on 2023-11-12 23:26</div>
+</div>
+</body>
+</html>

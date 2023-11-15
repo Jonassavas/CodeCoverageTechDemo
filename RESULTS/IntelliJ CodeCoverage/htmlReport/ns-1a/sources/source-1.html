@@ -1,0 +1,294 @@
+
+
+
+<!DOCTYPE html>
+<html id="htmlId">
+<head>
+  <meta http-equiv="Content-Type" content="text/html;charset=windows-1252"> 
+  <title>Coverage Report > ErrorCorrection</title>
+  <style type="text/css">
+    @import "../../css/coverage.css";
+    @import "../../css/idea.min.css";
+  </style>
+  <script type="text/javascript" src="../../js/highlight.min.js"></script>
+  <script type="text/javascript" src="../../js/highlightjs-line-numbers.min.js"></script>
+</head>
+
+<body>
+<div class="content">
+<div class="breadCrumbs">
+Current scope:     <a href="../../index.html">all classes</a>
+    <span class="separator">|</span>
+    <a href="../index.html">com.google.zxing.pdf417.decoder.ec</a>
+</div>
+
+<h1>Coverage Summary for Class: ErrorCorrection (com.google.zxing.pdf417.decoder.ec)</h1>
+
+<table class="coverageStats">
+<tr>
+  <th class="name">Class</th>
+<th class="coverageStat 
+">
+  Class, %
+</th>
+<th class="coverageStat 
+">
+  Method, %
+</th>
+<th class="coverageStat 
+">
+  Line, %
+</th>
+</tr>
+<tr>
+  <td class="name">ErrorCorrection</td>
+<td class="coverageStat">
+  <span class="percent">
+    100%
+  </span>
+  <span class="absValue">
+    (1/1)
+  </span>
+</td>
+<td class="coverageStat">
+  <span class="percent">
+    100%
+  </span>
+  <span class="absValue">
+    (5/5)
+  </span>
+</td>
+<td class="coverageStat">
+  <span class="percent">
+    92.3%
+  </span>
+  <span class="absValue">
+    (84/91)
+  </span>
+</td>
+</tr>
+
+</table>
+
+<br/>
+<br/>
+
+
+<pre>
+<code class="sourceCode" id="sourceCode">&nbsp;/*
+&nbsp; * Copyright 2012 ZXing authors
+&nbsp; *
+&nbsp; * Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
+&nbsp; * you may not use this file except in compliance with the License.
+&nbsp; * You may obtain a copy of the License at
+&nbsp; *
+&nbsp; *      http://www.apache.org/licenses/LICENSE-2.0
+&nbsp; *
+&nbsp; * Unless required by applicable law or agreed to in writing, software
+&nbsp; * distributed under the License is distributed on an &quot;AS IS&quot; BASIS,
+&nbsp; * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+&nbsp; * See the License for the specific language governing permissions and
+&nbsp; * limitations under the License.
+&nbsp; */
+&nbsp;
+&nbsp;package com.google.zxing.pdf417.decoder.ec;
+&nbsp;
+&nbsp;import com.google.zxing.ChecksumException;
+&nbsp;
+&nbsp;/**
+&nbsp; * &lt;p&gt;PDF417 error correction implementation.&lt;/p&gt;
+&nbsp; *
+&nbsp; * &lt;p&gt;This &lt;a href=&quot;http://en.wikipedia.org/wiki/Reed%E2%80%93Solomon_error_correction#Example&quot;&gt;example&lt;/a&gt;
+&nbsp; * is quite useful in understanding the algorithm.&lt;/p&gt;
+&nbsp; *
+&nbsp; * @author Sean Owen
+&nbsp; * @see com.google.zxing.common.reedsolomon.ReedSolomonDecoder
+&nbsp; */
+&nbsp;public final class ErrorCorrection {
+&nbsp;
+&nbsp;  private final ModulusGF field;
+&nbsp;
+<b class="fc">&nbsp;  public ErrorCorrection() {</b>
+<b class="fc">&nbsp;    this.field = ModulusGF.PDF417_GF;</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  /**
+&nbsp;   * @param received received codewords
+&nbsp;   * @param numECCodewords number of those codewords used for EC
+&nbsp;   * @param erasures location of erasures
+&nbsp;   * @return number of errors
+&nbsp;   * @throws ChecksumException if errors cannot be corrected, maybe because of too many errors
+&nbsp;   */
+&nbsp;  public int decode(int[] received,
+&nbsp;                    int numECCodewords,
+&nbsp;                    int[] erasures) throws ChecksumException {
+&nbsp;
+<b class="fc">&nbsp;    ModulusPoly poly = new ModulusPoly(field, received);</b>
+<b class="fc">&nbsp;    int[] S = new int[numECCodewords];</b>
+<b class="fc">&nbsp;    boolean error = false;</b>
+<b class="fc">&nbsp;    for (int i = numECCodewords; i &gt; 0; i--) {</b>
+<b class="fc">&nbsp;      int eval = poly.evaluateAt(field.exp(i));</b>
+<b class="fc">&nbsp;      S[numECCodewords - i] = eval;</b>
+<b class="fc">&nbsp;      if (eval != 0) {</b>
+<b class="fc">&nbsp;        error = true;</b>
+&nbsp;      }
+&nbsp;    }
+&nbsp;
+<b class="fc">&nbsp;    if (!error) {</b>
+<b class="fc">&nbsp;      return 0;</b>
+&nbsp;    }
+&nbsp;
+<b class="fc">&nbsp;    ModulusPoly knownErrors = field.getOne();</b>
+<b class="fc">&nbsp;    if (erasures != null) {</b>
+<b class="fc">&nbsp;      for (int erasure : erasures) {</b>
+<b class="fc">&nbsp;        int b = field.exp(received.length - 1 - erasure);</b>
+&nbsp;        // Add (1 - bx) term:
+<b class="fc">&nbsp;        ModulusPoly term = new ModulusPoly(field, new int[]{field.subtract(0, b), 1});</b>
+<b class="fc">&nbsp;        knownErrors = knownErrors.multiply(term);</b>
+&nbsp;      }
+&nbsp;    }
+&nbsp;
+<b class="fc">&nbsp;    ModulusPoly syndrome = new ModulusPoly(field, S);</b>
+&nbsp;    //syndrome = syndrome.multiply(knownErrors);
+&nbsp;
+<b class="fc">&nbsp;    ModulusPoly[] sigmaOmega =</b>
+<b class="fc">&nbsp;        runEuclideanAlgorithm(field.buildMonomial(numECCodewords, 1), syndrome, numECCodewords);</b>
+<b class="fc">&nbsp;    ModulusPoly sigma = sigmaOmega[0];</b>
+<b class="fc">&nbsp;    ModulusPoly omega = sigmaOmega[1];</b>
+&nbsp;
+&nbsp;    //sigma = sigma.multiply(knownErrors);
+&nbsp;
+<b class="fc">&nbsp;    int[] errorLocations = findErrorLocations(sigma);</b>
+<b class="fc">&nbsp;    int[] errorMagnitudes = findErrorMagnitudes(omega, sigma, errorLocations);</b>
+&nbsp;
+<b class="fc">&nbsp;    for (int i = 0; i &lt; errorLocations.length; i++) {</b>
+<b class="fc">&nbsp;      int position = received.length - 1 - field.log(errorLocations[i]);</b>
+<b class="fc">&nbsp;      if (position &lt; 0) {</b>
+<b class="nc">&nbsp;        throw ChecksumException.getChecksumInstance();</b>
+&nbsp;      }
+<b class="fc">&nbsp;      received[position] = field.subtract(received[position], errorMagnitudes[i]);</b>
+&nbsp;    }
+<b class="fc">&nbsp;    return errorLocations.length;</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  private ModulusPoly[] runEuclideanAlgorithm(ModulusPoly a, ModulusPoly b, int R)
+&nbsp;      throws ChecksumException {
+&nbsp;    // Assume a&#39;s degree is &gt;= b&#39;s
+<b class="fc">&nbsp;    if (a.getDegree() &lt; b.getDegree()) {</b>
+<b class="nc">&nbsp;      ModulusPoly temp = a;</b>
+<b class="nc">&nbsp;      a = b;</b>
+<b class="nc">&nbsp;      b = temp;</b>
+&nbsp;    }
+&nbsp;
+<b class="fc">&nbsp;    ModulusPoly rLast = a;</b>
+<b class="fc">&nbsp;    ModulusPoly r = b;</b>
+<b class="fc">&nbsp;    ModulusPoly tLast = field.getZero();</b>
+<b class="fc">&nbsp;    ModulusPoly t = field.getOne();</b>
+&nbsp;
+&nbsp;    // Run Euclidean algorithm until r&#39;s degree is less than R/2
+<b class="fc">&nbsp;    while (r.getDegree() &gt;= R / 2) {</b>
+<b class="fc">&nbsp;      ModulusPoly rLastLast = rLast;</b>
+<b class="fc">&nbsp;      ModulusPoly tLastLast = tLast;</b>
+<b class="fc">&nbsp;      rLast = r;</b>
+<b class="fc">&nbsp;      tLast = t;</b>
+&nbsp;
+&nbsp;      // Divide rLastLast by rLast, with quotient in q and remainder in r
+<b class="fc">&nbsp;      if (rLast.isZero()) {</b>
+&nbsp;        // Oops, Euclidean algorithm already terminated?
+<b class="nc">&nbsp;        throw ChecksumException.getChecksumInstance();</b>
+&nbsp;      }
+<b class="fc">&nbsp;      r = rLastLast;</b>
+<b class="fc">&nbsp;      ModulusPoly q = field.getZero();</b>
+<b class="fc">&nbsp;      int denominatorLeadingTerm = rLast.getCoefficient(rLast.getDegree());</b>
+<b class="fc">&nbsp;      int dltInverse = field.inverse(denominatorLeadingTerm);</b>
+<b class="fc">&nbsp;      while (r.getDegree() &gt;= rLast.getDegree() &amp;&amp; !r.isZero()) {</b>
+<b class="fc">&nbsp;        int degreeDiff = r.getDegree() - rLast.getDegree();</b>
+<b class="fc">&nbsp;        int scale = field.multiply(r.getCoefficient(r.getDegree()), dltInverse);</b>
+<b class="fc">&nbsp;        q = q.add(field.buildMonomial(degreeDiff, scale));</b>
+<b class="fc">&nbsp;        r = r.subtract(rLast.multiplyByMonomial(degreeDiff, scale));</b>
+<b class="fc">&nbsp;      }</b>
+&nbsp;
+<b class="fc">&nbsp;      t = q.multiply(tLast).subtract(tLastLast).negative();</b>
+<b class="fc">&nbsp;    }</b>
+&nbsp;
+<b class="fc">&nbsp;    int sigmaTildeAtZero = t.getCoefficient(0);</b>
+<b class="fc">&nbsp;    if (sigmaTildeAtZero == 0) {</b>
+<b class="nc">&nbsp;      throw ChecksumException.getChecksumInstance();</b>
+&nbsp;    }
+&nbsp;
+<b class="fc">&nbsp;    int inverse = field.inverse(sigmaTildeAtZero);</b>
+<b class="fc">&nbsp;    ModulusPoly sigma = t.multiply(inverse);</b>
+<b class="fc">&nbsp;    ModulusPoly omega = r.multiply(inverse);</b>
+<b class="fc">&nbsp;    return new ModulusPoly[]{sigma, omega};</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  private int[] findErrorLocations(ModulusPoly errorLocator) throws ChecksumException {
+&nbsp;    // This is a direct application of Chien&#39;s search
+<b class="fc">&nbsp;    int numErrors = errorLocator.getDegree();</b>
+<b class="fc">&nbsp;    int[] result = new int[numErrors];</b>
+<b class="fc">&nbsp;    int e = 0;</b>
+<b class="fc">&nbsp;    for (int i = 1; i &lt; field.getSize() &amp;&amp; e &lt; numErrors; i++) {</b>
+<b class="fc">&nbsp;      if (errorLocator.evaluateAt(i) == 0) {</b>
+<b class="fc">&nbsp;        result[e] = field.inverse(i);</b>
+<b class="fc">&nbsp;        e++;</b>
+&nbsp;      }
+&nbsp;    }
+<b class="fc">&nbsp;    if (e != numErrors) {</b>
+<b class="fc">&nbsp;      throw ChecksumException.getChecksumInstance();</b>
+&nbsp;    }
+<b class="fc">&nbsp;    return result;</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  private int[] findErrorMagnitudes(ModulusPoly errorEvaluator,
+&nbsp;                                    ModulusPoly errorLocator,
+&nbsp;                                    int[] errorLocations) {
+<b class="fc">&nbsp;    int errorLocatorDegree = errorLocator.getDegree();</b>
+<b class="fc">&nbsp;    if (errorLocatorDegree &lt; 1) {</b>
+<b class="nc">&nbsp;      return new int[0];</b>
+&nbsp;    }
+<b class="fc">&nbsp;    int[] formalDerivativeCoefficients = new int[errorLocatorDegree];</b>
+<b class="fc">&nbsp;    for (int i = 1; i &lt;= errorLocatorDegree; i++) {</b>
+<b class="fc">&nbsp;      formalDerivativeCoefficients[errorLocatorDegree - i] =</b>
+<b class="fc">&nbsp;          field.multiply(i, errorLocator.getCoefficient(i));</b>
+&nbsp;    }
+<b class="fc">&nbsp;    ModulusPoly formalDerivative = new ModulusPoly(field, formalDerivativeCoefficients);</b>
+&nbsp;
+&nbsp;    // This is directly applying Forney&#39;s Formula
+<b class="fc">&nbsp;    int s = errorLocations.length;</b>
+<b class="fc">&nbsp;    int[] result = new int[s];</b>
+<b class="fc">&nbsp;    for (int i = 0; i &lt; s; i++) {</b>
+<b class="fc">&nbsp;      int xiInverse = field.inverse(errorLocations[i]);</b>
+<b class="fc">&nbsp;      int numerator = field.subtract(0, errorEvaluator.evaluateAt(xiInverse));</b>
+<b class="fc">&nbsp;      int denominator = field.inverse(formalDerivative.evaluateAt(xiInverse));</b>
+<b class="fc">&nbsp;      result[i] = field.multiply(numerator, denominator);</b>
+&nbsp;    }
+<b class="fc">&nbsp;    return result;</b>
+&nbsp;  }
+&nbsp;}
+</code>
+</pre>
+</div>
+
+<script type="text/javascript">
+(function() {
+    var msie = false, msie9 = false;
+    /*@cc_on
+      msie = true;
+      @if (@_jscript_version >= 9)
+        msie9 = true;
+      @end
+    @*/
+
+    if (!msie || msie && msie9) {
+      hljs.highlightAll()
+      hljs.initLineNumbersOnLoad();
+    }
+})();
+</script>
+
+<div class="footer">
+    
+    <div style="float:right;">generated on 2023-11-12 23:26</div>
+</div>
+</body>
+</html>

@@ -1,0 +1,219 @@
+
+
+
+<!DOCTYPE html>
+<html id="htmlId">
+<head>
+  <meta http-equiv="Content-Type" content="text/html;charset=windows-1252"> 
+  <title>Coverage Report > ResultMetadataType</title>
+  <style type="text/css">
+    @import "../../css/coverage.css";
+    @import "../../css/idea.min.css";
+  </style>
+  <script type="text/javascript" src="../../js/highlight.min.js"></script>
+  <script type="text/javascript" src="../../js/highlightjs-line-numbers.min.js"></script>
+</head>
+
+<body>
+<div class="content">
+<div class="breadCrumbs">
+Current scope:     <a href="../../index.html">all classes</a>
+    <span class="separator">|</span>
+    <a href="../index.html">com.google.zxing</a>
+</div>
+
+<h1>Coverage Summary for Class: ResultMetadataType (com.google.zxing)</h1>
+
+<table class="coverageStats">
+<tr>
+  <th class="name">Class</th>
+<th class="coverageStat 
+">
+  Class, %
+</th>
+<th class="coverageStat 
+">
+  Method, %
+</th>
+<th class="coverageStat 
+">
+  Line, %
+</th>
+</tr>
+<tr>
+  <td class="name">ResultMetadataType</td>
+<td class="coverageStat">
+  <span class="percent">
+    100%
+  </span>
+  <span class="absValue">
+    (1/1)
+  </span>
+</td>
+<td class="coverageStat">
+  <span class="percent">
+    100%
+  </span>
+  <span class="absValue">
+    (2/2)
+  </span>
+</td>
+<td class="coverageStat">
+  <span class="percent">
+    100%
+  </span>
+  <span class="absValue">
+    (15/15)
+  </span>
+</td>
+</tr>
+
+</table>
+
+<br/>
+<br/>
+
+
+<pre>
+<code class="sourceCode" id="sourceCode">&nbsp;/*
+&nbsp; * Copyright 2008 ZXing authors
+&nbsp; *
+&nbsp; * Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
+&nbsp; * you may not use this file except in compliance with the License.
+&nbsp; * You may obtain a copy of the License at
+&nbsp; *
+&nbsp; *      http://www.apache.org/licenses/LICENSE-2.0
+&nbsp; *
+&nbsp; * Unless required by applicable law or agreed to in writing, software
+&nbsp; * distributed under the License is distributed on an &quot;AS IS&quot; BASIS,
+&nbsp; * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+&nbsp; * See the License for the specific language governing permissions and
+&nbsp; * limitations under the License.
+&nbsp; */
+&nbsp;
+&nbsp;package com.google.zxing;
+&nbsp;
+&nbsp;/**
+&nbsp; * Represents some type of metadata about the result of the decoding that the decoder
+&nbsp; * wishes to communicate back to the caller.
+&nbsp; *
+&nbsp; * @author Sean Owen
+&nbsp; */
+<b class="fc">&nbsp;public enum ResultMetadataType {</b>
+&nbsp;
+&nbsp;  /**
+&nbsp;   * Unspecified, application-specific metadata. Maps to an unspecified {@link Object}.
+&nbsp;   */
+<b class="fc">&nbsp;  OTHER,</b>
+&nbsp;
+&nbsp;  /**
+&nbsp;   * Denotes the likely approximate orientation of the barcode in the image. This value
+&nbsp;   * is given as degrees rotated clockwise from the normal, upright orientation.
+&nbsp;   * For example a 1D barcode which was found by reading top-to-bottom would be
+&nbsp;   * said to have orientation &quot;90&quot;. This key maps to an {@link Integer} whose
+&nbsp;   * value is in the range [0,360).
+&nbsp;   */
+<b class="fc">&nbsp;  ORIENTATION,</b>
+&nbsp;
+&nbsp;  /**
+&nbsp;   * &lt;p&gt;2D barcode formats typically encode text, but allow for a sort of &#39;byte mode&#39;
+&nbsp;   * which is sometimes used to encode binary data. While {@link Result} makes available
+&nbsp;   * the complete raw bytes in the barcode for these formats, it does not offer the bytes
+&nbsp;   * from the byte segments alone.&lt;/p&gt;
+&nbsp;   *
+&nbsp;   * &lt;p&gt;This maps to a {@link java.util.List} of byte arrays corresponding to the
+&nbsp;   * raw bytes in the byte segments in the barcode, in order.&lt;/p&gt;
+&nbsp;   */
+<b class="fc">&nbsp;  BYTE_SEGMENTS,</b>
+&nbsp;
+&nbsp;  /**
+&nbsp;   * Error correction level used, if applicable. The value type depends on the
+&nbsp;   * format, but is typically a String.
+&nbsp;   */
+<b class="fc">&nbsp;  ERROR_CORRECTION_LEVEL,</b>
+&nbsp;
+&nbsp;  /**
+&nbsp;   * The number of errors corrected. If applicable, maps to an {@link Integer} of value
+&nbsp;   * greater than or equal to zero.
+&nbsp;   */
+<b class="fc">&nbsp;  ERRORS_CORRECTED,</b>
+&nbsp;
+&nbsp;  /**
+&nbsp;   * The number of erasures corrected. If applicable, maps to an {@link Integer} of value
+&nbsp;   * greater than or equal to zero.
+&nbsp;   */
+<b class="fc">&nbsp;  ERASURES_CORRECTED,</b>
+&nbsp;
+&nbsp;  /**
+&nbsp;   * For some periodicals, indicates the issue number as an {@link Integer}.
+&nbsp;   */
+<b class="fc">&nbsp;  ISSUE_NUMBER,</b>
+&nbsp;
+&nbsp;  /**
+&nbsp;   * For some products, indicates the suggested retail price in the barcode as a
+&nbsp;   * formatted {@link String}.
+&nbsp;   */
+<b class="fc">&nbsp;  SUGGESTED_PRICE,</b>
+&nbsp;
+&nbsp;  /**
+&nbsp;   * For some products, the possible country of manufacture as a {@link String} denoting the
+&nbsp;   * ISO country code. Some map to multiple possible countries, like &quot;US/CA&quot;.
+&nbsp;   */
+<b class="fc">&nbsp;  POSSIBLE_COUNTRY,</b>
+&nbsp;
+&nbsp;  /**
+&nbsp;   * For some products, the extension text.
+&nbsp;   */
+<b class="fc">&nbsp;  UPC_EAN_EXTENSION,</b>
+&nbsp;
+&nbsp;  /**
+&nbsp;   * PDF417-specific metadata.
+&nbsp;   */
+<b class="fc">&nbsp;  PDF417_EXTRA_METADATA,</b>
+&nbsp;
+&nbsp;  /**
+&nbsp;   * If the code format supports structured append and the current scanned code is part of one then the
+&nbsp;   * sequence number is given with it.
+&nbsp;   */
+<b class="fc">&nbsp;  STRUCTURED_APPEND_SEQUENCE,</b>
+&nbsp;
+&nbsp;  /**
+&nbsp;   * If the code format supports structured append and the current scanned code is part of one then the
+&nbsp;   * parity is given with it.
+&nbsp;   */
+<b class="fc">&nbsp;  STRUCTURED_APPEND_PARITY,</b>
+&nbsp;
+&nbsp;  /**
+&nbsp;   * Barcode Symbology Identifier.
+&nbsp;   * Note: According to the GS1 specification the identifier may have to replace a leading FNC1/GS character
+&nbsp;   * when prepending to the barcode content.
+&nbsp;   */
+<b class="fc">&nbsp;  SYMBOLOGY_IDENTIFIER,</b>
+&nbsp;}
+</code>
+</pre>
+</div>
+
+<script type="text/javascript">
+(function() {
+    var msie = false, msie9 = false;
+    /*@cc_on
+      msie = true;
+      @if (@_jscript_version >= 9)
+        msie9 = true;
+      @end
+    @*/
+
+    if (!msie || msie && msie9) {
+      hljs.highlightAll()
+      hljs.initLineNumbersOnLoad();
+    }
+})();
+</script>
+
+<div class="footer">
+    
+    <div style="float:right;">generated on 2023-11-12 23:26</div>
+</div>
+</body>
+</html>

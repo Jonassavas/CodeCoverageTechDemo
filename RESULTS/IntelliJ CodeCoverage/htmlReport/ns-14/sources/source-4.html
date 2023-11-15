@@ -1,0 +1,769 @@
+
+
+
+<!DOCTYPE html>
+<html id="htmlId">
+<head>
+  <meta http-equiv="Content-Type" content="text/html;charset=windows-1252"> 
+  <title>Coverage Report > Code128Writer</title>
+  <style type="text/css">
+    @import "../../css/coverage.css";
+    @import "../../css/idea.min.css";
+  </style>
+  <script type="text/javascript" src="../../js/highlight.min.js"></script>
+  <script type="text/javascript" src="../../js/highlightjs-line-numbers.min.js"></script>
+</head>
+
+<body>
+<div class="content">
+<div class="breadCrumbs">
+Current scope:     <a href="../../index.html">all classes</a>
+    <span class="separator">|</span>
+    <a href="../index.html">com.google.zxing.oned</a>
+</div>
+
+<h1>Coverage Summary for Class: Code128Writer (com.google.zxing.oned)</h1>
+
+<table class="coverageStats">
+
+<tr>
+  <th class="name">Class</th>
+<th class="coverageStat 
+">
+  Method, %
+</th>
+<th class="coverageStat 
+">
+  Line, %
+</th>
+</tr>
+<tr>
+  <td class="name">Code128Writer</td>
+<td class="coverageStat">
+  <span class="percent">
+    88.9%
+  </span>
+  <span class="absValue">
+    (8/9)
+  </span>
+</td>
+<td class="coverageStat">
+  <span class="percent">
+    94%
+  </span>
+  <span class="absValue">
+    (140/149)
+  </span>
+</td>
+</tr>
+  <tr>
+    <td class="name">Code128Writer$1</td>
+<td class="coverageStat">
+  <span class="percent">
+    100%
+  </span>
+  <span class="absValue">
+    (1/1)
+  </span>
+</td>
+<td class="coverageStat">
+  <span class="percent">
+    100%
+  </span>
+  <span class="absValue">
+    (2/2)
+  </span>
+</td>
+  </tr>
+  <tr>
+    <td class="name">Code128Writer$CType</td>
+<td class="coverageStat">
+  <span class="percent">
+    100%
+  </span>
+  <span class="absValue">
+    (2/2)
+  </span>
+</td>
+<td class="coverageStat">
+  <span class="percent">
+    100%
+  </span>
+  <span class="absValue">
+    (5/5)
+  </span>
+</td>
+  </tr>
+  <tr>
+    <td class="name">Code128Writer$MinimalEncoder</td>
+<td class="coverageStat">
+  <span class="percent">
+    100%
+  </span>
+  <span class="absValue">
+    (6/6)
+  </span>
+</td>
+<td class="coverageStat">
+  <span class="percent">
+    96.3%
+  </span>
+  <span class="absValue">
+    (105/109)
+  </span>
+</td>
+  </tr>
+  <tr>
+    <td class="name">Code128Writer$MinimalEncoder$Charset</td>
+<td class="coverageStat">
+  <span class="percent">
+    100%
+  </span>
+  <span class="absValue">
+    (1/1)
+  </span>
+</td>
+<td class="coverageStat">
+  <span class="percent">
+    100%
+  </span>
+  <span class="absValue">
+    (1/1)
+  </span>
+</td>
+  </tr>
+  <tr>
+    <td class="name">Code128Writer$MinimalEncoder$Latch</td>
+<td class="coverageStat">
+  <span class="percent">
+    100%
+  </span>
+  <span class="absValue">
+    (1/1)
+  </span>
+</td>
+<td class="coverageStat">
+  <span class="percent">
+    100%
+  </span>
+  <span class="absValue">
+    (1/1)
+  </span>
+</td>
+  </tr>
+<tr>
+  <td class="name"><strong>Total</strong></td>
+<td class="coverageStat">
+  <span class="percent">
+    95%
+  </span>
+  <span class="absValue">
+    (19/20)
+  </span>
+</td>
+<td class="coverageStat">
+  <span class="percent">
+    95.1%
+  </span>
+  <span class="absValue">
+    (254/267)
+  </span>
+</td>
+</tr>
+</table>
+
+<br/>
+<br/>
+
+
+<pre>
+<code class="sourceCode" id="sourceCode">&nbsp;/*
+&nbsp; * Copyright 2010 ZXing authors
+&nbsp; *
+&nbsp; * Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
+&nbsp; * you may not use this file except in compliance with the License.
+&nbsp; * You may obtain a copy of the License at
+&nbsp; *
+&nbsp; *      http://www.apache.org/licenses/LICENSE-2.0
+&nbsp; *
+&nbsp; * Unless required by applicable law or agreed to in writing, software
+&nbsp; * distributed under the License is distributed on an &quot;AS IS&quot; BASIS,
+&nbsp; * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+&nbsp; * See the License for the specific language governing permissions and
+&nbsp; * limitations under the License.
+&nbsp; */
+&nbsp;
+&nbsp;package com.google.zxing.oned;
+&nbsp;
+&nbsp;import com.google.zxing.BarcodeFormat;
+&nbsp;import com.google.zxing.EncodeHintType;
+&nbsp;import com.google.zxing.common.BitMatrix;
+&nbsp;
+&nbsp;import java.util.ArrayList;
+&nbsp;import java.util.Collection;
+&nbsp;import java.util.Collections;
+&nbsp;import java.util.Map;
+&nbsp;
+&nbsp;/**
+&nbsp; * This object renders a CODE128 code as a {@link BitMatrix}.
+&nbsp; *
+&nbsp; * @author erik.barbara@gmail.com (Erik Barbara)
+&nbsp; */
+<b class="fc">&nbsp;public final class Code128Writer extends OneDimensionalCodeWriter {</b>
+&nbsp;
+&nbsp;  private static final int CODE_START_A = 103;
+&nbsp;  private static final int CODE_START_B = 104;
+&nbsp;  private static final int CODE_START_C = 105;
+&nbsp;  private static final int CODE_CODE_A = 101;
+&nbsp;  private static final int CODE_CODE_B = 100;
+&nbsp;  private static final int CODE_CODE_C = 99;
+&nbsp;  private static final int CODE_STOP = 106;
+&nbsp;
+&nbsp;  // Dummy characters used to specify control characters in input
+&nbsp;  private static final char ESCAPE_FNC_1 = &#39;\u00f1&#39;;
+&nbsp;  private static final char ESCAPE_FNC_2 = &#39;\u00f2&#39;;
+&nbsp;  private static final char ESCAPE_FNC_3 = &#39;\u00f3&#39;;
+&nbsp;  private static final char ESCAPE_FNC_4 = &#39;\u00f4&#39;;
+&nbsp;
+&nbsp;  private static final int CODE_FNC_1 = 102;   // Code A, Code B, Code C
+&nbsp;  private static final int CODE_FNC_2 = 97;    // Code A, Code B
+&nbsp;  private static final int CODE_FNC_3 = 96;    // Code A, Code B
+&nbsp;  private static final int CODE_FNC_4_A = 101; // Code A
+&nbsp;  private static final int CODE_FNC_4_B = 100; // Code B
+&nbsp;
+&nbsp;  // Results of minimal lookahead for code C
+<b class="fc">&nbsp;  private enum CType {</b>
+<b class="fc">&nbsp;    UNCODABLE,</b>
+<b class="fc">&nbsp;    ONE_DIGIT,</b>
+<b class="fc">&nbsp;    TWO_DIGITS,</b>
+<b class="fc">&nbsp;    FNC_1</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  @Override
+&nbsp;  protected Collection&lt;BarcodeFormat&gt; getSupportedWriteFormats() {
+<b class="fc">&nbsp;    return Collections.singleton(BarcodeFormat.CODE_128);</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  @Override
+&nbsp;  public boolean[] encode(String contents) {
+<b class="nc">&nbsp;    return encode(contents, null);</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  @Override
+&nbsp;  public boolean[] encode(String contents, Map&lt;EncodeHintType,?&gt; hints) {
+&nbsp;
+<b class="fc">&nbsp;    int forcedCodeSet = check(contents, hints);</b>
+&nbsp;
+<b class="fc">&nbsp;    boolean hasCompactionHint = hints != null &amp;&amp; hints.containsKey(EncodeHintType.CODE128_COMPACT) &amp;&amp;</b>
+<b class="fc">&nbsp;        Boolean.parseBoolean(hints.get(EncodeHintType.CODE128_COMPACT).toString());</b>
+&nbsp;
+<b class="fc">&nbsp;    return hasCompactionHint ? new MinimalEncoder().encode(contents) : encodeFast(contents, forcedCodeSet);</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  private static int check(String contents, Map&lt;EncodeHintType,?&gt; hints) {
+&nbsp;    // Check for forced code set hint.
+<b class="fc">&nbsp;    int forcedCodeSet = -1;</b>
+<b class="fc">&nbsp;    if (hints != null &amp;&amp; hints.containsKey(EncodeHintType.FORCE_CODE_SET)) {</b>
+<b class="fc">&nbsp;      String codeSetHint = hints.get(EncodeHintType.FORCE_CODE_SET).toString();</b>
+<b class="fc">&nbsp;      switch (codeSetHint) {</b>
+&nbsp;        case &quot;A&quot;:
+<b class="fc">&nbsp;          forcedCodeSet = CODE_CODE_A;</b>
+<b class="fc">&nbsp;          break;</b>
+&nbsp;        case &quot;B&quot;:
+<b class="fc">&nbsp;          forcedCodeSet = CODE_CODE_B;</b>
+<b class="fc">&nbsp;          break;</b>
+&nbsp;        case &quot;C&quot;:
+<b class="fc">&nbsp;          forcedCodeSet = CODE_CODE_C;</b>
+<b class="fc">&nbsp;          break;</b>
+&nbsp;        default:
+<b class="nc">&nbsp;          throw new IllegalArgumentException(&quot;Unsupported code set hint: &quot; + codeSetHint);</b>
+&nbsp;      }
+&nbsp;    }
+&nbsp;
+&nbsp;    // Check content
+<b class="fc">&nbsp;    int length = contents.length();</b>
+<b class="fc">&nbsp;    for (int i = 0; i &lt; length; i++) {</b>
+<b class="fc">&nbsp;      char c = contents.charAt(i);</b>
+&nbsp;      // check for non ascii characters that are not special GS1 characters
+<b class="fc">&nbsp;      switch (c) {</b>
+&nbsp;        // special function characters
+&nbsp;        case ESCAPE_FNC_1:
+&nbsp;        case ESCAPE_FNC_2:
+&nbsp;        case ESCAPE_FNC_3:
+&nbsp;        case ESCAPE_FNC_4:
+<b class="fc">&nbsp;          break;</b>
+&nbsp;        // non ascii characters
+&nbsp;        default:
+<b class="fc">&nbsp;          if (c &gt; 127) {</b>
+&nbsp;            // no full Latin-1 character set available at the moment
+&nbsp;            // shift and manual code change are not supported
+<b class="nc">&nbsp;            throw new IllegalArgumentException(&quot;Bad character in input: ASCII value=&quot; + (int) c);</b>
+&nbsp;          }
+&nbsp;      }
+&nbsp;      // check characters for compatibility with forced code set
+<b class="fc">&nbsp;      switch (forcedCodeSet) {</b>
+&nbsp;        case CODE_CODE_A:
+&nbsp;          // allows no ascii above 95 (no lower caps, no special symbols)
+<b class="fc">&nbsp;          if (c &gt; 95 &amp;&amp; c &lt;= 127) {</b>
+<b class="fc">&nbsp;            throw new IllegalArgumentException(&quot;Bad character in input for forced code set A: ASCII value=&quot; + (int) c);</b>
+&nbsp;          }
+&nbsp;          break;
+&nbsp;        case CODE_CODE_B:
+&nbsp;          // allows no ascii below 32 (terminal symbols)
+<b class="fc">&nbsp;          if (c &lt; 32) {</b>
+<b class="fc">&nbsp;            throw new IllegalArgumentException(&quot;Bad character in input for forced code set B: ASCII value=&quot; + (int) c);</b>
+&nbsp;          }
+&nbsp;          break;
+&nbsp;        case CODE_CODE_C:
+&nbsp;          // allows only numbers and no FNC 2/3/4
+<b class="fc">&nbsp;          if (c &lt; 48 || (c &gt; 57 &amp;&amp; c &lt;= 127) || c == ESCAPE_FNC_2 || c == ESCAPE_FNC_3 || c == ESCAPE_FNC_4) {</b>
+<b class="fc">&nbsp;            throw new IllegalArgumentException(&quot;Bad character in input for forced code set C: ASCII value=&quot; + (int) c);</b>
+&nbsp;          }
+&nbsp;          break;
+&nbsp;      }
+&nbsp;    }
+<b class="fc">&nbsp;    return forcedCodeSet;</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  private static boolean[] encodeFast(String contents, int forcedCodeSet) {
+<b class="fc">&nbsp;    int length = contents.length();</b>
+&nbsp;
+<b class="fc">&nbsp;    Collection&lt;int[]&gt; patterns = new ArrayList&lt;&gt;(); // temporary storage for patterns</b>
+<b class="fc">&nbsp;    int checkSum = 0;</b>
+<b class="fc">&nbsp;    int checkWeight = 1;</b>
+<b class="fc">&nbsp;    int codeSet = 0; // selected code (CODE_CODE_B or CODE_CODE_C)</b>
+<b class="fc">&nbsp;    int position = 0; // position in contents</b>
+&nbsp;
+<b class="fc">&nbsp;    while (position &lt; length) {</b>
+&nbsp;      //Select code to use
+&nbsp;      int newCodeSet;
+<b class="fc">&nbsp;      if (forcedCodeSet == -1) {</b>
+<b class="fc">&nbsp;        newCodeSet = chooseCode(contents, position, codeSet);</b>
+&nbsp;      } else {
+<b class="fc">&nbsp;        newCodeSet = forcedCodeSet;</b>
+&nbsp;      }
+&nbsp;
+&nbsp;      //Get the pattern index
+&nbsp;      int patternIndex;
+<b class="fc">&nbsp;      if (newCodeSet == codeSet) {</b>
+&nbsp;        // Encode the current character
+&nbsp;        // First handle escapes
+<b class="fc">&nbsp;        switch (contents.charAt(position)) {</b>
+&nbsp;          case ESCAPE_FNC_1:
+<b class="fc">&nbsp;            patternIndex = CODE_FNC_1;</b>
+<b class="fc">&nbsp;            break;</b>
+&nbsp;          case ESCAPE_FNC_2:
+<b class="fc">&nbsp;            patternIndex = CODE_FNC_2;</b>
+<b class="fc">&nbsp;            break;</b>
+&nbsp;          case ESCAPE_FNC_3:
+<b class="fc">&nbsp;            patternIndex = CODE_FNC_3;</b>
+<b class="fc">&nbsp;            break;</b>
+&nbsp;          case ESCAPE_FNC_4:
+<b class="fc">&nbsp;            if (codeSet == CODE_CODE_A) {</b>
+<b class="fc">&nbsp;              patternIndex = CODE_FNC_4_A;</b>
+&nbsp;            } else {
+<b class="fc">&nbsp;              patternIndex = CODE_FNC_4_B;</b>
+&nbsp;            }
+<b class="fc">&nbsp;            break;</b>
+&nbsp;          default:
+&nbsp;            // Then handle normal characters otherwise
+<b class="fc">&nbsp;            switch (codeSet) {</b>
+&nbsp;              case CODE_CODE_A:
+<b class="fc">&nbsp;                patternIndex = contents.charAt(position) - &#39; &#39;;</b>
+<b class="fc">&nbsp;                if (patternIndex &lt; 0) {</b>
+&nbsp;                  // everything below a space character comes behind the underscore in the code patterns table
+<b class="fc">&nbsp;                  patternIndex += &#39;`&#39;;</b>
+&nbsp;                }
+&nbsp;                break;
+&nbsp;              case CODE_CODE_B:
+<b class="fc">&nbsp;                patternIndex = contents.charAt(position) - &#39; &#39;;</b>
+<b class="fc">&nbsp;                break;</b>
+&nbsp;              default:
+&nbsp;                // CODE_CODE_C
+<b class="fc">&nbsp;                if (position + 1 == length) {</b>
+&nbsp;                  // this is the last character, but the encoding is C, which always encodes two characers
+<b class="fc">&nbsp;                  throw new IllegalArgumentException(&quot;Bad number of characters for digit only encoding.&quot;);</b>
+&nbsp;                }
+<b class="fc">&nbsp;                patternIndex = Integer.parseInt(contents.substring(position, position + 2));</b>
+<b class="fc">&nbsp;                position++; // Also incremented below</b>
+&nbsp;                break;
+&nbsp;            }
+&nbsp;        }
+<b class="fc">&nbsp;        position++;</b>
+&nbsp;      } else {
+&nbsp;        // Should we change the current code?
+&nbsp;        // Do we have a code set?
+<b class="fc">&nbsp;        if (codeSet == 0) {</b>
+&nbsp;          // No, we don&#39;t have a code set
+<b class="fc">&nbsp;          switch (newCodeSet) {</b>
+&nbsp;            case CODE_CODE_A:
+<b class="fc">&nbsp;              patternIndex = CODE_START_A;</b>
+<b class="fc">&nbsp;              break;</b>
+&nbsp;            case CODE_CODE_B:
+<b class="fc">&nbsp;              patternIndex = CODE_START_B;</b>
+<b class="fc">&nbsp;              break;</b>
+&nbsp;            default:
+<b class="fc">&nbsp;              patternIndex = CODE_START_C;</b>
+<b class="fc">&nbsp;              break;</b>
+&nbsp;          }
+&nbsp;        } else {
+&nbsp;          // Yes, we have a code set
+<b class="fc">&nbsp;          patternIndex = newCodeSet;</b>
+&nbsp;        }
+<b class="fc">&nbsp;        codeSet = newCodeSet;</b>
+&nbsp;      }
+&nbsp;
+&nbsp;      // Get the pattern
+<b class="fc">&nbsp;      patterns.add(Code128Reader.CODE_PATTERNS[patternIndex]);</b>
+&nbsp;
+&nbsp;      // Compute checksum
+<b class="fc">&nbsp;      checkSum += patternIndex * checkWeight;</b>
+<b class="fc">&nbsp;      if (position != 0) {</b>
+<b class="fc">&nbsp;        checkWeight++;</b>
+&nbsp;      }
+<b class="fc">&nbsp;    }</b>
+<b class="fc">&nbsp;    return produceResult(patterns, checkSum);</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  static boolean[] produceResult(Collection&lt;int[]&gt; patterns, int checkSum) {
+&nbsp;    // Compute and append checksum
+<b class="fc">&nbsp;    checkSum %= 103;</b>
+<b class="fc">&nbsp;    if (checkSum &lt; 0) {</b>
+<b class="nc">&nbsp;      throw new IllegalArgumentException(&quot;Unable to compute a valid input checksum&quot;);</b>
+&nbsp;    }
+<b class="fc">&nbsp;    patterns.add(Code128Reader.CODE_PATTERNS[checkSum]);</b>
+&nbsp;
+&nbsp;    // Append stop code
+<b class="fc">&nbsp;    patterns.add(Code128Reader.CODE_PATTERNS[CODE_STOP]);</b>
+&nbsp;
+&nbsp;    // Compute code width
+<b class="fc">&nbsp;    int codeWidth = 0;</b>
+<b class="fc">&nbsp;    for (int[] pattern : patterns) {</b>
+<b class="fc">&nbsp;      for (int width : pattern) {</b>
+<b class="fc">&nbsp;        codeWidth += width;</b>
+&nbsp;      }
+<b class="fc">&nbsp;    }</b>
+&nbsp;
+&nbsp;    // Compute result
+<b class="fc">&nbsp;    boolean[] result = new boolean[codeWidth];</b>
+<b class="fc">&nbsp;    int pos = 0;</b>
+<b class="fc">&nbsp;    for (int[] pattern : patterns) {</b>
+<b class="fc">&nbsp;      pos += appendPattern(result, pos, pattern, true);</b>
+<b class="fc">&nbsp;    }</b>
+&nbsp;
+<b class="fc">&nbsp;    return result;</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  private static CType findCType(CharSequence value, int start) {
+<b class="fc">&nbsp;    int last = value.length();</b>
+<b class="fc">&nbsp;    if (start &gt;= last) {</b>
+<b class="fc">&nbsp;      return CType.UNCODABLE;</b>
+&nbsp;    }
+<b class="fc">&nbsp;    char c = value.charAt(start);</b>
+<b class="fc">&nbsp;    if (c == ESCAPE_FNC_1) {</b>
+<b class="fc">&nbsp;      return CType.FNC_1;</b>
+&nbsp;    }
+<b class="fc">&nbsp;    if (c &lt; &#39;0&#39; || c &gt; &#39;9&#39;) {</b>
+<b class="fc">&nbsp;      return CType.UNCODABLE;</b>
+&nbsp;    }
+<b class="fc">&nbsp;    if (start + 1 &gt;= last) {</b>
+<b class="fc">&nbsp;      return CType.ONE_DIGIT;</b>
+&nbsp;    }
+<b class="fc">&nbsp;    c = value.charAt(start + 1);</b>
+<b class="fc">&nbsp;    if (c &lt; &#39;0&#39; || c &gt; &#39;9&#39;) {</b>
+<b class="fc">&nbsp;      return CType.ONE_DIGIT;</b>
+&nbsp;    }
+<b class="fc">&nbsp;    return CType.TWO_DIGITS;</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  private static int chooseCode(CharSequence value, int start, int oldCode) {
+<b class="fc">&nbsp;    CType lookahead = findCType(value, start);</b>
+<b class="fc">&nbsp;    if (lookahead == CType.ONE_DIGIT) {</b>
+<b class="fc">&nbsp;      if (oldCode == CODE_CODE_A) {</b>
+<b class="fc">&nbsp;        return CODE_CODE_A;</b>
+&nbsp;      }
+<b class="fc">&nbsp;      return CODE_CODE_B;</b>
+&nbsp;    }
+<b class="fc">&nbsp;    if (lookahead == CType.UNCODABLE) {</b>
+<b class="fc">&nbsp;      if (start &lt; value.length()) {</b>
+<b class="fc">&nbsp;        char c = value.charAt(start);</b>
+<b class="fc">&nbsp;        if (c &lt; &#39; &#39; || (oldCode == CODE_CODE_A &amp;&amp; (c &lt; &#39;`&#39; || (c &gt;= ESCAPE_FNC_1 &amp;&amp; c &lt;= ESCAPE_FNC_4)))) {</b>
+&nbsp;          // can continue in code A, encodes ASCII 0 to 95 or FNC1 to FNC4
+<b class="fc">&nbsp;          return CODE_CODE_A;</b>
+&nbsp;        }
+&nbsp;      }
+<b class="fc">&nbsp;      return CODE_CODE_B; // no choice</b>
+&nbsp;    }
+<b class="fc">&nbsp;    if (oldCode == CODE_CODE_A &amp;&amp; lookahead == CType.FNC_1) {</b>
+<b class="fc">&nbsp;      return CODE_CODE_A;</b>
+&nbsp;    }
+<b class="fc">&nbsp;    if (oldCode == CODE_CODE_C) { // can continue in code C</b>
+<b class="fc">&nbsp;      return CODE_CODE_C;</b>
+&nbsp;    }
+<b class="fc">&nbsp;    if (oldCode == CODE_CODE_B) {</b>
+<b class="fc">&nbsp;      if (lookahead == CType.FNC_1) {</b>
+<b class="fc">&nbsp;        return CODE_CODE_B; // can continue in code B</b>
+&nbsp;      }
+&nbsp;      // Seen two consecutive digits, see what follows
+<b class="fc">&nbsp;      lookahead = findCType(value, start + 2);</b>
+<b class="fc">&nbsp;      if (lookahead == CType.UNCODABLE || lookahead == CType.ONE_DIGIT) {</b>
+<b class="fc">&nbsp;        return CODE_CODE_B; // not worth switching now</b>
+&nbsp;      }
+<b class="fc">&nbsp;      if (lookahead == CType.FNC_1) { // two digits, then FNC_1...</b>
+<b class="nc">&nbsp;        lookahead = findCType(value, start + 3);</b>
+<b class="nc">&nbsp;        if (lookahead == CType.TWO_DIGITS) { // then two more digits, switch</b>
+<b class="nc">&nbsp;          return CODE_CODE_C;</b>
+&nbsp;        } else {
+<b class="nc">&nbsp;          return CODE_CODE_B; // otherwise not worth switching</b>
+&nbsp;        }
+&nbsp;      }
+&nbsp;      // At this point, there are at least 4 consecutive digits.
+&nbsp;      // Look ahead to choose whether to switch now or on the next round.
+<b class="fc">&nbsp;      int index = start + 4;</b>
+<b class="fc">&nbsp;      while ((lookahead = findCType(value, index)) == CType.TWO_DIGITS) {</b>
+<b class="fc">&nbsp;        index += 2;</b>
+&nbsp;      }
+<b class="fc">&nbsp;      if (lookahead == CType.ONE_DIGIT) { // odd number of digits, switch later</b>
+<b class="fc">&nbsp;        return CODE_CODE_B;</b>
+&nbsp;      }
+<b class="fc">&nbsp;      return CODE_CODE_C; // even number of digits, switch now</b>
+&nbsp;    }
+&nbsp;    // Here oldCode == 0, which means we are choosing the initial code
+<b class="fc">&nbsp;    if (lookahead == CType.FNC_1) { // ignore FNC_1</b>
+<b class="fc">&nbsp;      lookahead = findCType(value, start + 1);</b>
+&nbsp;    }
+<b class="fc">&nbsp;    if (lookahead == CType.TWO_DIGITS) { // at least two digits, start in code C</b>
+<b class="fc">&nbsp;      return CODE_CODE_C;</b>
+&nbsp;    }
+<b class="nc">&nbsp;    return CODE_CODE_B;</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  /**
+&nbsp;   * Encodes minimally using Divide-And-Conquer with Memoization
+&nbsp;   **/
+<b class="fc">&nbsp;  private static final class MinimalEncoder {</b>
+&nbsp;
+<b class="fc">&nbsp;    private enum Charset { A, B, C, NONE }</b>
+<b class="fc">&nbsp;    private enum Latch { A, B, C, SHIFT, NONE }</b>
+&nbsp;
+&nbsp;    static final String A = &quot; !\&quot;#$%&amp;&#39;()*+,-./0123456789:;&lt;=&gt;?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_\u0000\u0001\u0002&quot; +
+&nbsp;                            &quot;\u0003\u0004\u0005\u0006\u0007\u0008\u0009\n\u000B\u000C\r\u000E\u000F\u0010\u0011&quot; +
+&nbsp;                            &quot;\u0012\u0013\u0014\u0015\u0016\u0017\u0018\u0019\u001A\u001B\u001C\u001D\u001E\u001F&quot; +
+&nbsp;                            &quot;\u00FF&quot;;
+&nbsp;    static final String B = &quot; !\&quot;#$%&amp;&#39;()*+,-./0123456789:;&lt;=&gt;?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqr&quot; +
+&nbsp;                            &quot;stuvwxyz{|}~\u007F\u00FF&quot;;
+&nbsp;
+&nbsp;    private static final int CODE_SHIFT = 98;
+&nbsp;
+&nbsp;    private int[][] memoizedCost;
+&nbsp;    private Latch[][] minPath;
+&nbsp;
+&nbsp;    private boolean[] encode(String contents) {
+<b class="fc">&nbsp;      memoizedCost = new int[4][contents.length()];</b>
+<b class="fc">&nbsp;      minPath = new Latch[4][contents.length()];</b>
+&nbsp;
+<b class="fc">&nbsp;      encode(contents, Charset.NONE, 0);</b>
+&nbsp;
+<b class="fc">&nbsp;      Collection&lt;int[]&gt; patterns = new ArrayList&lt;&gt;();</b>
+<b class="fc">&nbsp;      int[] checkSum = new int[] {0};</b>
+<b class="fc">&nbsp;      int[] checkWeight = new int[] {1};</b>
+<b class="fc">&nbsp;      int length = contents.length();</b>
+<b class="fc">&nbsp;      Charset charset = Charset.NONE;</b>
+<b class="fc">&nbsp;      for (int i = 0; i &lt; length; i++) {</b>
+<b class="fc">&nbsp;        Latch latch = minPath[charset.ordinal()][i];</b>
+<b class="fc">&nbsp;        switch (latch) {</b>
+&nbsp;          case A:
+<b class="fc">&nbsp;            charset = Charset.A;</b>
+<b class="fc">&nbsp;            addPattern(patterns, i == 0 ? CODE_START_A : CODE_CODE_A, checkSum, checkWeight, i);</b>
+<b class="fc">&nbsp;            break;</b>
+&nbsp;          case B:
+<b class="fc">&nbsp;            charset = Charset.B;</b>
+<b class="fc">&nbsp;            addPattern(patterns, i == 0 ? CODE_START_B : CODE_CODE_B, checkSum, checkWeight, i);</b>
+<b class="fc">&nbsp;            break;</b>
+&nbsp;          case C:
+<b class="fc">&nbsp;            charset = Charset.C;</b>
+<b class="fc">&nbsp;            addPattern(patterns, i == 0 ? CODE_START_C : CODE_CODE_C, checkSum, checkWeight, i);</b>
+<b class="fc">&nbsp;            break;</b>
+&nbsp;          case SHIFT:
+<b class="fc">&nbsp;            addPattern(patterns, CODE_SHIFT, checkSum, checkWeight, i);</b>
+&nbsp;            break;
+&nbsp;        }
+<b class="fc">&nbsp;        if (charset == Charset.C) {</b>
+<b class="fc">&nbsp;          if (contents.charAt(i) == ESCAPE_FNC_1) {</b>
+<b class="fc">&nbsp;            addPattern(patterns, CODE_FNC_1, checkSum, checkWeight, i);</b>
+&nbsp;          } else {
+<b class="fc">&nbsp;            addPattern(patterns, Integer.parseInt(contents.substring(i, i + 2)), checkSum, checkWeight, i);</b>
+<b class="fc">&nbsp;            assert i + 1 &lt; length; //the algorithm never leads to a single trailing digit in character set C</b>
+<b class="fc">&nbsp;            if (i + 1 &lt; length) {</b>
+<b class="fc">&nbsp;              i++;</b>
+&nbsp;            }
+&nbsp;          }
+&nbsp;        } else { // charset A or B
+&nbsp;          int patternIndex;
+<b class="fc">&nbsp;          switch (contents.charAt(i)) {</b>
+&nbsp;            case ESCAPE_FNC_1:
+<b class="fc">&nbsp;              patternIndex = CODE_FNC_1;</b>
+<b class="fc">&nbsp;              break;</b>
+&nbsp;            case ESCAPE_FNC_2:
+<b class="fc">&nbsp;              patternIndex = CODE_FNC_2;</b>
+<b class="fc">&nbsp;              break;</b>
+&nbsp;            case ESCAPE_FNC_3:
+<b class="fc">&nbsp;              patternIndex = CODE_FNC_3;</b>
+<b class="fc">&nbsp;              break;</b>
+&nbsp;            case ESCAPE_FNC_4:
+<b class="fc">&nbsp;              if (charset == Charset.A &amp;&amp; latch != Latch.SHIFT ||</b>
+&nbsp;                  charset == Charset.B &amp;&amp; latch == Latch.SHIFT) {
+<b class="fc">&nbsp;                patternIndex = CODE_FNC_4_A;</b>
+&nbsp;              } else {
+<b class="nc">&nbsp;                patternIndex = CODE_FNC_4_B;</b>
+&nbsp;              }
+<b class="nc">&nbsp;              break;</b>
+&nbsp;            default:
+<b class="fc">&nbsp;              patternIndex = contents.charAt(i) - &#39; &#39;;</b>
+&nbsp;          }
+<b class="fc">&nbsp;          if ((charset == Charset.A &amp;&amp; latch != Latch.SHIFT ||</b>
+&nbsp;               charset == Charset.B &amp;&amp; latch == Latch.SHIFT) &amp;&amp;
+&nbsp;               patternIndex &lt; 0) {
+<b class="fc">&nbsp;            patternIndex += &#39;`&#39;;</b>
+&nbsp;          }
+<b class="fc">&nbsp;          addPattern(patterns, patternIndex, checkSum, checkWeight, i);</b>
+&nbsp;        }
+&nbsp;      }
+<b class="fc">&nbsp;      memoizedCost = null;</b>
+<b class="fc">&nbsp;      minPath = null;</b>
+<b class="fc">&nbsp;      return produceResult(patterns, checkSum[0]);</b>
+&nbsp;    }
+&nbsp;
+&nbsp;    private static void addPattern(Collection&lt;int[]&gt; patterns,
+&nbsp;                                  int patternIndex,
+&nbsp;                                  int[] checkSum,
+&nbsp;                                  int[] checkWeight,
+&nbsp;                                  int position) {
+<b class="fc">&nbsp;      patterns.add(Code128Reader.CODE_PATTERNS[patternIndex]);</b>
+<b class="fc">&nbsp;      if (position != 0) {</b>
+<b class="fc">&nbsp;        checkWeight[0]++;</b>
+&nbsp;      }
+<b class="fc">&nbsp;      checkSum[0] += patternIndex * checkWeight[0];</b>
+&nbsp;    }
+&nbsp;
+&nbsp;    private static boolean isDigit(char c) {
+<b class="fc">&nbsp;      return c &gt;= &#39;0&#39; &amp;&amp; c &lt;= &#39;9&#39;;</b>
+&nbsp;    }
+&nbsp;
+&nbsp;    private boolean canEncode(CharSequence contents, Charset charset,int position) {
+<b class="fc">&nbsp;      char c = contents.charAt(position);</b>
+<b class="fc">&nbsp;      switch (charset) {</b>
+<b class="fc">&nbsp;        case A: return c == ESCAPE_FNC_1 ||</b>
+&nbsp;                       c == ESCAPE_FNC_2 ||
+&nbsp;                       c == ESCAPE_FNC_3 ||
+&nbsp;                       c == ESCAPE_FNC_4 ||
+<b class="fc">&nbsp;                       A.indexOf(c) &gt;= 0;</b>
+<b class="fc">&nbsp;        case B: return c == ESCAPE_FNC_1 ||</b>
+&nbsp;                       c == ESCAPE_FNC_2 ||
+&nbsp;                       c == ESCAPE_FNC_3 ||
+&nbsp;                       c == ESCAPE_FNC_4 ||
+<b class="fc">&nbsp;                       B.indexOf(c) &gt;= 0;</b>
+<b class="fc">&nbsp;        case C: return c == ESCAPE_FNC_1 ||</b>
+<b class="fc">&nbsp;                       (position + 1 &lt; contents.length() &amp;&amp;</b>
+<b class="fc">&nbsp;                        isDigit(c) &amp;&amp;</b>
+<b class="fc">&nbsp;                        isDigit(contents.charAt(position + 1)));</b>
+<b class="nc">&nbsp;        default: return false;</b>
+&nbsp;      }
+&nbsp;    }
+&nbsp;
+&nbsp;    /**
+&nbsp;     * Encode the string starting at position position starting with the character set charset
+&nbsp;     **/
+&nbsp;    private int encode(CharSequence contents, Charset charset, int position) {
+<b class="fc">&nbsp;      assert position &lt; contents.length();</b>
+<b class="fc">&nbsp;      int mCost = memoizedCost[charset.ordinal()][position];</b>
+<b class="fc">&nbsp;      if (mCost &gt; 0) {</b>
+<b class="fc">&nbsp;        return mCost;</b>
+&nbsp;      }
+&nbsp;
+<b class="fc">&nbsp;      int minCost = Integer.MAX_VALUE;</b>
+<b class="fc">&nbsp;      Latch minLatch = Latch.NONE;</b>
+<b class="fc">&nbsp;      boolean atEnd = position + 1 &gt;= contents.length();</b>
+&nbsp;
+<b class="fc">&nbsp;      Charset[] sets = new Charset[] { Charset.A, Charset.B };</b>
+<b class="fc">&nbsp;      for (int i = 0; i &lt;= 1; i++) {</b>
+<b class="fc">&nbsp;        if (canEncode(contents, sets[i], position)) {</b>
+<b class="fc">&nbsp;          int cost =  1;</b>
+<b class="fc">&nbsp;          Latch latch = Latch.NONE;</b>
+<b class="fc">&nbsp;          if (charset != sets[i]) {</b>
+<b class="fc">&nbsp;            cost++;</b>
+<b class="fc">&nbsp;            latch = Latch.valueOf(sets[i].toString());</b>
+&nbsp;          }
+<b class="fc">&nbsp;          if (!atEnd) {</b>
+<b class="fc">&nbsp;            cost += encode(contents, sets[i], position + 1);</b>
+&nbsp;          }
+<b class="fc">&nbsp;          if (cost &lt; minCost) {</b>
+<b class="fc">&nbsp;            minCost = cost;</b>
+<b class="fc">&nbsp;            minLatch = latch;</b>
+&nbsp;          }
+<b class="fc">&nbsp;          cost = 1;</b>
+<b class="fc">&nbsp;          if (charset == sets[(i + 1) % 2]) {</b>
+<b class="fc">&nbsp;            cost++;</b>
+<b class="fc">&nbsp;            latch = Latch.SHIFT;</b>
+<b class="fc">&nbsp;            if (!atEnd) {</b>
+<b class="fc">&nbsp;              cost += encode(contents, charset, position + 1);</b>
+&nbsp;            }
+<b class="fc">&nbsp;            if (cost &lt; minCost) {</b>
+<b class="fc">&nbsp;              minCost = cost;</b>
+<b class="fc">&nbsp;              minLatch = latch;</b>
+&nbsp;            }
+&nbsp;          }
+&nbsp;        }
+&nbsp;      }
+<b class="fc">&nbsp;      if (canEncode(contents, Charset.C, position)) {</b>
+<b class="fc">&nbsp;        int cost = 1;</b>
+<b class="fc">&nbsp;        Latch latch = Latch.NONE;</b>
+<b class="fc">&nbsp;        if (charset != Charset.C) {</b>
+<b class="fc">&nbsp;          cost++;</b>
+<b class="fc">&nbsp;          latch = Latch.C;</b>
+&nbsp;        }
+<b class="fc">&nbsp;        int advance = contents.charAt(position) == ESCAPE_FNC_1 ? 1 : 2;</b>
+<b class="fc">&nbsp;        if (position + advance &lt; contents.length()) {</b>
+<b class="fc">&nbsp;          cost += encode(contents, Charset.C, position + advance);</b>
+&nbsp;        }
+<b class="fc">&nbsp;        if (cost &lt; minCost) {</b>
+<b class="fc">&nbsp;          minCost = cost;</b>
+<b class="fc">&nbsp;          minLatch = latch;</b>
+&nbsp;        }
+&nbsp;      }
+<b class="fc">&nbsp;      if (minCost == Integer.MAX_VALUE) {</b>
+<b class="nc">&nbsp;        throw new IllegalArgumentException(&quot;Bad character in input: ASCII value=&quot; + (int) contents.charAt(position));</b>
+&nbsp;      }
+<b class="fc">&nbsp;      memoizedCost[charset.ordinal()][position] = minCost;</b>
+<b class="fc">&nbsp;      minPath[charset.ordinal()][position] = minLatch;</b>
+<b class="fc">&nbsp;      return minCost;</b>
+&nbsp;    }
+&nbsp;  }
+&nbsp;}
+</code>
+</pre>
+</div>
+
+<script type="text/javascript">
+(function() {
+    var msie = false, msie9 = false;
+    /*@cc_on
+      msie = true;
+      @if (@_jscript_version >= 9)
+        msie9 = true;
+      @end
+    @*/
+
+    if (!msie || msie && msie9) {
+      hljs.highlightAll()
+      hljs.initLineNumbersOnLoad();
+    }
+})();
+</script>
+
+<div class="footer">
+    
+    <div style="float:right;">generated on 2023-11-12 23:26</div>
+</div>
+</body>
+</html>

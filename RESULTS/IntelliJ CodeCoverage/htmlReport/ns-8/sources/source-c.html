@@ -1,0 +1,341 @@
+
+
+
+<!DOCTYPE html>
+<html id="htmlId">
+<head>
+  <meta http-equiv="Content-Type" content="text/html;charset=windows-1252"> 
+  <title>Coverage Report > HybridBinarizer</title>
+  <style type="text/css">
+    @import "../../css/coverage.css";
+    @import "../../css/idea.min.css";
+  </style>
+  <script type="text/javascript" src="../../js/highlight.min.js"></script>
+  <script type="text/javascript" src="../../js/highlightjs-line-numbers.min.js"></script>
+</head>
+
+<body>
+<div class="content">
+<div class="breadCrumbs">
+Current scope:     <a href="../../index.html">all classes</a>
+    <span class="separator">|</span>
+    <a href="../index.html">com.google.zxing.common</a>
+</div>
+
+<h1>Coverage Summary for Class: HybridBinarizer (com.google.zxing.common)</h1>
+
+<table class="coverageStats">
+<tr>
+  <th class="name">Class</th>
+<th class="coverageStat 
+">
+  Class, %
+</th>
+<th class="coverageStat 
+">
+  Method, %
+</th>
+<th class="coverageStat 
+">
+  Line, %
+</th>
+</tr>
+<tr>
+  <td class="name">HybridBinarizer</td>
+<td class="coverageStat">
+  <span class="percent">
+    100%
+  </span>
+  <span class="absValue">
+    (1/1)
+  </span>
+</td>
+<td class="coverageStat">
+  <span class="percent">
+    100%
+  </span>
+  <span class="absValue">
+    (7/7)
+  </span>
+</td>
+<td class="coverageStat">
+  <span class="percent">
+    98.8%
+  </span>
+  <span class="absValue">
+    (79/80)
+  </span>
+</td>
+</tr>
+
+</table>
+
+<br/>
+<br/>
+
+
+<pre>
+<code class="sourceCode" id="sourceCode">&nbsp;/*
+&nbsp; * Copyright 2009 ZXing authors
+&nbsp; *
+&nbsp; * Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
+&nbsp; * you may not use this file except in compliance with the License.
+&nbsp; * You may obtain a copy of the License at
+&nbsp; *
+&nbsp; *      http://www.apache.org/licenses/LICENSE-2.0
+&nbsp; *
+&nbsp; * Unless required by applicable law or agreed to in writing, software
+&nbsp; * distributed under the License is distributed on an &quot;AS IS&quot; BASIS,
+&nbsp; * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+&nbsp; * See the License for the specific language governing permissions and
+&nbsp; * limitations under the License.
+&nbsp; */
+&nbsp;
+&nbsp;package com.google.zxing.common;
+&nbsp;
+&nbsp;import com.google.zxing.Binarizer;
+&nbsp;import com.google.zxing.LuminanceSource;
+&nbsp;import com.google.zxing.NotFoundException;
+&nbsp;
+&nbsp;/**
+&nbsp; * This class implements a local thresholding algorithm, which while slower than the
+&nbsp; * GlobalHistogramBinarizer, is fairly efficient for what it does. It is designed for
+&nbsp; * high frequency images of barcodes with black data on white backgrounds. For this application,
+&nbsp; * it does a much better job than a global blackpoint with severe shadows and gradients.
+&nbsp; * However it tends to produce artifacts on lower frequency images and is therefore not
+&nbsp; * a good general purpose binarizer for uses outside ZXing.
+&nbsp; *
+&nbsp; * This class extends GlobalHistogramBinarizer, using the older histogram approach for 1D readers,
+&nbsp; * and the newer local approach for 2D readers. 1D decoding using a per-row histogram is already
+&nbsp; * inherently local, and only fails for horizontal gradients. We can revisit that problem later,
+&nbsp; * but for now it was not a win to use local blocks for 1D.
+&nbsp; *
+&nbsp; * This Binarizer is the default for the unit tests and the recommended class for library users.
+&nbsp; *
+&nbsp; * @author dswitkin@google.com (Daniel Switkin)
+&nbsp; */
+&nbsp;public final class HybridBinarizer extends GlobalHistogramBinarizer {
+&nbsp;
+&nbsp;  // This class uses 5x5 blocks to compute local luminance, where each block is 8x8 pixels.
+&nbsp;  // So this is the smallest dimension in each axis we can accept.
+&nbsp;  private static final int BLOCK_SIZE_POWER = 3;
+&nbsp;  private static final int BLOCK_SIZE = 1 &lt;&lt; BLOCK_SIZE_POWER; // ...0100...00
+&nbsp;  private static final int BLOCK_SIZE_MASK = BLOCK_SIZE - 1;   // ...0011...11
+&nbsp;  private static final int MINIMUM_DIMENSION = BLOCK_SIZE * 5;
+&nbsp;  private static final int MIN_DYNAMIC_RANGE = 24;
+&nbsp;
+&nbsp;  private BitMatrix matrix;
+&nbsp;
+&nbsp;  public HybridBinarizer(LuminanceSource source) {
+<b class="fc">&nbsp;    super(source);</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  /**
+&nbsp;   * Calculates the final BitMatrix once for all requests. This could be called once from the
+&nbsp;   * constructor instead, but there are some advantages to doing it lazily, such as making
+&nbsp;   * profiling easier, and not doing heavy lifting when callers don&#39;t expect it.
+&nbsp;   */
+&nbsp;  @Override
+&nbsp;  public BitMatrix getBlackMatrix() throws NotFoundException {
+<b class="fc">&nbsp;    if (matrix != null) {</b>
+<b class="nc">&nbsp;      return matrix;</b>
+&nbsp;    }
+<b class="fc">&nbsp;    LuminanceSource source = getLuminanceSource();</b>
+<b class="fc">&nbsp;    int width = source.getWidth();</b>
+<b class="fc">&nbsp;    int height = source.getHeight();</b>
+<b class="fc">&nbsp;    if (width &gt;= MINIMUM_DIMENSION &amp;&amp; height &gt;= MINIMUM_DIMENSION) {</b>
+<b class="fc">&nbsp;      byte[] luminances = source.getMatrix();</b>
+<b class="fc">&nbsp;      int subWidth = width &gt;&gt; BLOCK_SIZE_POWER;</b>
+<b class="fc">&nbsp;      if ((width &amp; BLOCK_SIZE_MASK) != 0) {</b>
+<b class="fc">&nbsp;        subWidth++;</b>
+&nbsp;      }
+<b class="fc">&nbsp;      int subHeight = height &gt;&gt; BLOCK_SIZE_POWER;</b>
+<b class="fc">&nbsp;      if ((height &amp; BLOCK_SIZE_MASK) != 0) {</b>
+<b class="fc">&nbsp;        subHeight++;</b>
+&nbsp;      }
+<b class="fc">&nbsp;      int[][] blackPoints = calculateBlackPoints(luminances, subWidth, subHeight, width, height);</b>
+&nbsp;
+<b class="fc">&nbsp;      BitMatrix newMatrix = new BitMatrix(width, height);</b>
+<b class="fc">&nbsp;      calculateThresholdForBlock(luminances, subWidth, subHeight, width, height, blackPoints, newMatrix);</b>
+<b class="fc">&nbsp;      matrix = newMatrix;</b>
+<b class="fc">&nbsp;    } else {</b>
+&nbsp;      // If the image is too small, fall back to the global histogram approach.
+<b class="fc">&nbsp;      matrix = super.getBlackMatrix();</b>
+&nbsp;    }
+<b class="fc">&nbsp;    return matrix;</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  @Override
+&nbsp;  public Binarizer createBinarizer(LuminanceSource source) {
+<b class="fc">&nbsp;    return new HybridBinarizer(source);</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  /**
+&nbsp;   * For each block in the image, calculate the average black point using a 5x5 grid
+&nbsp;   * of the blocks around it. Also handles the corner cases (fractional blocks are computed based
+&nbsp;   * on the last pixels in the row/column which are also used in the previous block).
+&nbsp;   */
+&nbsp;  private static void calculateThresholdForBlock(byte[] luminances,
+&nbsp;                                                 int subWidth,
+&nbsp;                                                 int subHeight,
+&nbsp;                                                 int width,
+&nbsp;                                                 int height,
+&nbsp;                                                 int[][] blackPoints,
+&nbsp;                                                 BitMatrix matrix) {
+<b class="fc">&nbsp;    int maxYOffset = height - BLOCK_SIZE;</b>
+<b class="fc">&nbsp;    int maxXOffset = width - BLOCK_SIZE;</b>
+<b class="fc">&nbsp;    for (int y = 0; y &lt; subHeight; y++) {</b>
+<b class="fc">&nbsp;      int yoffset = y &lt;&lt; BLOCK_SIZE_POWER;</b>
+<b class="fc">&nbsp;      if (yoffset &gt; maxYOffset) {</b>
+<b class="fc">&nbsp;        yoffset = maxYOffset;</b>
+&nbsp;      }
+<b class="fc">&nbsp;      int top = cap(y, subHeight - 3);</b>
+<b class="fc">&nbsp;      for (int x = 0; x &lt; subWidth; x++) {</b>
+<b class="fc">&nbsp;        int xoffset = x &lt;&lt; BLOCK_SIZE_POWER;</b>
+<b class="fc">&nbsp;        if (xoffset &gt; maxXOffset) {</b>
+<b class="fc">&nbsp;          xoffset = maxXOffset;</b>
+&nbsp;        }
+<b class="fc">&nbsp;        int left = cap(x, subWidth - 3);</b>
+<b class="fc">&nbsp;        int sum = 0;</b>
+<b class="fc">&nbsp;        for (int z = -2; z &lt;= 2; z++) {</b>
+<b class="fc">&nbsp;          int[] blackRow = blackPoints[top + z];</b>
+<b class="fc">&nbsp;          sum += blackRow[left - 2] + blackRow[left - 1] + blackRow[left] + blackRow[left + 1] + blackRow[left + 2];</b>
+&nbsp;        }
+<b class="fc">&nbsp;        int average = sum / 25;</b>
+<b class="fc">&nbsp;        thresholdBlock(luminances, xoffset, yoffset, average, width, matrix);</b>
+&nbsp;      }
+&nbsp;    }
+&nbsp;  }
+&nbsp;
+&nbsp;  private static int cap(int value, int max) {
+<b class="fc">&nbsp;    return value &lt; 2 ? 2 : Math.min(value, max);</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  /**
+&nbsp;   * Applies a single threshold to a block of pixels.
+&nbsp;   */
+&nbsp;  private static void thresholdBlock(byte[] luminances,
+&nbsp;                                     int xoffset,
+&nbsp;                                     int yoffset,
+&nbsp;                                     int threshold,
+&nbsp;                                     int stride,
+&nbsp;                                     BitMatrix matrix) {
+<b class="fc">&nbsp;    for (int y = 0, offset = yoffset * stride + xoffset; y &lt; BLOCK_SIZE; y++, offset += stride) {</b>
+<b class="fc">&nbsp;      for (int x = 0; x &lt; BLOCK_SIZE; x++) {</b>
+&nbsp;        // Comparison needs to be &lt;= so that black == 0 pixels are black even if the threshold is 0.
+<b class="fc">&nbsp;        if ((luminances[offset + x] &amp; 0xFF) &lt;= threshold) {</b>
+<b class="fc">&nbsp;          matrix.set(xoffset + x, yoffset + y);</b>
+&nbsp;        }
+&nbsp;      }
+&nbsp;    }
+&nbsp;  }
+&nbsp;
+&nbsp;  /**
+&nbsp;   * Calculates a single black point for each block of pixels and saves it away.
+&nbsp;   * See the following thread for a discussion of this algorithm:
+&nbsp;   *  http://groups.google.com/group/zxing/browse_thread/thread/d06efa2c35a7ddc0
+&nbsp;   */
+&nbsp;  private static int[][] calculateBlackPoints(byte[] luminances,
+&nbsp;                                              int subWidth,
+&nbsp;                                              int subHeight,
+&nbsp;                                              int width,
+&nbsp;                                              int height) {
+<b class="fc">&nbsp;    int maxYOffset = height - BLOCK_SIZE;</b>
+<b class="fc">&nbsp;    int maxXOffset = width - BLOCK_SIZE;</b>
+<b class="fc">&nbsp;    int[][] blackPoints = new int[subHeight][subWidth];</b>
+<b class="fc">&nbsp;    for (int y = 0; y &lt; subHeight; y++) {</b>
+<b class="fc">&nbsp;      int yoffset = y &lt;&lt; BLOCK_SIZE_POWER;</b>
+<b class="fc">&nbsp;      if (yoffset &gt; maxYOffset) {</b>
+<b class="fc">&nbsp;        yoffset = maxYOffset;</b>
+&nbsp;      }
+<b class="fc">&nbsp;      for (int x = 0; x &lt; subWidth; x++) {</b>
+<b class="fc">&nbsp;        int xoffset = x &lt;&lt; BLOCK_SIZE_POWER;</b>
+<b class="fc">&nbsp;        if (xoffset &gt; maxXOffset) {</b>
+<b class="fc">&nbsp;          xoffset = maxXOffset;</b>
+&nbsp;        }
+<b class="fc">&nbsp;        int sum = 0;</b>
+<b class="fc">&nbsp;        int min = 0xFF;</b>
+<b class="fc">&nbsp;        int max = 0;</b>
+<b class="fc">&nbsp;        for (int yy = 0, offset = yoffset * width + xoffset; yy &lt; BLOCK_SIZE; yy++, offset += width) {</b>
+<b class="fc">&nbsp;          for (int xx = 0; xx &lt; BLOCK_SIZE; xx++) {</b>
+<b class="fc">&nbsp;            int pixel = luminances[offset + xx] &amp; 0xFF;</b>
+<b class="fc">&nbsp;            sum += pixel;</b>
+&nbsp;            // still looking for good contrast
+<b class="fc">&nbsp;            if (pixel &lt; min) {</b>
+<b class="fc">&nbsp;              min = pixel;</b>
+&nbsp;            }
+<b class="fc">&nbsp;            if (pixel &gt; max) {</b>
+<b class="fc">&nbsp;              max = pixel;</b>
+&nbsp;            }
+&nbsp;          }
+&nbsp;          // short-circuit min/max tests once dynamic range is met
+<b class="fc">&nbsp;          if (max - min &gt; MIN_DYNAMIC_RANGE) {</b>
+&nbsp;            // finish the rest of the rows quickly
+<b class="fc">&nbsp;            for (yy++, offset += width; yy &lt; BLOCK_SIZE; yy++, offset += width) {</b>
+<b class="fc">&nbsp;              for (int xx = 0; xx &lt; BLOCK_SIZE; xx++) {</b>
+<b class="fc">&nbsp;                sum += luminances[offset + xx] &amp; 0xFF;</b>
+&nbsp;              }
+&nbsp;            }
+&nbsp;          }
+&nbsp;        }
+&nbsp;
+&nbsp;        // The default estimate is the average of the values in the block.
+<b class="fc">&nbsp;        int average = sum &gt;&gt; (BLOCK_SIZE_POWER * 2);</b>
+<b class="fc">&nbsp;        if (max - min &lt;= MIN_DYNAMIC_RANGE) {</b>
+&nbsp;          // If variation within the block is low, assume this is a block with only light or only
+&nbsp;          // dark pixels. In that case we do not want to use the average, as it would divide this
+&nbsp;          // low contrast area into black and white pixels, essentially creating data out of noise.
+&nbsp;          //
+&nbsp;          // The default assumption is that the block is light/background. Since no estimate for
+&nbsp;          // the level of dark pixels exists locally, use half the min for the block.
+<b class="fc">&nbsp;          average = min / 2;</b>
+&nbsp;
+<b class="fc">&nbsp;          if (y &gt; 0 &amp;&amp; x &gt; 0) {</b>
+&nbsp;            // Correct the &quot;white background&quot; assumption for blocks that have neighbors by comparing
+&nbsp;            // the pixels in this block to the previously calculated black points. This is based on
+&nbsp;            // the fact that dark barcode symbology is always surrounded by some amount of light
+&nbsp;            // background for which reasonable black point estimates were made. The bp estimated at
+&nbsp;            // the boundaries is used for the interior.
+&nbsp;
+&nbsp;            // The (min &lt; bp) is arbitrary but works better than other heuristics that were tried.
+<b class="fc">&nbsp;            int averageNeighborBlackPoint =</b>
+&nbsp;                (blackPoints[y - 1][x] + (2 * blackPoints[y][x - 1]) + blackPoints[y - 1][x - 1]) / 4;
+<b class="fc">&nbsp;            if (min &lt; averageNeighborBlackPoint) {</b>
+<b class="fc">&nbsp;              average = averageNeighborBlackPoint;</b>
+&nbsp;            }
+&nbsp;          }
+&nbsp;        }
+<b class="fc">&nbsp;        blackPoints[y][x] = average;</b>
+&nbsp;      }
+&nbsp;    }
+<b class="fc">&nbsp;    return blackPoints;</b>
+&nbsp;  }
+&nbsp;
+&nbsp;}
+</code>
+</pre>
+</div>
+
+<script type="text/javascript">
+(function() {
+    var msie = false, msie9 = false;
+    /*@cc_on
+      msie = true;
+      @if (@_jscript_version >= 9)
+        msie9 = true;
+      @end
+    @*/
+
+    if (!msie || msie && msie9) {
+      hljs.highlightAll()
+      hljs.initLineNumbersOnLoad();
+    }
+})();
+</script>
+
+<div class="footer">
+    
+    <div style="float:right;">generated on 2023-11-12 23:26</div>
+</div>
+</body>
+</html>

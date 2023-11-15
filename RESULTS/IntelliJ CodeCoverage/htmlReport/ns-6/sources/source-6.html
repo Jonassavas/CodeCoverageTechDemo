@@ -1,0 +1,167 @@
+
+
+
+<!DOCTYPE html>
+<html id="htmlId">
+<head>
+  <meta http-equiv="Content-Type" content="text/html;charset=windows-1252"> 
+  <title>Coverage Report > EncoderConfig</title>
+  <style type="text/css">
+    @import "../../css/coverage.css";
+    @import "../../css/idea.min.css";
+  </style>
+  <script type="text/javascript" src="../../js/highlight.min.js"></script>
+  <script type="text/javascript" src="../../js/highlightjs-line-numbers.min.js"></script>
+</head>
+
+<body>
+<div class="content">
+<div class="breadCrumbs">
+Current scope:     <a href="../../index.html">all classes</a>
+    <span class="separator">|</span>
+    <a href="../index.html">com.google.zxing.client.j2se</a>
+</div>
+
+<h1>Coverage Summary for Class: EncoderConfig (com.google.zxing.client.j2se)</h1>
+
+<table class="coverageStats">
+<tr>
+  <th class="name">Class</th>
+<th class="coverageStat 
+">
+  Class, %
+</th>
+<th class="coverageStat 
+">
+  Method, %
+</th>
+<th class="coverageStat 
+">
+  Line, %
+</th>
+</tr>
+<tr>
+  <td class="name">EncoderConfig</td>
+<td class="coverageStat">
+  <span class="percent">
+    0%
+  </span>
+  <span class="absValue">
+    (0/1)
+  </span>
+</td>
+<td class="coverageStat">
+  <span class="percent">
+    0%
+  </span>
+  <span class="absValue">
+    (0/1)
+  </span>
+</td>
+<td class="coverageStat">
+  <span class="percent">
+    0%
+  </span>
+  <span class="absValue">
+    (0/7)
+  </span>
+</td>
+</tr>
+
+</table>
+
+<br/>
+<br/>
+
+
+<pre>
+<code class="sourceCode" id="sourceCode">&nbsp;/*
+&nbsp; * Copyright 2015 ZXing authors
+&nbsp; *
+&nbsp; * Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
+&nbsp; * you may not use this file except in compliance with the License.
+&nbsp; * You may obtain a copy of the License at
+&nbsp; *
+&nbsp; *      http://www.apache.org/licenses/LICENSE-2.0
+&nbsp; *
+&nbsp; * Unless required by applicable law or agreed to in writing, software
+&nbsp; * distributed under the License is distributed on an &quot;AS IS&quot; BASIS,
+&nbsp; * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+&nbsp; * See the License for the specific language governing permissions and
+&nbsp; * limitations under the License.
+&nbsp; */
+&nbsp;
+&nbsp;package com.google.zxing.client.j2se;
+&nbsp;
+&nbsp;import java.util.List;
+&nbsp;
+&nbsp;import com.beust.jcommander.Parameter;
+&nbsp;import com.beust.jcommander.validators.PositiveInteger;
+&nbsp;import com.google.zxing.BarcodeFormat;
+&nbsp;
+<b class="nc">&nbsp;final class EncoderConfig {</b>
+&nbsp;
+&nbsp;  static final String DEFAULT_OUTPUT_FILE_BASE = &quot;out&quot;;
+&nbsp;
+<b class="nc">&nbsp;  @Parameter(names = &quot;--barcode_format&quot;,</b>
+&nbsp;      description = &quot;Format to encode, from BarcodeFormat class. Not all formats are supported&quot;)
+&nbsp;  BarcodeFormat barcodeFormat = BarcodeFormat.QR_CODE;
+&nbsp;
+<b class="nc">&nbsp;  @Parameter(names = &quot;--image_format&quot;,</b>
+&nbsp;      description = &quot;Image output format, such as PNG, JPG, GIF&quot;)
+&nbsp;  String imageFormat = &quot;PNG&quot;;
+&nbsp;
+<b class="nc">&nbsp;  @Parameter(names = &quot;--output&quot;,</b>
+&nbsp;      description = &quot;File to write to. Defaults to out.png&quot;)
+&nbsp;  String outputFileBase = DEFAULT_OUTPUT_FILE_BASE;
+&nbsp;
+<b class="nc">&nbsp;  @Parameter(names = &quot;--width&quot;,</b>
+&nbsp;      description = &quot;Image width&quot;,
+&nbsp;      validateWith = PositiveInteger.class)
+&nbsp;  int width = 300;
+&nbsp;
+<b class="nc">&nbsp;  @Parameter(names = &quot;--height&quot;,</b>
+&nbsp;      description = &quot;Image height&quot;,
+&nbsp;      validateWith = PositiveInteger.class)
+&nbsp;  int height = 300;
+&nbsp;
+<b class="nc">&nbsp;  @Parameter(names = &quot;--error_correction_level&quot;,</b>
+&nbsp;      description = &quot;Error correction level for the encoding&quot;)
+&nbsp;  String errorCorrectionLevel = null;
+&nbsp;
+&nbsp;  @Parameter(names = &quot;--help&quot;,
+&nbsp;      description = &quot;Prints this help message&quot;,
+&nbsp;      help = true)
+&nbsp;  boolean help;
+&nbsp;
+&nbsp;  @Parameter(description = &quot;(Text to encode)&quot;, required = true)
+&nbsp;  List&lt;String&gt; contents;
+&nbsp;
+&nbsp;}
+</code>
+</pre>
+</div>
+
+<script type="text/javascript">
+(function() {
+    var msie = false, msie9 = false;
+    /*@cc_on
+      msie = true;
+      @if (@_jscript_version >= 9)
+        msie9 = true;
+      @end
+    @*/
+
+    if (!msie || msie && msie9) {
+      hljs.highlightAll()
+      hljs.initLineNumbersOnLoad();
+    }
+})();
+</script>
+
+<div class="footer">
+    
+    <div style="float:right;">generated on 2023-11-12 23:26</div>
+</div>
+</body>
+</html>

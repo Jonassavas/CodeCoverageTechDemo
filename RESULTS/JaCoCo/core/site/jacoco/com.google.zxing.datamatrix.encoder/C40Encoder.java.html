@@ -1,0 +1,213 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>C40Encoder.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">ZXing Core</a> &gt; <a href="index.source.html" class="el_package">com.google.zxing.datamatrix.encoder</a> &gt; <span class="el_source">C40Encoder.java</span></div><h1>C40Encoder.java</h1><pre class="source lang-java linenums">/*
+ * Copyright 2006-2007 Jeremias Maerki.
+ *
+ * Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an &quot;AS IS&quot; BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+package com.google.zxing.datamatrix.encoder;
+
+<span class="fc" id="L19">class C40Encoder implements Encoder {</span>
+
+  @Override
+  public int getEncodingMode() {
+<span class="fc" id="L23">    return HighLevelEncoder.C40_ENCODATION;</span>
+  }
+
+  void encodeMaximal(EncoderContext context) {
+<span class="nc" id="L27">    StringBuilder buffer = new StringBuilder();</span>
+<span class="nc" id="L28">    int lastCharSize = 0;</span>
+<span class="nc" id="L29">    int backtrackStartPosition = context.pos;</span>
+<span class="nc" id="L30">    int backtrackBufferLength = 0;</span>
+<span class="nc bnc" id="L31" title="All 2 branches missed.">    while (context.hasMoreCharacters()) {</span>
+<span class="nc" id="L32">      char c = context.getCurrentChar();</span>
+<span class="nc" id="L33">      context.pos++;</span>
+<span class="nc" id="L34">      lastCharSize = encodeChar(c, buffer);</span>
+<span class="nc bnc" id="L35" title="All 2 branches missed.">      if (buffer.length() % 3 == 0) {</span>
+<span class="nc" id="L36">        backtrackStartPosition = context.pos;</span>
+<span class="nc" id="L37">        backtrackBufferLength = buffer.length();</span>
+      }
+<span class="nc" id="L39">    }</span>
+<span class="nc bnc" id="L40" title="All 2 branches missed.">    if (backtrackBufferLength != buffer.length()) {</span>
+<span class="nc" id="L41">      int unwritten = (buffer.length() / 3) * 2;</span>
+
+<span class="nc" id="L43">      int curCodewordCount = context.getCodewordCount() + unwritten + 1; // +1 for the latch to C40</span>
+<span class="nc" id="L44">      context.updateSymbolInfo(curCodewordCount);</span>
+<span class="nc" id="L45">      int available = context.getSymbolInfo().getDataCapacity() - curCodewordCount;</span>
+<span class="nc" id="L46">      int rest = buffer.length() % 3;</span>
+<span class="nc bnc" id="L47" title="All 10 branches missed.">      if ((rest == 2 &amp;&amp; available != 2) ||</span>
+          (rest == 1 &amp;&amp; (lastCharSize &gt; 3 || available != 1))) {
+<span class="nc" id="L49">        buffer.setLength(backtrackBufferLength);</span>
+<span class="nc" id="L50">        context.pos = backtrackStartPosition;</span>
+      }
+    }
+<span class="nc bnc" id="L53" title="All 2 branches missed.">    if (buffer.length() &gt; 0) {</span>
+<span class="nc" id="L54">      context.writeCodeword(HighLevelEncoder.LATCH_TO_C40);</span>
+    }
+  
+<span class="nc" id="L57">    handleEOD(context, buffer);</span>
+<span class="nc" id="L58">  }</span>
+
+  @Override
+  public void encode(EncoderContext context) {
+    //step C
+<span class="fc" id="L63">    StringBuilder buffer = new StringBuilder();</span>
+<span class="pc bpc" id="L64" title="1 of 2 branches missed.">    while (context.hasMoreCharacters()) {</span>
+<span class="fc" id="L65">      char c = context.getCurrentChar();</span>
+<span class="fc" id="L66">      context.pos++;</span>
+
+<span class="fc" id="L68">      int lastCharSize = encodeChar(c, buffer);</span>
+
+<span class="fc" id="L70">      int unwritten = (buffer.length() / 3) * 2;</span>
+
+<span class="fc" id="L72">      int curCodewordCount = context.getCodewordCount() + unwritten;</span>
+<span class="fc" id="L73">      context.updateSymbolInfo(curCodewordCount);</span>
+<span class="fc" id="L74">      int available = context.getSymbolInfo().getDataCapacity() - curCodewordCount;</span>
+
+<span class="fc bfc" id="L76" title="All 2 branches covered.">      if (!context.hasMoreCharacters()) {</span>
+        //Avoid having a single C40 value in the last triplet
+<span class="fc" id="L78">        StringBuilder removed = new StringBuilder();</span>
+<span class="fc bfc" id="L79" title="All 4 branches covered.">        if ((buffer.length() % 3) == 2 &amp;&amp; available != 2) {</span>
+<span class="fc" id="L80">          lastCharSize = backtrackOneCharacter(context, buffer, removed, lastCharSize);</span>
+        }
+<span class="pc bpc" id="L82" title="1 of 6 branches missed.">        while ((buffer.length() % 3) == 1 &amp;&amp; (lastCharSize &gt; 3 || available != 1)) {</span>
+<span class="fc" id="L83">          lastCharSize = backtrackOneCharacter(context, buffer, removed, lastCharSize);</span>
+        }
+        break;
+      }
+
+<span class="fc" id="L88">      int count = buffer.length();</span>
+<span class="fc bfc" id="L89" title="All 2 branches covered.">      if ((count % 3) == 0) {</span>
+<span class="fc" id="L90">        int newMode = HighLevelEncoder.lookAheadTest(context.getMessage(), context.pos, getEncodingMode());</span>
+<span class="fc bfc" id="L91" title="All 2 branches covered.">        if (newMode != getEncodingMode()) {</span>
+          // Return to ASCII encodation, which will actually handle latch to new mode
+<span class="fc" id="L93">          context.signalEncoderChange(HighLevelEncoder.ASCII_ENCODATION);</span>
+<span class="fc" id="L94">          break;</span>
+        }
+      }
+<span class="fc" id="L97">    }</span>
+<span class="fc" id="L98">    handleEOD(context, buffer);</span>
+<span class="fc" id="L99">  }</span>
+
+  private int backtrackOneCharacter(EncoderContext context,
+                                    StringBuilder buffer, StringBuilder removed, int lastCharSize) {
+<span class="fc" id="L103">    int count = buffer.length();</span>
+<span class="fc" id="L104">    buffer.delete(count - lastCharSize, count);</span>
+<span class="fc" id="L105">    context.pos--;</span>
+<span class="fc" id="L106">    char c = context.getCurrentChar();</span>
+<span class="fc" id="L107">    lastCharSize = encodeChar(c, removed);</span>
+<span class="fc" id="L108">    context.resetSymbolInfo(); //Deal with possible reduction in symbol size</span>
+<span class="fc" id="L109">    return lastCharSize;</span>
+  }
+
+  static void writeNextTriplet(EncoderContext context, StringBuilder buffer) {
+<span class="fc" id="L113">    context.writeCodewords(encodeToCodewords(buffer));</span>
+<span class="fc" id="L114">    buffer.delete(0, 3);</span>
+<span class="fc" id="L115">  }</span>
+
+  /**
+   * Handle &quot;end of data&quot; situations
+   *
+   * @param context the encoder context
+   * @param buffer  the buffer with the remaining encoded characters
+   */
+  void handleEOD(EncoderContext context, StringBuilder buffer) {
+<span class="fc" id="L124">    int unwritten = (buffer.length() / 3) * 2;</span>
+<span class="fc" id="L125">    int rest = buffer.length() % 3;</span>
+
+<span class="fc" id="L127">    int curCodewordCount = context.getCodewordCount() + unwritten;</span>
+<span class="fc" id="L128">    context.updateSymbolInfo(curCodewordCount);</span>
+<span class="fc" id="L129">    int available = context.getSymbolInfo().getDataCapacity() - curCodewordCount;</span>
+
+<span class="fc bfc" id="L131" title="All 2 branches covered.">    if (rest == 2) {</span>
+<span class="fc" id="L132">      buffer.append('\0'); //Shift 1</span>
+<span class="fc bfc" id="L133" title="All 2 branches covered.">      while (buffer.length() &gt;= 3) {</span>
+<span class="fc" id="L134">        writeNextTriplet(context, buffer);</span>
+      }
+<span class="fc bfc" id="L136" title="All 2 branches covered.">      if (context.hasMoreCharacters()) {</span>
+<span class="fc" id="L137">        context.writeCodeword(HighLevelEncoder.C40_UNLATCH);</span>
+      }
+<span class="fc bfc" id="L139" title="All 4 branches covered.">    } else if (available == 1 &amp;&amp; rest == 1) {</span>
+<span class="fc bfc" id="L140" title="All 2 branches covered.">      while (buffer.length() &gt;= 3) {</span>
+<span class="fc" id="L141">        writeNextTriplet(context, buffer);</span>
+      }
+<span class="fc bfc" id="L143" title="All 2 branches covered.">      if (context.hasMoreCharacters()) {</span>
+<span class="fc" id="L144">        context.writeCodeword(HighLevelEncoder.C40_UNLATCH);</span>
+      }
+      // else no unlatch
+<span class="fc" id="L147">      context.pos--;</span>
+<span class="pc bpc" id="L148" title="1 of 2 branches missed.">    } else if (rest == 0) {</span>
+<span class="fc bfc" id="L149" title="All 2 branches covered.">      while (buffer.length() &gt;= 3) {</span>
+<span class="fc" id="L150">        writeNextTriplet(context, buffer);</span>
+      }
+<span class="fc bfc" id="L152" title="All 4 branches covered.">      if (available &gt; 0 || context.hasMoreCharacters()) {</span>
+<span class="fc" id="L153">        context.writeCodeword(HighLevelEncoder.C40_UNLATCH);</span>
+      }
+    } else {
+<span class="nc" id="L156">      throw new IllegalStateException(&quot;Unexpected case. Please report!&quot;);</span>
+    }
+<span class="fc" id="L158">    context.signalEncoderChange(HighLevelEncoder.ASCII_ENCODATION);</span>
+<span class="fc" id="L159">  }</span>
+
+  int encodeChar(char c, StringBuilder sb) {
+<span class="fc bfc" id="L162" title="All 2 branches covered.">    if (c == ' ') {</span>
+<span class="fc" id="L163">      sb.append('\3');</span>
+<span class="fc" id="L164">      return 1;</span>
+    }
+<span class="fc bfc" id="L166" title="All 4 branches covered.">    if (c &gt;= '0' &amp;&amp; c &lt;= '9') {</span>
+<span class="fc" id="L167">      sb.append((char) (c - 48 + 4));</span>
+<span class="fc" id="L168">      return 1;</span>
+    }
+<span class="fc bfc" id="L170" title="All 4 branches covered.">    if (c &gt;= 'A' &amp;&amp; c &lt;= 'Z') {</span>
+<span class="fc" id="L171">      sb.append((char) (c - 65 + 14));</span>
+<span class="fc" id="L172">      return 1;</span>
+    }
+<span class="pc bpc" id="L174" title="1 of 2 branches missed.">    if (c &lt; ' ') {</span>
+<span class="nc" id="L175">      sb.append('\0'); //Shift 1 Set</span>
+<span class="nc" id="L176">      sb.append(c);</span>
+<span class="nc" id="L177">      return 2;</span>
+    }
+<span class="fc bfc" id="L179" title="All 2 branches covered.">    if (c &lt;= '/') {</span>
+<span class="fc" id="L180">      sb.append('\1'); //Shift 2 Set</span>
+<span class="fc" id="L181">      sb.append((char) (c - 33));</span>
+<span class="fc" id="L182">      return 2;</span>
+    }
+<span class="pc bpc" id="L184" title="1 of 2 branches missed.">    if (c &lt;= '@') {</span>
+<span class="nc" id="L185">      sb.append('\1'); //Shift 2 Set</span>
+<span class="nc" id="L186">      sb.append((char) (c - 58 + 15));</span>
+<span class="nc" id="L187">      return 2;</span>
+    }
+<span class="pc bpc" id="L189" title="1 of 2 branches missed.">    if (c &lt;= '_') {</span>
+<span class="nc" id="L190">      sb.append('\1'); //Shift 2 Set</span>
+<span class="nc" id="L191">      sb.append((char) (c - 91 + 22));</span>
+<span class="nc" id="L192">      return 2;</span>
+    }
+<span class="fc bfc" id="L194" title="All 2 branches covered.">    if (c &lt;= 127) {</span>
+<span class="fc" id="L195">      sb.append('\2'); //Shift 3 Set</span>
+<span class="fc" id="L196">      sb.append((char) (c - 96));</span>
+<span class="fc" id="L197">      return 2;</span>
+    }
+<span class="fc" id="L199">    sb.append(&quot;\1\u001e&quot;); //Shift 2, Upper Shift</span>
+<span class="fc" id="L200">    int len = 2;</span>
+<span class="fc" id="L201">    len += encodeChar((char) (c - 128), sb);</span>
+<span class="fc" id="L202">    return len;</span>
+  }
+
+  private static String encodeToCodewords(CharSequence sb) {
+<span class="fc" id="L206">    int v = (1600 * sb.charAt(0)) + (40 * sb.charAt(1)) + sb.charAt(2) + 1;</span>
+<span class="fc" id="L207">    char cw1 = (char) (v / 256);</span>
+<span class="fc" id="L208">    char cw2 = (char) (v % 256);</span>
+<span class="fc" id="L209">    return new String(new char[] {cw1, cw2});</span>
+  }
+
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.11.202310140853</span></div></body></html>

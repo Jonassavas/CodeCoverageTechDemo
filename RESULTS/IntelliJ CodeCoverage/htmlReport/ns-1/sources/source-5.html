@@ -1,0 +1,232 @@
+
+
+
+<!DOCTYPE html>
+<html id="htmlId">
+<head>
+  <meta http-equiv="Content-Type" content="text/html;charset=windows-1252"> 
+  <title>Coverage Report > DecodeHintType</title>
+  <style type="text/css">
+    @import "../../css/coverage.css";
+    @import "../../css/idea.min.css";
+  </style>
+  <script type="text/javascript" src="../../js/highlight.min.js"></script>
+  <script type="text/javascript" src="../../js/highlightjs-line-numbers.min.js"></script>
+</head>
+
+<body>
+<div class="content">
+<div class="breadCrumbs">
+Current scope:     <a href="../../index.html">all classes</a>
+    <span class="separator">|</span>
+    <a href="../index.html">com.google.zxing</a>
+</div>
+
+<h1>Coverage Summary for Class: DecodeHintType (com.google.zxing)</h1>
+
+<table class="coverageStats">
+<tr>
+  <th class="name">Class</th>
+<th class="coverageStat 
+">
+  Class, %
+</th>
+<th class="coverageStat 
+">
+  Method, %
+</th>
+<th class="coverageStat 
+">
+  Line, %
+</th>
+</tr>
+<tr>
+  <td class="name">DecodeHintType</td>
+<td class="coverageStat">
+  <span class="percent">
+    100%
+  </span>
+  <span class="absValue">
+    (1/1)
+  </span>
+</td>
+<td class="coverageStat">
+  <span class="percent">
+    75%
+  </span>
+  <span class="absValue">
+    (3/4)
+  </span>
+</td>
+<td class="coverageStat">
+  <span class="percent">
+    93.8%
+  </span>
+  <span class="absValue">
+    (15/16)
+  </span>
+</td>
+</tr>
+
+</table>
+
+<br/>
+<br/>
+
+
+<pre>
+<code class="sourceCode" id="sourceCode">&nbsp;/*
+&nbsp; * Copyright 2007 ZXing authors
+&nbsp; *
+&nbsp; * Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
+&nbsp; * you may not use this file except in compliance with the License.
+&nbsp; * You may obtain a copy of the License at
+&nbsp; *
+&nbsp; *      http://www.apache.org/licenses/LICENSE-2.0
+&nbsp; *
+&nbsp; * Unless required by applicable law or agreed to in writing, software
+&nbsp; * distributed under the License is distributed on an &quot;AS IS&quot; BASIS,
+&nbsp; * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+&nbsp; * See the License for the specific language governing permissions and
+&nbsp; * limitations under the License.
+&nbsp; */
+&nbsp;
+&nbsp;package com.google.zxing;
+&nbsp;
+&nbsp;import java.util.List;
+&nbsp;
+&nbsp;/**
+&nbsp; * Encapsulates a type of hint that a caller may pass to a barcode reader to help it
+&nbsp; * more quickly or accurately decode it. It is up to implementations to decide what,
+&nbsp; * if anything, to do with the information that is supplied.
+&nbsp; *
+&nbsp; * @author Sean Owen
+&nbsp; * @author dswitkin@google.com (Daniel Switkin)
+&nbsp; * @see Reader#decode(BinaryBitmap,java.util.Map)
+&nbsp; */
+<b class="fc">&nbsp;public enum DecodeHintType {</b>
+&nbsp;
+&nbsp;  /**
+&nbsp;   * Unspecified, application-specific hint. Maps to an unspecified {@link Object}.
+&nbsp;   */
+<b class="fc">&nbsp;  OTHER(Object.class),</b>
+&nbsp;
+&nbsp;  /**
+&nbsp;   * Image is a pure monochrome image of a barcode. Doesn&#39;t matter what it maps to;
+&nbsp;   * use {@link Boolean#TRUE}.
+&nbsp;   */
+<b class="fc">&nbsp;  PURE_BARCODE(Void.class),</b>
+&nbsp;
+&nbsp;  /**
+&nbsp;   * Image is known to be of one of a few possible formats.
+&nbsp;   * Maps to a {@link List} of {@link BarcodeFormat}s.
+&nbsp;   */
+<b class="fc">&nbsp;  POSSIBLE_FORMATS(List.class),</b>
+&nbsp;
+&nbsp;  /**
+&nbsp;   * Spend more time to try to find a barcode; optimize for accuracy, not speed.
+&nbsp;   * Doesn&#39;t matter what it maps to; use {@link Boolean#TRUE}.
+&nbsp;   */
+<b class="fc">&nbsp;  TRY_HARDER(Void.class),</b>
+&nbsp;
+&nbsp;  /**
+&nbsp;   * Specifies what character encoding to use when decoding, where applicable (type String)
+&nbsp;   */
+<b class="fc">&nbsp;  CHARACTER_SET(String.class),</b>
+&nbsp;
+&nbsp;  /**
+&nbsp;   * Allowed lengths of encoded data -- reject anything else. Maps to an {@code int[]}.
+&nbsp;   */
+<b class="fc">&nbsp;  ALLOWED_LENGTHS(int[].class),</b>
+&nbsp;
+&nbsp;  /**
+&nbsp;   * Assume Code 39 codes employ a check digit. Doesn&#39;t matter what it maps to;
+&nbsp;   * use {@link Boolean#TRUE}.
+&nbsp;   */
+<b class="fc">&nbsp;  ASSUME_CODE_39_CHECK_DIGIT(Void.class),</b>
+&nbsp;
+&nbsp;  /**
+&nbsp;   * Assume the barcode is being processed as a GS1 barcode, and modify behavior as needed.
+&nbsp;   * For example this affects FNC1 handling for Code 128 (aka GS1-128). Doesn&#39;t matter what it maps to;
+&nbsp;   * use {@link Boolean#TRUE}.
+&nbsp;   */
+<b class="fc">&nbsp;  ASSUME_GS1(Void.class),</b>
+&nbsp;
+&nbsp;  /**
+&nbsp;   * If true, return the start and end digits in a Codabar barcode instead of stripping them. They
+&nbsp;   * are alpha, whereas the rest are numeric. By default, they are stripped, but this causes them
+&nbsp;   * to not be. Doesn&#39;t matter what it maps to; use {@link Boolean#TRUE}.
+&nbsp;   */
+<b class="fc">&nbsp;  RETURN_CODABAR_START_END(Void.class),</b>
+&nbsp;
+&nbsp;  /**
+&nbsp;   * The caller needs to be notified via callback when a possible {@link ResultPoint}
+&nbsp;   * is found. Maps to a {@link ResultPointCallback}.
+&nbsp;   */
+<b class="fc">&nbsp;  NEED_RESULT_POINT_CALLBACK(ResultPointCallback.class),</b>
+&nbsp;
+&nbsp;
+&nbsp;  /**
+&nbsp;   * Allowed extension lengths for EAN or UPC barcodes. Other formats will ignore this.
+&nbsp;   * Maps to an {@code int[]} of the allowed extension lengths, for example [2], [5], or [2, 5].
+&nbsp;   * If it is optional to have an extension, do not set this hint. If this is set,
+&nbsp;   * and a UPC or EAN barcode is found but an extension is not, then no result will be returned
+&nbsp;   * at all.
+&nbsp;   */
+<b class="fc">&nbsp;  ALLOWED_EAN_EXTENSIONS(int[].class),</b>
+&nbsp;
+&nbsp;  /**
+&nbsp;   * If true, also tries to decode as inverted image. All configured decoders are simply called a
+&nbsp;   * second time with an inverted image. Doesn&#39;t matter what it maps to; use {@link Boolean#TRUE}.
+&nbsp;   */
+<b class="fc">&nbsp;  ALSO_INVERTED(Void.class),</b>
+&nbsp;
+&nbsp;  // End of enumeration values.
+&nbsp;  ;
+&nbsp;
+&nbsp;  /**
+&nbsp;   * Data type the hint is expecting.
+&nbsp;   * Among the possible values the {@link Void} stands out as being used for
+&nbsp;   * hints that do not expect a value to be supplied (flag hints). Such hints
+&nbsp;   * will possibly have their value ignored, or replaced by a
+&nbsp;   * {@link Boolean#TRUE}. Hint suppliers should probably use
+&nbsp;   * {@link Boolean#TRUE} as directed by the actual hint documentation.
+&nbsp;   */
+&nbsp;  private final Class&lt;?&gt; valueType;
+&nbsp;
+<b class="fc">&nbsp;  DecodeHintType(Class&lt;?&gt; valueType) {</b>
+<b class="fc">&nbsp;    this.valueType = valueType;</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  public Class&lt;?&gt; getValueType() {
+<b class="nc">&nbsp;    return valueType;</b>
+&nbsp;  }
+&nbsp;
+&nbsp;}
+</code>
+</pre>
+</div>
+
+<script type="text/javascript">
+(function() {
+    var msie = false, msie9 = false;
+    /*@cc_on
+      msie = true;
+      @if (@_jscript_version >= 9)
+        msie9 = true;
+      @end
+    @*/
+
+    if (!msie || msie && msie9) {
+      hljs.highlightAll()
+      hljs.initLineNumbersOnLoad();
+    }
+})();
+</script>
+
+<div class="footer">
+    
+    <div style="float:right;">generated on 2023-11-12 23:26</div>
+</div>
+</body>
+</html>

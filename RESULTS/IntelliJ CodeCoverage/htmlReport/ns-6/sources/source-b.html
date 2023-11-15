@@ -1,0 +1,268 @@
+
+
+
+<!DOCTYPE html>
+<html id="htmlId">
+<head>
+  <meta http-equiv="Content-Type" content="text/html;charset=windows-1252"> 
+  <title>Coverage Report > MatrixToImageWriter</title>
+  <style type="text/css">
+    @import "../../css/coverage.css";
+    @import "../../css/idea.min.css";
+  </style>
+  <script type="text/javascript" src="../../js/highlight.min.js"></script>
+  <script type="text/javascript" src="../../js/highlightjs-line-numbers.min.js"></script>
+</head>
+
+<body>
+<div class="content">
+<div class="breadCrumbs">
+Current scope:     <a href="../../index.html">all classes</a>
+    <span class="separator">|</span>
+    <a href="../index.html">com.google.zxing.client.j2se</a>
+</div>
+
+<h1>Coverage Summary for Class: MatrixToImageWriter (com.google.zxing.client.j2se)</h1>
+
+<table class="coverageStats">
+<tr>
+  <th class="name">Class</th>
+<th class="coverageStat 
+">
+  Class, %
+</th>
+<th class="coverageStat 
+">
+  Method, %
+</th>
+<th class="coverageStat 
+">
+  Line, %
+</th>
+</tr>
+<tr>
+  <td class="name">MatrixToImageWriter</td>
+<td class="coverageStat">
+  <span class="percent">
+    0%
+  </span>
+  <span class="absValue">
+    (0/1)
+  </span>
+</td>
+<td class="coverageStat">
+  <span class="percent">
+    0%
+  </span>
+  <span class="absValue">
+    (0/9)
+  </span>
+</td>
+<td class="coverageStat">
+  <span class="percent">
+    0%
+  </span>
+  <span class="absValue">
+    (0/25)
+  </span>
+</td>
+</tr>
+
+</table>
+
+<br/>
+<br/>
+
+
+<pre>
+<code class="sourceCode" id="sourceCode">&nbsp;/*
+&nbsp; * Copyright 2009 ZXing authors
+&nbsp; *
+&nbsp; * Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
+&nbsp; * you may not use this file except in compliance with the License.
+&nbsp; * You may obtain a copy of the License at
+&nbsp; *
+&nbsp; *      http://www.apache.org/licenses/LICENSE-2.0
+&nbsp; *
+&nbsp; * Unless required by applicable law or agreed to in writing, software
+&nbsp; * distributed under the License is distributed on an &quot;AS IS&quot; BASIS,
+&nbsp; * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+&nbsp; * See the License for the specific language governing permissions and
+&nbsp; * limitations under the License.
+&nbsp; */
+&nbsp;
+&nbsp;package com.google.zxing.client.j2se;
+&nbsp;
+&nbsp;import com.google.zxing.common.BitArray;
+&nbsp;import com.google.zxing.common.BitMatrix;
+&nbsp;
+&nbsp;import javax.imageio.ImageIO;
+&nbsp;import java.io.File;
+&nbsp;import java.io.OutputStream;
+&nbsp;import java.io.IOException;
+&nbsp;import java.awt.image.BufferedImage;
+&nbsp;import java.nio.file.Path;
+&nbsp;
+&nbsp;/**
+&nbsp; * Writes a {@link BitMatrix} to {@link BufferedImage},
+&nbsp; * file or stream. Provided here instead of core since it depends on
+&nbsp; * Java SE libraries.
+&nbsp; *
+&nbsp; * @author Sean Owen
+&nbsp; */
+&nbsp;public final class MatrixToImageWriter {
+&nbsp;
+<b class="nc">&nbsp;  private static final MatrixToImageConfig DEFAULT_CONFIG = new MatrixToImageConfig();</b>
+&nbsp;
+&nbsp;  private MatrixToImageWriter() {}
+&nbsp;
+&nbsp;  /**
+&nbsp;   * Renders a {@link BitMatrix} as an image, where &quot;false&quot; bits are rendered
+&nbsp;   * as white, and &quot;true&quot; bits are rendered as black. Uses default configuration.
+&nbsp;   *
+&nbsp;   * @param matrix {@link BitMatrix} to write
+&nbsp;   * @return {@link BufferedImage} representation of the input
+&nbsp;   */
+&nbsp;  public static BufferedImage toBufferedImage(BitMatrix matrix) {
+<b class="nc">&nbsp;    return toBufferedImage(matrix, DEFAULT_CONFIG);</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  /**
+&nbsp;   * As {@link #toBufferedImage(BitMatrix)}, but allows customization of the output.
+&nbsp;   *
+&nbsp;   * @param matrix {@link BitMatrix} to write
+&nbsp;   * @param config output configuration
+&nbsp;   * @return {@link BufferedImage} representation of the input
+&nbsp;   */
+&nbsp;  public static BufferedImage toBufferedImage(BitMatrix matrix, MatrixToImageConfig config) {
+<b class="nc">&nbsp;    int width = matrix.getWidth();</b>
+<b class="nc">&nbsp;    int height = matrix.getHeight();</b>
+<b class="nc">&nbsp;    BufferedImage image = new BufferedImage(width, height, config.getBufferedImageColorModel());</b>
+<b class="nc">&nbsp;    int onColor = config.getPixelOnColor();</b>
+<b class="nc">&nbsp;    int offColor = config.getPixelOffColor();</b>
+<b class="nc">&nbsp;    int[] rowPixels = new int[width];</b>
+<b class="nc">&nbsp;    BitArray row = new BitArray(width);</b>
+<b class="nc">&nbsp;    for (int y = 0; y &lt; height; y++) {</b>
+<b class="nc">&nbsp;      row = matrix.getRow(y, row);</b>
+<b class="nc">&nbsp;      for (int x = 0; x &lt; width; x++) {</b>
+<b class="nc">&nbsp;        rowPixels[x] = row.get(x) ? onColor : offColor;</b>
+&nbsp;      }
+<b class="nc">&nbsp;      image.setRGB(0, y, width, 1, rowPixels, 0, width);</b>
+&nbsp;    }
+<b class="nc">&nbsp;    return image;</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  /**
+&nbsp;   * @param matrix {@link BitMatrix} to write
+&nbsp;   * @param format image format
+&nbsp;   * @param file file {@link File} to write image to
+&nbsp;   * @throws IOException if writes to the file fail
+&nbsp;   * @deprecated use {@link #writeToPath(BitMatrix, String, Path)}
+&nbsp;   */
+&nbsp;  @Deprecated
+&nbsp;  public static void writeToFile(BitMatrix matrix, String format, File file) throws IOException {
+<b class="nc">&nbsp;    writeToPath(matrix, format, file.toPath());</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  /**
+&nbsp;   * Writes a {@link BitMatrix} to a file with default configuration.
+&nbsp;   *
+&nbsp;   * @param matrix {@link BitMatrix} to write
+&nbsp;   * @param format image format
+&nbsp;   * @param file file {@link Path} to write image to
+&nbsp;   * @throws IOException if writes to the stream fail
+&nbsp;   * @see #toBufferedImage(BitMatrix)
+&nbsp;   */
+&nbsp;  public static void writeToPath(BitMatrix matrix, String format, Path file) throws IOException {
+<b class="nc">&nbsp;    writeToPath(matrix, format, file, DEFAULT_CONFIG);</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  /**
+&nbsp;   * @param matrix {@link BitMatrix} to write
+&nbsp;   * @param format image format
+&nbsp;   * @param file file {@link File} to write image to
+&nbsp;   * @param config output configuration
+&nbsp;   * @throws IOException if writes to the file fail
+&nbsp;   * @deprecated use {@link #writeToPath(BitMatrix, String, Path, MatrixToImageConfig)}
+&nbsp;   */
+&nbsp;  @Deprecated
+&nbsp;  public static void writeToFile(BitMatrix matrix, String format, File file, MatrixToImageConfig config) 
+&nbsp;      throws IOException {
+<b class="nc">&nbsp;    writeToPath(matrix, format, file.toPath(), config);</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  /**
+&nbsp;   * As {@link #writeToPath(BitMatrix, String, Path)}, but allows customization of the output.
+&nbsp;   *
+&nbsp;   * @param matrix {@link BitMatrix} to write
+&nbsp;   * @param format image format
+&nbsp;   * @param file file {@link Path} to write image to
+&nbsp;   * @param config output configuration
+&nbsp;   * @throws IOException if writes to the file fail
+&nbsp;   */
+&nbsp;  public static void writeToPath(BitMatrix matrix, String format, Path file, MatrixToImageConfig config)
+&nbsp;      throws IOException {
+<b class="nc">&nbsp;    BufferedImage image = toBufferedImage(matrix, config);</b>
+<b class="nc">&nbsp;    if (!ImageIO.write(image, format, file.toFile())) {</b>
+<b class="nc">&nbsp;      throw new IOException(&quot;Could not write an image of format &quot; + format + &quot; to &quot; + file);</b>
+&nbsp;    }
+&nbsp;  }
+&nbsp;
+&nbsp;  /**
+&nbsp;   * Writes a {@link BitMatrix} to a stream with default configuration.
+&nbsp;   *
+&nbsp;   * @param matrix {@link BitMatrix} to write
+&nbsp;   * @param format image format
+&nbsp;   * @param stream {@link OutputStream} to write image to
+&nbsp;   * @throws IOException if writes to the stream fail
+&nbsp;   * @see #toBufferedImage(BitMatrix)
+&nbsp;   */
+&nbsp;  public static void writeToStream(BitMatrix matrix, String format, OutputStream stream) throws IOException {
+<b class="nc">&nbsp;    writeToStream(matrix, format, stream, DEFAULT_CONFIG);</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  /**
+&nbsp;   * As {@link #writeToStream(BitMatrix, String, OutputStream)}, but allows customization of the output.
+&nbsp;   *
+&nbsp;   * @param matrix {@link BitMatrix} to write
+&nbsp;   * @param format image format
+&nbsp;   * @param stream {@link OutputStream} to write image to
+&nbsp;   * @param config output configuration
+&nbsp;   * @throws IOException if writes to the stream fail
+&nbsp;   */
+&nbsp;  public static void writeToStream(BitMatrix matrix, String format, OutputStream stream, MatrixToImageConfig config) 
+&nbsp;      throws IOException {  
+<b class="nc">&nbsp;    BufferedImage image = toBufferedImage(matrix, config);</b>
+<b class="nc">&nbsp;    if (!ImageIO.write(image, format, stream)) {</b>
+<b class="nc">&nbsp;      throw new IOException(&quot;Could not write an image of format &quot; + format);</b>
+&nbsp;    }
+&nbsp;  }
+&nbsp;
+&nbsp;}
+</code>
+</pre>
+</div>
+
+<script type="text/javascript">
+(function() {
+    var msie = false, msie9 = false;
+    /*@cc_on
+      msie = true;
+      @if (@_jscript_version >= 9)
+        msie9 = true;
+      @end
+    @*/
+
+    if (!msie || msie && msie9) {
+      hljs.highlightAll()
+      hljs.initLineNumbersOnLoad();
+    }
+})();
+</script>
+
+<div class="footer">
+    
+    <div style="float:right;">generated on 2023-11-12 23:26</div>
+</div>
+</body>
+</html>

@@ -1,0 +1,286 @@
+
+
+
+<!DOCTYPE html>
+<html id="htmlId">
+<head>
+  <meta http-equiv="Content-Type" content="text/html;charset=windows-1252"> 
+  <title>Coverage Report > GenericMultipleBarcodeReader</title>
+  <style type="text/css">
+    @import "../../css/coverage.css";
+    @import "../../css/idea.min.css";
+  </style>
+  <script type="text/javascript" src="../../js/highlight.min.js"></script>
+  <script type="text/javascript" src="../../js/highlightjs-line-numbers.min.js"></script>
+</head>
+
+<body>
+<div class="content">
+<div class="breadCrumbs">
+Current scope:     <a href="../../index.html">all classes</a>
+    <span class="separator">|</span>
+    <a href="../index.html">com.google.zxing.multi</a>
+</div>
+
+<h1>Coverage Summary for Class: GenericMultipleBarcodeReader (com.google.zxing.multi)</h1>
+
+<table class="coverageStats">
+<tr>
+  <th class="name">Class</th>
+<th class="coverageStat 
+">
+  Class, %
+</th>
+<th class="coverageStat 
+">
+  Method, %
+</th>
+<th class="coverageStat 
+">
+  Line, %
+</th>
+</tr>
+<tr>
+  <td class="name">GenericMultipleBarcodeReader</td>
+<td class="coverageStat">
+  <span class="percent">
+    100%
+  </span>
+  <span class="absValue">
+    (1/1)
+  </span>
+</td>
+<td class="coverageStat">
+  <span class="percent">
+    100%
+  </span>
+  <span class="absValue">
+    (6/6)
+  </span>
+</td>
+<td class="coverageStat">
+  <span class="percent">
+    95.4%
+  </span>
+  <span class="absValue">
+    (62/65)
+  </span>
+</td>
+</tr>
+
+</table>
+
+<br/>
+<br/>
+
+
+<pre>
+<code class="sourceCode" id="sourceCode">&nbsp;/*
+&nbsp; * Copyright 2009 ZXing authors
+&nbsp; *
+&nbsp; * Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
+&nbsp; * you may not use this file except in compliance with the License.
+&nbsp; * You may obtain a copy of the License at
+&nbsp; *
+&nbsp; *      http://www.apache.org/licenses/LICENSE-2.0
+&nbsp; *
+&nbsp; * Unless required by applicable law or agreed to in writing, software
+&nbsp; * distributed under the License is distributed on an &quot;AS IS&quot; BASIS,
+&nbsp; * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+&nbsp; * See the License for the specific language governing permissions and
+&nbsp; * limitations under the License.
+&nbsp; */
+&nbsp;
+&nbsp;package com.google.zxing.multi;
+&nbsp;
+&nbsp;import com.google.zxing.BinaryBitmap;
+&nbsp;import com.google.zxing.DecodeHintType;
+&nbsp;import com.google.zxing.NotFoundException;
+&nbsp;import com.google.zxing.Reader;
+&nbsp;import com.google.zxing.ReaderException;
+&nbsp;import com.google.zxing.Result;
+&nbsp;import com.google.zxing.ResultPoint;
+&nbsp;
+&nbsp;import java.util.ArrayList;
+&nbsp;import java.util.List;
+&nbsp;import java.util.Map;
+&nbsp;
+&nbsp;/**
+&nbsp; * &lt;p&gt;Attempts to locate multiple barcodes in an image by repeatedly decoding portion of the image.
+&nbsp; * After one barcode is found, the areas left, above, right and below the barcode&#39;s
+&nbsp; * {@link ResultPoint}s are scanned, recursively.&lt;/p&gt;
+&nbsp; *
+&nbsp; * &lt;p&gt;A caller may want to also employ {@link ByQuadrantReader} when attempting to find multiple
+&nbsp; * 2D barcodes, like QR Codes, in an image, where the presence of multiple barcodes might prevent
+&nbsp; * detecting any one of them.&lt;/p&gt;
+&nbsp; *
+&nbsp; * &lt;p&gt;That is, instead of passing a {@link Reader} a caller might pass
+&nbsp; * {@code new ByQuadrantReader(reader)}.&lt;/p&gt;
+&nbsp; *
+&nbsp; * @author Sean Owen
+&nbsp; */
+&nbsp;public final class GenericMultipleBarcodeReader implements MultipleBarcodeReader {
+&nbsp;
+&nbsp;  private static final int MIN_DIMENSION_TO_RECUR = 100;
+&nbsp;  private static final int MAX_DEPTH = 4;
+&nbsp;
+<b class="fc">&nbsp;  static final Result[] EMPTY_RESULT_ARRAY = new Result[0];</b>
+&nbsp;
+&nbsp;  private final Reader delegate;
+&nbsp;
+<b class="fc">&nbsp;  public GenericMultipleBarcodeReader(Reader delegate) {</b>
+<b class="fc">&nbsp;    this.delegate = delegate;</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  @Override
+&nbsp;  public Result[] decodeMultiple(BinaryBitmap image) throws NotFoundException {
+<b class="fc">&nbsp;    return decodeMultiple(image, null);</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  @Override
+&nbsp;  public Result[] decodeMultiple(BinaryBitmap image, Map&lt;DecodeHintType,?&gt; hints)
+&nbsp;      throws NotFoundException {
+<b class="fc">&nbsp;    List&lt;Result&gt; results = new ArrayList&lt;&gt;();</b>
+<b class="fc">&nbsp;    doDecodeMultiple(image, hints, results, 0, 0, 0);</b>
+<b class="fc">&nbsp;    if (results.isEmpty()) {</b>
+<b class="nc">&nbsp;      throw NotFoundException.getNotFoundInstance();</b>
+&nbsp;    }
+<b class="fc">&nbsp;    return results.toArray(EMPTY_RESULT_ARRAY);</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  private void doDecodeMultiple(BinaryBitmap image,
+&nbsp;                                Map&lt;DecodeHintType,?&gt; hints,
+&nbsp;                                List&lt;Result&gt; results,
+&nbsp;                                int xOffset,
+&nbsp;                                int yOffset,
+&nbsp;                                int currentDepth) {
+<b class="fc">&nbsp;    if (currentDepth &gt; MAX_DEPTH) {</b>
+&nbsp;      return;
+&nbsp;    }
+&nbsp;
+&nbsp;    Result result;
+&nbsp;    try {
+<b class="fc">&nbsp;      result = delegate.decode(image, hints);</b>
+<b class="fc">&nbsp;    } catch (ReaderException ignored) {</b>
+&nbsp;      return;
+<b class="fc">&nbsp;    }</b>
+<b class="fc">&nbsp;    boolean alreadyFound = false;</b>
+<b class="fc">&nbsp;    for (Result existingResult : results) {</b>
+<b class="fc">&nbsp;      if (existingResult.getText().equals(result.getText())) {</b>
+<b class="fc">&nbsp;        alreadyFound = true;</b>
+<b class="fc">&nbsp;        break;</b>
+&nbsp;      }
+<b class="fc">&nbsp;    }</b>
+<b class="fc">&nbsp;    if (!alreadyFound) {</b>
+<b class="fc">&nbsp;      results.add(translateResultPoints(result, xOffset, yOffset));</b>
+&nbsp;    }
+<b class="fc">&nbsp;    ResultPoint[] resultPoints = result.getResultPoints();</b>
+<b class="fc">&nbsp;    if (resultPoints == null || resultPoints.length == 0) {</b>
+&nbsp;      return;
+&nbsp;    }
+<b class="fc">&nbsp;    int width = image.getWidth();</b>
+<b class="fc">&nbsp;    int height = image.getHeight();</b>
+<b class="fc">&nbsp;    float minX = width;</b>
+<b class="fc">&nbsp;    float minY = height;</b>
+<b class="fc">&nbsp;    float maxX = 0.0f;</b>
+<b class="fc">&nbsp;    float maxY = 0.0f;</b>
+<b class="fc">&nbsp;    for (ResultPoint point : resultPoints) {</b>
+<b class="fc">&nbsp;      if (point == null) {</b>
+<b class="nc">&nbsp;        continue;</b>
+&nbsp;      }
+<b class="fc">&nbsp;      float x = point.getX();</b>
+<b class="fc">&nbsp;      float y = point.getY();</b>
+<b class="fc">&nbsp;      if (x &lt; minX) {</b>
+<b class="fc">&nbsp;        minX = x;</b>
+&nbsp;      }
+<b class="fc">&nbsp;      if (y &lt; minY) {</b>
+<b class="fc">&nbsp;        minY = y;</b>
+&nbsp;      }
+<b class="fc">&nbsp;      if (x &gt; maxX) {</b>
+<b class="fc">&nbsp;        maxX = x;</b>
+&nbsp;      }
+<b class="fc">&nbsp;      if (y &gt; maxY) {</b>
+<b class="fc">&nbsp;        maxY = y;</b>
+&nbsp;      }
+&nbsp;    }
+&nbsp;
+&nbsp;    // Decode left of barcode
+<b class="fc">&nbsp;    if (minX &gt; MIN_DIMENSION_TO_RECUR) {</b>
+<b class="fc">&nbsp;      doDecodeMultiple(image.crop(0, 0, (int) minX, height),</b>
+&nbsp;                       hints, results,
+&nbsp;                       xOffset, yOffset,
+&nbsp;                       currentDepth + 1);
+&nbsp;    }
+&nbsp;    // Decode above barcode
+<b class="fc">&nbsp;    if (minY &gt; MIN_DIMENSION_TO_RECUR) {</b>
+<b class="fc">&nbsp;      doDecodeMultiple(image.crop(0, 0, width, (int) minY),</b>
+&nbsp;                       hints, results,
+&nbsp;                       xOffset, yOffset,
+&nbsp;                       currentDepth + 1);
+&nbsp;    }
+&nbsp;    // Decode right of barcode
+<b class="fc">&nbsp;    if (maxX &lt; width - MIN_DIMENSION_TO_RECUR) {</b>
+<b class="fc">&nbsp;      doDecodeMultiple(image.crop((int) maxX, 0, width - (int) maxX, height),</b>
+&nbsp;                       hints, results,
+&nbsp;                       xOffset + (int) maxX, yOffset,
+&nbsp;                       currentDepth + 1);
+&nbsp;    }
+&nbsp;    // Decode below barcode
+<b class="fc">&nbsp;    if (maxY &lt; height - MIN_DIMENSION_TO_RECUR) {</b>
+<b class="fc">&nbsp;      doDecodeMultiple(image.crop(0, (int) maxY, width, height - (int) maxY),</b>
+&nbsp;                       hints, results,
+&nbsp;                       xOffset, yOffset + (int) maxY,
+&nbsp;                       currentDepth + 1);
+&nbsp;    }
+&nbsp;  }
+&nbsp;
+&nbsp;  private static Result translateResultPoints(Result result, int xOffset, int yOffset) {
+<b class="fc">&nbsp;    ResultPoint[] oldResultPoints = result.getResultPoints();</b>
+<b class="fc">&nbsp;    if (oldResultPoints == null) {</b>
+<b class="nc">&nbsp;      return result;</b>
+&nbsp;    }
+<b class="fc">&nbsp;    ResultPoint[] newResultPoints = new ResultPoint[oldResultPoints.length];</b>
+<b class="fc">&nbsp;    for (int i = 0; i &lt; oldResultPoints.length; i++) {</b>
+<b class="fc">&nbsp;      ResultPoint oldPoint = oldResultPoints[i];</b>
+<b class="fc">&nbsp;      if (oldPoint != null) {</b>
+<b class="fc">&nbsp;        newResultPoints[i] = new ResultPoint(oldPoint.getX() + xOffset, oldPoint.getY() + yOffset);</b>
+&nbsp;      }
+&nbsp;    }
+<b class="fc">&nbsp;    Result newResult = new Result(result.getText(),</b>
+<b class="fc">&nbsp;                                  result.getRawBytes(),</b>
+<b class="fc">&nbsp;                                  result.getNumBits(),</b>
+&nbsp;                                  newResultPoints,
+<b class="fc">&nbsp;                                  result.getBarcodeFormat(),</b>
+<b class="fc">&nbsp;                                  result.getTimestamp());</b>
+<b class="fc">&nbsp;    newResult.putAllMetadata(result.getResultMetadata());</b>
+<b class="fc">&nbsp;    return newResult;</b>
+&nbsp;  }
+&nbsp;
+&nbsp;}
+</code>
+</pre>
+</div>
+
+<script type="text/javascript">
+(function() {
+    var msie = false, msie9 = false;
+    /*@cc_on
+      msie = true;
+      @if (@_jscript_version >= 9)
+        msie9 = true;
+      @end
+    @*/
+
+    if (!msie || msie && msie9) {
+      hljs.highlightAll()
+      hljs.initLineNumbersOnLoad();
+    }
+})();
+</script>
+
+<div class="footer">
+    
+    <div style="float:right;">generated on 2023-11-12 23:26</div>
+</div>
+</body>
+</html>

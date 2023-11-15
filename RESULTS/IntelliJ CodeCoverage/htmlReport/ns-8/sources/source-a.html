@@ -1,0 +1,307 @@
+
+
+
+<!DOCTYPE html>
+<html id="htmlId">
+<head>
+  <meta http-equiv="Content-Type" content="text/html;charset=windows-1252"> 
+  <title>Coverage Report > GlobalHistogramBinarizer</title>
+  <style type="text/css">
+    @import "../../css/coverage.css";
+    @import "../../css/idea.min.css";
+  </style>
+  <script type="text/javascript" src="../../js/highlight.min.js"></script>
+  <script type="text/javascript" src="../../js/highlightjs-line-numbers.min.js"></script>
+</head>
+
+<body>
+<div class="content">
+<div class="breadCrumbs">
+Current scope:     <a href="../../index.html">all classes</a>
+    <span class="separator">|</span>
+    <a href="../index.html">com.google.zxing.common</a>
+</div>
+
+<h1>Coverage Summary for Class: GlobalHistogramBinarizer (com.google.zxing.common)</h1>
+
+<table class="coverageStats">
+<tr>
+  <th class="name">Class</th>
+<th class="coverageStat 
+">
+  Class, %
+</th>
+<th class="coverageStat 
+">
+  Method, %
+</th>
+<th class="coverageStat 
+">
+  Line, %
+</th>
+</tr>
+<tr>
+  <td class="name">GlobalHistogramBinarizer</td>
+<td class="coverageStat">
+  <span class="percent">
+    100%
+  </span>
+  <span class="absValue">
+    (1/1)
+  </span>
+</td>
+<td class="coverageStat">
+  <span class="percent">
+    85.7%
+  </span>
+  <span class="absValue">
+    (6/7)
+  </span>
+</td>
+<td class="coverageStat">
+  <span class="percent">
+    95.5%
+  </span>
+  <span class="absValue">
+    (84/88)
+  </span>
+</td>
+</tr>
+
+</table>
+
+<br/>
+<br/>
+
+
+<pre>
+<code class="sourceCode" id="sourceCode">&nbsp;/*
+&nbsp; * Copyright 2009 ZXing authors
+&nbsp; *
+&nbsp; * Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
+&nbsp; * you may not use this file except in compliance with the License.
+&nbsp; * You may obtain a copy of the License at
+&nbsp; *
+&nbsp; *      http://www.apache.org/licenses/LICENSE-2.0
+&nbsp; *
+&nbsp; * Unless required by applicable law or agreed to in writing, software
+&nbsp; * distributed under the License is distributed on an &quot;AS IS&quot; BASIS,
+&nbsp; * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+&nbsp; * See the License for the specific language governing permissions and
+&nbsp; * limitations under the License.
+&nbsp; */
+&nbsp;
+&nbsp;package com.google.zxing.common;
+&nbsp;
+&nbsp;import com.google.zxing.Binarizer;
+&nbsp;import com.google.zxing.LuminanceSource;
+&nbsp;import com.google.zxing.NotFoundException;
+&nbsp;
+&nbsp;/**
+&nbsp; * This Binarizer implementation uses the old ZXing global histogram approach. It is suitable
+&nbsp; * for low-end mobile devices which don&#39;t have enough CPU or memory to use a local thresholding
+&nbsp; * algorithm. However, because it picks a global black point, it cannot handle difficult shadows
+&nbsp; * and gradients.
+&nbsp; *
+&nbsp; * Faster mobile devices and all desktop applications should probably use HybridBinarizer instead.
+&nbsp; *
+&nbsp; * @author dswitkin@google.com (Daniel Switkin)
+&nbsp; * @author Sean Owen
+&nbsp; */
+&nbsp;public class GlobalHistogramBinarizer extends Binarizer {
+&nbsp;
+&nbsp;  private static final int LUMINANCE_BITS = 5;
+&nbsp;  private static final int LUMINANCE_SHIFT = 8 - LUMINANCE_BITS;
+&nbsp;  private static final int LUMINANCE_BUCKETS = 1 &lt;&lt; LUMINANCE_BITS;
+<b class="fc">&nbsp;  private static final byte[] EMPTY = new byte[0];</b>
+&nbsp;
+&nbsp;  private byte[] luminances;
+&nbsp;  private final int[] buckets;
+&nbsp;
+&nbsp;  public GlobalHistogramBinarizer(LuminanceSource source) {
+<b class="fc">&nbsp;    super(source);</b>
+<b class="fc">&nbsp;    luminances = EMPTY;</b>
+<b class="fc">&nbsp;    buckets = new int[LUMINANCE_BUCKETS];</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  // Applies simple sharpening to the row data to improve performance of the 1D Readers.
+&nbsp;  @Override
+&nbsp;  public BitArray getBlackRow(int y, BitArray row) throws NotFoundException {
+<b class="fc">&nbsp;    LuminanceSource source = getLuminanceSource();</b>
+<b class="fc">&nbsp;    int width = source.getWidth();</b>
+<b class="fc">&nbsp;    if (row == null || row.getSize() &lt; width) {</b>
+<b class="fc">&nbsp;      row = new BitArray(width);</b>
+&nbsp;    } else {
+<b class="fc">&nbsp;      row.clear();</b>
+&nbsp;    }
+&nbsp;
+<b class="fc">&nbsp;    initArrays(width);</b>
+<b class="fc">&nbsp;    byte[] localLuminances = source.getRow(y, luminances);</b>
+<b class="fc">&nbsp;    int[] localBuckets = buckets;</b>
+<b class="fc">&nbsp;    for (int x = 0; x &lt; width; x++) {</b>
+<b class="fc">&nbsp;      localBuckets[(localLuminances[x] &amp; 0xff) &gt;&gt; LUMINANCE_SHIFT]++;</b>
+&nbsp;    }
+<b class="fc">&nbsp;    int blackPoint = estimateBlackPoint(localBuckets);</b>
+&nbsp;
+<b class="fc">&nbsp;    if (width &lt; 3) {</b>
+&nbsp;      // Special case for very small images
+<b class="nc">&nbsp;      for (int x = 0; x &lt; width; x++) {</b>
+<b class="nc">&nbsp;        if ((localLuminances[x] &amp; 0xff) &lt; blackPoint) {</b>
+<b class="nc">&nbsp;          row.set(x);</b>
+&nbsp;        }
+&nbsp;      }
+&nbsp;    } else {
+<b class="fc">&nbsp;      int left = localLuminances[0] &amp; 0xff;</b>
+<b class="fc">&nbsp;      int center = localLuminances[1] &amp; 0xff;</b>
+<b class="fc">&nbsp;      for (int x = 1; x &lt; width - 1; x++) {</b>
+<b class="fc">&nbsp;        int right = localLuminances[x + 1] &amp; 0xff;</b>
+&nbsp;        // A simple -1 4 -1 box filter with a weight of 2.
+<b class="fc">&nbsp;        if (((center * 4) - left - right) / 2 &lt; blackPoint) {</b>
+<b class="fc">&nbsp;          row.set(x);</b>
+&nbsp;        }
+<b class="fc">&nbsp;        left = center;</b>
+<b class="fc">&nbsp;        center = right;</b>
+&nbsp;      }
+&nbsp;    }
+<b class="fc">&nbsp;    return row;</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  // Does not sharpen the data, as this call is intended to only be used by 2D Readers.
+&nbsp;  @Override
+&nbsp;  public BitMatrix getBlackMatrix() throws NotFoundException {
+<b class="fc">&nbsp;    LuminanceSource source = getLuminanceSource();</b>
+<b class="fc">&nbsp;    int width = source.getWidth();</b>
+<b class="fc">&nbsp;    int height = source.getHeight();</b>
+<b class="fc">&nbsp;    BitMatrix matrix = new BitMatrix(width, height);</b>
+&nbsp;
+&nbsp;    // Quickly calculates the histogram by sampling four rows from the image. This proved to be
+&nbsp;    // more robust on the blackbox tests than sampling a diagonal as we used to do.
+<b class="fc">&nbsp;    initArrays(width);</b>
+<b class="fc">&nbsp;    int[] localBuckets = buckets;</b>
+<b class="fc">&nbsp;    for (int y = 1; y &lt; 5; y++) {</b>
+<b class="fc">&nbsp;      int row = height * y / 5;</b>
+<b class="fc">&nbsp;      byte[] localLuminances = source.getRow(row, luminances);</b>
+<b class="fc">&nbsp;      int right = (width * 4) / 5;</b>
+<b class="fc">&nbsp;      for (int x = width / 5; x &lt; right; x++) {</b>
+<b class="fc">&nbsp;        int pixel = localLuminances[x] &amp; 0xff;</b>
+<b class="fc">&nbsp;        localBuckets[pixel &gt;&gt; LUMINANCE_SHIFT]++;</b>
+&nbsp;      }
+&nbsp;    }
+<b class="fc">&nbsp;    int blackPoint = estimateBlackPoint(localBuckets);</b>
+&nbsp;
+&nbsp;    // We delay reading the entire image luminance until the black point estimation succeeds.
+&nbsp;    // Although we end up reading four rows twice, it is consistent with our motto of
+&nbsp;    // &quot;fail quickly&quot; which is necessary for continuous scanning.
+<b class="fc">&nbsp;    byte[] localLuminances = source.getMatrix();</b>
+<b class="fc">&nbsp;    for (int y = 0; y &lt; height; y++) {</b>
+<b class="fc">&nbsp;      int offset = y * width;</b>
+<b class="fc">&nbsp;      for (int x = 0; x &lt; width; x++) {</b>
+<b class="fc">&nbsp;        int pixel = localLuminances[offset + x] &amp; 0xff;</b>
+<b class="fc">&nbsp;        if (pixel &lt; blackPoint) {</b>
+<b class="fc">&nbsp;          matrix.set(x, y);</b>
+&nbsp;        }
+&nbsp;      }
+&nbsp;    }
+&nbsp;
+<b class="fc">&nbsp;    return matrix;</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  @Override
+&nbsp;  public Binarizer createBinarizer(LuminanceSource source) {
+<b class="nc">&nbsp;    return new GlobalHistogramBinarizer(source);</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  private void initArrays(int luminanceSize) {
+<b class="fc">&nbsp;    if (luminances.length &lt; luminanceSize) {</b>
+<b class="fc">&nbsp;      luminances = new byte[luminanceSize];</b>
+&nbsp;    }
+<b class="fc">&nbsp;    for (int x = 0; x &lt; LUMINANCE_BUCKETS; x++) {</b>
+<b class="fc">&nbsp;      buckets[x] = 0;</b>
+&nbsp;    }
+&nbsp;  }
+&nbsp;
+&nbsp;  private static int estimateBlackPoint(int[] buckets) throws NotFoundException {
+&nbsp;    // Find the tallest peak in the histogram.
+<b class="fc">&nbsp;    int numBuckets = buckets.length;</b>
+<b class="fc">&nbsp;    int maxBucketCount = 0;</b>
+<b class="fc">&nbsp;    int firstPeak = 0;</b>
+<b class="fc">&nbsp;    int firstPeakSize = 0;</b>
+<b class="fc">&nbsp;    for (int x = 0; x &lt; numBuckets; x++) {</b>
+<b class="fc">&nbsp;      if (buckets[x] &gt; firstPeakSize) {</b>
+<b class="fc">&nbsp;        firstPeak = x;</b>
+<b class="fc">&nbsp;        firstPeakSize = buckets[x];</b>
+&nbsp;      }
+<b class="fc">&nbsp;      if (buckets[x] &gt; maxBucketCount) {</b>
+<b class="fc">&nbsp;        maxBucketCount = buckets[x];</b>
+&nbsp;      }
+&nbsp;    }
+&nbsp;
+&nbsp;    // Find the second-tallest peak which is somewhat far from the tallest peak.
+<b class="fc">&nbsp;    int secondPeak = 0;</b>
+<b class="fc">&nbsp;    int secondPeakScore = 0;</b>
+<b class="fc">&nbsp;    for (int x = 0; x &lt; numBuckets; x++) {</b>
+<b class="fc">&nbsp;      int distanceToBiggest = x - firstPeak;</b>
+&nbsp;      // Encourage more distant second peaks by multiplying by square of distance.
+<b class="fc">&nbsp;      int score = buckets[x] * distanceToBiggest * distanceToBiggest;</b>
+<b class="fc">&nbsp;      if (score &gt; secondPeakScore) {</b>
+<b class="fc">&nbsp;        secondPeak = x;</b>
+<b class="fc">&nbsp;        secondPeakScore = score;</b>
+&nbsp;      }
+&nbsp;    }
+&nbsp;
+&nbsp;    // Make sure firstPeak corresponds to the black peak.
+<b class="fc">&nbsp;    if (firstPeak &gt; secondPeak) {</b>
+<b class="fc">&nbsp;      int temp = firstPeak;</b>
+<b class="fc">&nbsp;      firstPeak = secondPeak;</b>
+<b class="fc">&nbsp;      secondPeak = temp;</b>
+&nbsp;    }
+&nbsp;
+&nbsp;    // If there is too little contrast in the image to pick a meaningful black point, throw rather
+&nbsp;    // than waste time trying to decode the image, and risk false positives.
+<b class="fc">&nbsp;    if (secondPeak - firstPeak &lt;= numBuckets / 16) {</b>
+<b class="fc">&nbsp;      throw NotFoundException.getNotFoundInstance();</b>
+&nbsp;    }
+&nbsp;
+&nbsp;    // Find a valley between them that is low and closer to the white peak.
+<b class="fc">&nbsp;    int bestValley = secondPeak - 1;</b>
+<b class="fc">&nbsp;    int bestValleyScore = -1;</b>
+<b class="fc">&nbsp;    for (int x = secondPeak - 1; x &gt; firstPeak; x--) {</b>
+<b class="fc">&nbsp;      int fromFirst = x - firstPeak;</b>
+<b class="fc">&nbsp;      int score = fromFirst * fromFirst * (secondPeak - x) * (maxBucketCount - buckets[x]);</b>
+<b class="fc">&nbsp;      if (score &gt; bestValleyScore) {</b>
+<b class="fc">&nbsp;        bestValley = x;</b>
+<b class="fc">&nbsp;        bestValleyScore = score;</b>
+&nbsp;      }
+&nbsp;    }
+&nbsp;
+<b class="fc">&nbsp;    return bestValley &lt;&lt; LUMINANCE_SHIFT;</b>
+&nbsp;  }
+&nbsp;
+&nbsp;}
+</code>
+</pre>
+</div>
+
+<script type="text/javascript">
+(function() {
+    var msie = false, msie9 = false;
+    /*@cc_on
+      msie = true;
+      @if (@_jscript_version >= 9)
+        msie9 = true;
+      @end
+    @*/
+
+    if (!msie || msie && msie9) {
+      hljs.highlightAll()
+      hljs.initLineNumbersOnLoad();
+    }
+})();
+</script>
+
+<div class="footer">
+    
+    <div style="float:right;">generated on 2023-11-12 23:26</div>
+</div>
+</body>
+</html>

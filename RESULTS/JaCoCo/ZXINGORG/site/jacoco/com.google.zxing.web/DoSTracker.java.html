@@ -1,0 +1,139 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>DoSTracker.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">ZXing zxing.org web app</a> &gt; <a href="index.source.html" class="el_package">com.google.zxing.web</a> &gt; <span class="el_source">DoSTracker.java</span></div><h1>DoSTracker.java</h1><pre class="source lang-java linenums">/*
+ * Copyright 2017 ZXing authors
+ *
+ * Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an &quot;AS IS&quot; BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+package com.google.zxing.web;
+
+import java.lang.management.ManagementFactory;
+import java.lang.management.OperatingSystemMXBean;
+import java.util.Iterator;
+import java.util.Map;
+import java.util.Timer;
+import java.util.TimerTask;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.logging.Logger;
+
+/**
+ * Simple class which tracks a number of actions that happen per time and can flag when an action has
+ * happened too frequently recently. This can be used for example to track and temporarily block access
+ * from certain IPs or to certain hosts.
+ */
+final class DoSTracker {
+
+<span class="fc" id="L35">  private static final Logger log = Logger.getLogger(DoSTracker.class.getName());</span>
+
+  private volatile int maxAccessesPerTime;
+  private final Map&lt;String,AtomicInteger&gt; numRecentAccesses;
+
+  /**
+   * @param timer {@link Timer} to use for scheduling update tasks
+   * @param name identifier for this tracker
+   * @param maxAccessesPerTime maximum number of accesses allowed from one source per {@code accessTimeMS}
+   * @param accessTimeMS interval in milliseconds over which up to {@code maxAccessesPerTime} accesses are allowed
+   * @param maxEntries maximum number of source entries to track before forgetting least recent ones
+   * @param maxLoad if set, dynamically adjust {@code maxAccessesPerTime} downwards when average load per core
+   *                exceeds this value, and upwards when below this value
+   */
+  DoSTracker(Timer timer,
+             String name,
+             int maxAccessesPerTime,
+             long accessTimeMS,
+             int maxEntries,
+<span class="fc" id="L54">             Double maxLoad) {</span>
+<span class="fc" id="L55">    this.maxAccessesPerTime = maxAccessesPerTime;</span>
+<span class="fc" id="L56">    this.numRecentAccesses = new LRUMap&lt;&gt;(maxEntries);</span>
+<span class="fc" id="L57">    timer.schedule(new TrackerTask(name, maxLoad), accessTimeMS, accessTimeMS);</span>
+<span class="fc" id="L58">  }</span>
+
+  boolean isBanned(String event) {
+<span class="fc bfc" id="L61" title="All 2 branches covered.">    if (event == null) {</span>
+<span class="fc" id="L62">      return true;</span>
+    }
+    AtomicInteger count;
+<span class="fc" id="L65">    synchronized (numRecentAccesses) {</span>
+<span class="fc" id="L66">      count = numRecentAccesses.get(event);</span>
+<span class="fc bfc" id="L67" title="All 2 branches covered.">      if (count == null) {</span>
+<span class="fc" id="L68">        numRecentAccesses.put(event, new AtomicInteger(1));</span>
+<span class="fc" id="L69">        return false;</span>
+      }
+<span class="fc" id="L71">    }</span>
+<span class="fc bfc" id="L72" title="All 2 branches covered.">    return count.incrementAndGet() &gt; maxAccessesPerTime;</span>
+  }
+
+  private final class TrackerTask extends TimerTask {
+
+    private final String name;
+    private final Double maxLoad;
+
+<span class="fc" id="L80">    private TrackerTask(String name, Double maxLoad) {</span>
+<span class="fc" id="L81">      this.name = name;</span>
+<span class="fc" id="L82">      this.maxLoad = maxLoad;</span>
+<span class="fc" id="L83">    }</span>
+
+    @Override
+    public void run() {
+      // largest count &lt;= maxAccessesPerTime
+<span class="fc" id="L88">      int maxAllowedCount = 1;</span>
+      // smallest count &gt; maxAccessesPerTime
+<span class="fc" id="L90">      int minDisallowedCount = Integer.MAX_VALUE;</span>
+<span class="fc" id="L91">      int localMAPT = maxAccessesPerTime;</span>
+      int totalEntries;
+<span class="fc" id="L93">      int clearedEntries = 0;</span>
+<span class="fc" id="L94">      synchronized (numRecentAccesses) {</span>
+<span class="fc" id="L95">        totalEntries = numRecentAccesses.size();</span>
+<span class="fc" id="L96">        Iterator&lt;Map.Entry&lt;String,AtomicInteger&gt;&gt; accessIt = numRecentAccesses.entrySet().iterator();</span>
+<span class="fc bfc" id="L97" title="All 2 branches covered.">        while (accessIt.hasNext()) {</span>
+<span class="fc" id="L98">          Map.Entry&lt;String,AtomicInteger&gt; entry = accessIt.next();</span>
+<span class="fc" id="L99">          AtomicInteger atomicCount = entry.getValue();</span>
+<span class="fc" id="L100">          int count = atomicCount.get();</span>
+          // If number of accesses is below the threshold, remove it entirely
+<span class="fc bfc" id="L102" title="All 2 branches covered.">          if (count &lt;= localMAPT) {</span>
+<span class="fc" id="L103">            accessIt.remove();</span>
+<span class="fc" id="L104">            maxAllowedCount = Math.max(maxAllowedCount, count);</span>
+<span class="fc" id="L105">            clearedEntries++;</span>
+          } else {
+            // Reduce count of accesses held against the host
+<span class="fc" id="L108">            atomicCount.getAndAdd(-localMAPT);</span>
+<span class="fc" id="L109">            minDisallowedCount = Math.min(minDisallowedCount, count);</span>
+          }
+<span class="fc" id="L111">        }</span>
+<span class="fc" id="L112">      }</span>
+<span class="fc" id="L113">      log.info(name + &quot;: &quot; + clearedEntries + &quot; of &quot; + totalEntries + &quot; cleared&quot;);</span>
+
+<span class="pc bpc" id="L115" title="1 of 2 branches missed.">      if (maxLoad != null) {</span>
+<span class="nc" id="L116">        OperatingSystemMXBean mxBean = ManagementFactory.getOperatingSystemMXBean();</span>
+<span class="nc bnc" id="L117" title="All 2 branches missed.">        if (mxBean == null) {</span>
+<span class="nc" id="L118">          log.warning(&quot;Could not obtain OperatingSystemMXBean; ignoring load&quot;);</span>
+        } else {
+<span class="nc" id="L120">          double loadAvg = mxBean.getSystemLoadAverage();</span>
+<span class="nc bnc" id="L121" title="All 2 branches missed.">          if (loadAvg &gt;= 0.0) {</span>
+<span class="nc" id="L122">            int cores = mxBean.getAvailableProcessors();</span>
+<span class="nc" id="L123">            double loadRatio = loadAvg / cores;</span>
+<span class="nc bnc" id="L124" title="All 2 branches missed.">            int newMaxAccessesPerTime = loadRatio &gt; maxLoad ?</span>
+<span class="nc" id="L125">                Math.min(maxAllowedCount, Math.max(1, maxAccessesPerTime - 1)) :</span>
+<span class="nc" id="L126">                Math.max(minDisallowedCount, maxAccessesPerTime);</span>
+<span class="nc" id="L127">            log.info(name + &quot;: Load ratio: &quot; + loadRatio +</span>
+                &quot; (&quot; + loadAvg + '/' + cores + &quot;) vs &quot; + maxLoad +
+                &quot; ; new maxAccessesPerTime: &quot; + newMaxAccessesPerTime);
+<span class="nc" id="L130">            maxAccessesPerTime = newMaxAccessesPerTime;</span>
+          }
+        }
+      }
+<span class="fc" id="L134">    }</span>
+
+  }
+
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.11.202310140853</span></div></body></html>

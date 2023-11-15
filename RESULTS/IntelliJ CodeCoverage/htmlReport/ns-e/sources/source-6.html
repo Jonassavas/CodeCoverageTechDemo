@@ -1,0 +1,247 @@
+
+
+
+<!DOCTYPE html>
+<html id="htmlId">
+<head>
+  <meta http-equiv="Content-Type" content="text/html;charset=windows-1252"> 
+  <title>Coverage Report > EdifactEncoder</title>
+  <style type="text/css">
+    @import "../../css/coverage.css";
+    @import "../../css/idea.min.css";
+  </style>
+  <script type="text/javascript" src="../../js/highlight.min.js"></script>
+  <script type="text/javascript" src="../../js/highlightjs-line-numbers.min.js"></script>
+</head>
+
+<body>
+<div class="content">
+<div class="breadCrumbs">
+Current scope:     <a href="../../index.html">all classes</a>
+    <span class="separator">|</span>
+    <a href="../index.html">com.google.zxing.datamatrix.encoder</a>
+</div>
+
+<h1>Coverage Summary for Class: EdifactEncoder (com.google.zxing.datamatrix.encoder)</h1>
+
+<table class="coverageStats">
+<tr>
+  <th class="name">Class</th>
+<th class="coverageStat 
+">
+  Class, %
+</th>
+<th class="coverageStat 
+">
+  Method, %
+</th>
+<th class="coverageStat 
+">
+  Line, %
+</th>
+</tr>
+<tr>
+  <td class="name">EdifactEncoder</td>
+<td class="coverageStat">
+  <span class="percent">
+    100%
+  </span>
+  <span class="absValue">
+    (1/1)
+  </span>
+</td>
+<td class="coverageStat">
+  <span class="percent">
+    100%
+  </span>
+  <span class="absValue">
+    (6/6)
+  </span>
+</td>
+<td class="coverageStat">
+  <span class="percent">
+    95.7%
+  </span>
+  <span class="absValue">
+    (66/69)
+  </span>
+</td>
+</tr>
+
+</table>
+
+<br/>
+<br/>
+
+
+<pre>
+<code class="sourceCode" id="sourceCode">&nbsp;/*
+&nbsp; * Copyright 2006-2007 Jeremias Maerki.
+&nbsp; *
+&nbsp; * Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
+&nbsp; * you may not use this file except in compliance with the License.
+&nbsp; * You may obtain a copy of the License at
+&nbsp; *
+&nbsp; *      http://www.apache.org/licenses/LICENSE-2.0
+&nbsp; *
+&nbsp; * Unless required by applicable law or agreed to in writing, software
+&nbsp; * distributed under the License is distributed on an &quot;AS IS&quot; BASIS,
+&nbsp; * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+&nbsp; * See the License for the specific language governing permissions and
+&nbsp; * limitations under the License.
+&nbsp; */
+&nbsp;
+&nbsp;package com.google.zxing.datamatrix.encoder;
+&nbsp;
+<b class="fc">&nbsp;final class EdifactEncoder implements Encoder {</b>
+&nbsp;
+&nbsp;  @Override
+&nbsp;  public int getEncodingMode() {
+<b class="fc">&nbsp;    return HighLevelEncoder.EDIFACT_ENCODATION;</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  @Override
+&nbsp;  public void encode(EncoderContext context) {
+&nbsp;    //step F
+<b class="fc">&nbsp;    StringBuilder buffer = new StringBuilder();</b>
+<b class="fc">&nbsp;    while (context.hasMoreCharacters()) {</b>
+<b class="fc">&nbsp;      char c = context.getCurrentChar();</b>
+<b class="fc">&nbsp;      encodeChar(c, buffer);</b>
+<b class="fc">&nbsp;      context.pos++;</b>
+&nbsp;
+<b class="fc">&nbsp;      int count = buffer.length();</b>
+<b class="fc">&nbsp;      if (count &gt;= 4) {</b>
+<b class="fc">&nbsp;        context.writeCodewords(encodeToCodewords(buffer));</b>
+<b class="fc">&nbsp;        buffer.delete(0, 4);</b>
+&nbsp;
+<b class="fc">&nbsp;        int newMode = HighLevelEncoder.lookAheadTest(context.getMessage(), context.pos, getEncodingMode());</b>
+<b class="fc">&nbsp;        if (newMode != getEncodingMode()) {</b>
+&nbsp;          // Return to ASCII encodation, which will actually handle latch to new mode
+<b class="fc">&nbsp;          context.signalEncoderChange(HighLevelEncoder.ASCII_ENCODATION);</b>
+<b class="fc">&nbsp;          break;</b>
+&nbsp;        }
+&nbsp;      }
+<b class="fc">&nbsp;    }</b>
+<b class="fc">&nbsp;    buffer.append((char) 31); //Unlatch</b>
+<b class="fc">&nbsp;    handleEOD(context, buffer);</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  /**
+&nbsp;   * Handle &quot;end of data&quot; situations
+&nbsp;   *
+&nbsp;   * @param context the encoder context
+&nbsp;   * @param buffer  the buffer with the remaining encoded characters
+&nbsp;   */
+&nbsp;  private static void handleEOD(EncoderContext context, CharSequence buffer) {
+&nbsp;    try {
+<b class="fc">&nbsp;      int count = buffer.length();</b>
+<b class="fc">&nbsp;      if (count == 0) {</b>
+&nbsp;        return; //Already finished
+&nbsp;      }
+<b class="fc">&nbsp;      if (count == 1) {</b>
+&nbsp;        //Only an unlatch at the end
+<b class="fc">&nbsp;        context.updateSymbolInfo();</b>
+<b class="fc">&nbsp;        int available = context.getSymbolInfo().getDataCapacity() - context.getCodewordCount();</b>
+<b class="fc">&nbsp;        int remaining = context.getRemainingCharacters();</b>
+&nbsp;        // The following two lines are a hack inspired by the &#39;fix&#39; from https://sourceforge.net/p/barcode4j/svn/221/
+<b class="fc">&nbsp;        if (remaining &gt; available) {</b>
+<b class="fc">&nbsp;          context.updateSymbolInfo(context.getCodewordCount() + 1);</b>
+<b class="fc">&nbsp;          available = context.getSymbolInfo().getDataCapacity() - context.getCodewordCount();</b>
+&nbsp;        }
+<b class="fc">&nbsp;        if (remaining &lt;= available &amp;&amp; available &lt;= 2) {</b>
+&nbsp;          return; //No unlatch
+&nbsp;        }
+&nbsp;      }
+&nbsp;
+<b class="fc">&nbsp;      if (count &gt; 4) {</b>
+<b class="nc">&nbsp;        throw new IllegalStateException(&quot;Count must not exceed 4&quot;);</b>
+&nbsp;      }
+<b class="fc">&nbsp;      int restChars = count - 1;</b>
+<b class="fc">&nbsp;      String encoded = encodeToCodewords(buffer);</b>
+<b class="fc">&nbsp;      boolean endOfSymbolReached = !context.hasMoreCharacters();</b>
+<b class="fc">&nbsp;      boolean restInAscii = endOfSymbolReached &amp;&amp; restChars &lt;= 2;</b>
+&nbsp;
+<b class="fc">&nbsp;      if (restChars &lt;= 2) {</b>
+<b class="fc">&nbsp;        context.updateSymbolInfo(context.getCodewordCount() + restChars);</b>
+<b class="fc">&nbsp;        int available = context.getSymbolInfo().getDataCapacity() - context.getCodewordCount();</b>
+<b class="fc">&nbsp;        if (available &gt;= 3) {</b>
+<b class="fc">&nbsp;          restInAscii = false;</b>
+<b class="fc">&nbsp;          context.updateSymbolInfo(context.getCodewordCount() + encoded.length());</b>
+&nbsp;          //available = context.symbolInfo.dataCapacity - context.getCodewordCount();
+&nbsp;        }
+&nbsp;      }
+&nbsp;
+<b class="fc">&nbsp;      if (restInAscii) {</b>
+<b class="fc">&nbsp;        context.resetSymbolInfo();</b>
+<b class="fc">&nbsp;        context.pos -= restChars;</b>
+&nbsp;      } else {
+<b class="fc">&nbsp;        context.writeCodewords(encoded);</b>
+&nbsp;      }
+&nbsp;    } finally {
+<b class="fc">&nbsp;      context.signalEncoderChange(HighLevelEncoder.ASCII_ENCODATION);</b>
+<b class="fc">&nbsp;    }</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  private static void encodeChar(char c, StringBuilder sb) {
+<b class="fc">&nbsp;    if (c &gt;= &#39; &#39; &amp;&amp; c &lt;= &#39;?&#39;) {</b>
+<b class="fc">&nbsp;      sb.append(c);</b>
+<b class="fc">&nbsp;    } else if (c &gt;= &#39;@&#39; &amp;&amp; c &lt;= &#39;^&#39;) {</b>
+<b class="fc">&nbsp;      sb.append((char) (c - 64));</b>
+&nbsp;    } else {
+<b class="nc">&nbsp;      HighLevelEncoder.illegalCharacter(c);</b>
+&nbsp;    }
+&nbsp;  }
+&nbsp;
+&nbsp;  private static String encodeToCodewords(CharSequence sb) {
+<b class="fc">&nbsp;    int len = sb.length();</b>
+<b class="fc">&nbsp;    if (len == 0) {</b>
+<b class="nc">&nbsp;      throw new IllegalStateException(&quot;StringBuilder must not be empty&quot;);</b>
+&nbsp;    }
+<b class="fc">&nbsp;    char c1 = sb.charAt(0);</b>
+<b class="fc">&nbsp;    char c2 = len &gt;= 2 ? sb.charAt(1) : 0;</b>
+<b class="fc">&nbsp;    char c3 = len &gt;= 3 ? sb.charAt(2) : 0;</b>
+<b class="fc">&nbsp;    char c4 = len &gt;= 4 ? sb.charAt(3) : 0;</b>
+&nbsp;
+<b class="fc">&nbsp;    int v = (c1 &lt;&lt; 18) + (c2 &lt;&lt; 12) + (c3 &lt;&lt; 6) + c4;</b>
+<b class="fc">&nbsp;    char cw1 = (char) ((v &gt;&gt; 16) &amp; 255);</b>
+<b class="fc">&nbsp;    char cw2 = (char) ((v &gt;&gt; 8) &amp; 255);</b>
+<b class="fc">&nbsp;    char cw3 = (char) (v &amp; 255);</b>
+<b class="fc">&nbsp;    StringBuilder res = new StringBuilder(3);</b>
+<b class="fc">&nbsp;    res.append(cw1);</b>
+<b class="fc">&nbsp;    if (len &gt;= 2) {</b>
+<b class="fc">&nbsp;      res.append(cw2);</b>
+&nbsp;    }
+<b class="fc">&nbsp;    if (len &gt;= 3) {</b>
+<b class="fc">&nbsp;      res.append(cw3);</b>
+&nbsp;    }
+<b class="fc">&nbsp;    return res.toString();</b>
+&nbsp;  }
+&nbsp;
+&nbsp;}
+</code>
+</pre>
+</div>
+
+<script type="text/javascript">
+(function() {
+    var msie = false, msie9 = false;
+    /*@cc_on
+      msie = true;
+      @if (@_jscript_version >= 9)
+        msie9 = true;
+      @end
+    @*/
+
+    if (!msie || msie && msie9) {
+      hljs.highlightAll()
+      hljs.initLineNumbersOnLoad();
+    }
+})();
+</script>
+
+<div class="footer">
+    
+    <div style="float:right;">generated on 2023-11-12 23:26</div>
+</div>
+</body>
+</html>

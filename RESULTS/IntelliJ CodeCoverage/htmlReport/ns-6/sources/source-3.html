@@ -1,0 +1,271 @@
+
+
+
+<!DOCTYPE html>
+<html id="htmlId">
+<head>
+  <meta http-equiv="Content-Type" content="text/html;charset=windows-1252"> 
+  <title>Coverage Report > CommandLineRunner</title>
+  <style type="text/css">
+    @import "../../css/coverage.css";
+    @import "../../css/idea.min.css";
+  </style>
+  <script type="text/javascript" src="../../js/highlight.min.js"></script>
+  <script type="text/javascript" src="../../js/highlightjs-line-numbers.min.js"></script>
+</head>
+
+<body>
+<div class="content">
+<div class="breadCrumbs">
+Current scope:     <a href="../../index.html">all classes</a>
+    <span class="separator">|</span>
+    <a href="../index.html">com.google.zxing.client.j2se</a>
+</div>
+
+<h1>Coverage Summary for Class: CommandLineRunner (com.google.zxing.client.j2se)</h1>
+
+<table class="coverageStats">
+<tr>
+  <th class="name">Class</th>
+<th class="coverageStat 
+">
+  Class, %
+</th>
+<th class="coverageStat 
+">
+  Method, %
+</th>
+<th class="coverageStat 
+">
+  Line, %
+</th>
+</tr>
+<tr>
+  <td class="name">CommandLineRunner</td>
+<td class="coverageStat">
+  <span class="percent">
+    0%
+  </span>
+  <span class="absValue">
+    (0/1)
+  </span>
+</td>
+<td class="coverageStat">
+  <span class="percent">
+    0%
+  </span>
+  <span class="absValue">
+    (0/5)
+  </span>
+</td>
+<td class="coverageStat">
+  <span class="percent">
+    0%
+  </span>
+  <span class="absValue">
+    (0/75)
+  </span>
+</td>
+</tr>
+
+</table>
+
+<br/>
+<br/>
+
+
+<pre>
+<code class="sourceCode" id="sourceCode">&nbsp;/*
+&nbsp; * Copyright 2007 ZXing authors
+&nbsp; *
+&nbsp; * Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
+&nbsp; * you may not use this file except in compliance with the License.
+&nbsp; * You may obtain a copy of the License at
+&nbsp; *
+&nbsp; *      http://www.apache.org/licenses/LICENSE-2.0
+&nbsp; *
+&nbsp; * Unless required by applicable law or agreed to in writing, software
+&nbsp; * distributed under the License is distributed on an &quot;AS IS&quot; BASIS,
+&nbsp; * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+&nbsp; * See the License for the specific language governing permissions and
+&nbsp; * limitations under the License.
+&nbsp; */
+&nbsp;
+&nbsp;package com.google.zxing.client.j2se;
+&nbsp;
+&nbsp;import com.beust.jcommander.JCommander;
+&nbsp;import java.io.IOException;
+&nbsp;import java.net.URI;
+&nbsp;import java.net.URISyntaxException;
+&nbsp;import java.nio.file.DirectoryStream;
+&nbsp;import java.nio.file.Files;
+&nbsp;import java.nio.file.Path;
+&nbsp;import java.nio.file.Paths;
+&nbsp;import java.util.ArrayList;
+&nbsp;import java.util.Collection;
+&nbsp;import java.util.List;
+&nbsp;import java.util.Queue;
+&nbsp;import java.util.concurrent.ConcurrentLinkedQueue;
+&nbsp;import java.util.concurrent.ExecutorService;
+&nbsp;import java.util.concurrent.Executors;
+&nbsp;import java.util.concurrent.Future;
+&nbsp;
+&nbsp;/**
+&nbsp; * This simple command line utility decodes files, directories of files, or URIs which are passed
+&nbsp; * as arguments. By default it uses the normal decoding algorithms, but you can pass --try_harder
+&nbsp; * to request that hint. The raw text of each barcode is printed, and when running against
+&nbsp; * directories, summary statistics are also displayed.
+&nbsp; *
+&nbsp; * @author dswitkin@google.com (Daniel Switkin)
+&nbsp; * @author Sean Owen
+&nbsp; */
+&nbsp;public final class CommandLineRunner {
+&nbsp;
+&nbsp;  private CommandLineRunner() {
+&nbsp;  }
+&nbsp;
+&nbsp;  public static void main(String[] args) throws Exception {
+<b class="nc">&nbsp;    DecoderConfig config = new DecoderConfig();</b>
+<b class="nc">&nbsp;    JCommander jCommander = new JCommander(config);</b>
+<b class="nc">&nbsp;    jCommander.parse(args);</b>
+<b class="nc">&nbsp;    jCommander.setProgramName(CommandLineRunner.class.getSimpleName());</b>
+<b class="nc">&nbsp;    if (config.help) {</b>
+<b class="nc">&nbsp;      jCommander.usage();</b>
+&nbsp;      return;
+&nbsp;    }
+&nbsp;
+<b class="nc">&nbsp;    List&lt;URI&gt; inputs = new ArrayList&lt;&gt;(config.inputPaths.size());</b>
+<b class="nc">&nbsp;    for (String inputPath : config.inputPaths) {</b>
+&nbsp;      URI uri;
+&nbsp;      try {
+<b class="nc">&nbsp;        uri = new URI(inputPath);</b>
+<b class="nc">&nbsp;      } catch (URISyntaxException use) {</b>
+&nbsp;        // Assume it must be a file
+<b class="nc">&nbsp;        if (!Files.exists(Paths.get(inputPath))) {</b>
+<b class="nc">&nbsp;          throw use;</b>
+&nbsp;        }
+<b class="nc">&nbsp;        uri = new URI(&quot;file&quot;, inputPath, null);</b>
+<b class="nc">&nbsp;      }</b>
+<b class="nc">&nbsp;      inputs.add(uri);</b>
+<b class="nc">&nbsp;    }</b>
+&nbsp;
+&nbsp;    do {
+<b class="nc">&nbsp;      inputs = retainValid(expand(inputs), config.recursive);</b>
+<b class="nc">&nbsp;    } while (config.recursive &amp;&amp; isExpandable(inputs));</b>
+&nbsp;
+<b class="nc">&nbsp;    int numInputs = inputs.size();</b>
+<b class="nc">&nbsp;    if (numInputs == 0) {</b>
+<b class="nc">&nbsp;      jCommander.usage();</b>
+&nbsp;      return;
+&nbsp;    }
+&nbsp;
+<b class="nc">&nbsp;    Queue&lt;URI&gt; syncInputs = new ConcurrentLinkedQueue&lt;&gt;(inputs);</b>
+<b class="nc">&nbsp;    int numThreads = Math.min(numInputs, Runtime.getRuntime().availableProcessors());</b>
+<b class="nc">&nbsp;    int successful = 0;    </b>
+<b class="nc">&nbsp;    if (numThreads &gt; 1) {</b>
+<b class="nc">&nbsp;      ExecutorService executor = Executors.newFixedThreadPool(numThreads);</b>
+<b class="nc">&nbsp;      Collection&lt;Future&lt;Integer&gt;&gt; futures = new ArrayList&lt;&gt;(numThreads);</b>
+<b class="nc">&nbsp;      for (int x = 0; x &lt; numThreads; x++) {</b>
+<b class="nc">&nbsp;        futures.add(executor.submit(new DecodeWorker(config, syncInputs)));</b>
+&nbsp;      }
+<b class="nc">&nbsp;      executor.shutdown();</b>
+<b class="nc">&nbsp;      for (Future&lt;Integer&gt; future : futures) {</b>
+<b class="nc">&nbsp;        successful += future.get();</b>
+<b class="nc">&nbsp;      }</b>
+<b class="nc">&nbsp;    } else {</b>
+<b class="nc">&nbsp;      successful += new DecodeWorker(config, syncInputs).call();</b>
+&nbsp;    }
+&nbsp;
+<b class="nc">&nbsp;    if (!config.brief &amp;&amp; numInputs &gt; 1) {</b>
+<b class="nc">&nbsp;      System.out.println(&quot;\nDecoded &quot; + successful + &quot; files out of &quot; + numInputs +</b>
+&nbsp;          &quot; successfully (&quot; + (successful * 100 / numInputs) + &quot;%)\n&quot;);
+&nbsp;    }
+&nbsp;  }
+&nbsp;
+&nbsp;  private static List&lt;URI&gt; expand(Iterable&lt;URI&gt; inputs) throws IOException {
+<b class="nc">&nbsp;    List&lt;URI&gt; expanded = new ArrayList&lt;&gt;();</b>
+<b class="nc">&nbsp;    for (URI input : inputs) {</b>
+<b class="nc">&nbsp;      if (isFileOrDir(input)) {</b>
+<b class="nc">&nbsp;        Path inputPath = Paths.get(input);</b>
+<b class="nc">&nbsp;        if (Files.isDirectory(inputPath)) {</b>
+<b class="nc">&nbsp;          try (DirectoryStream&lt;Path&gt; childPaths = Files.newDirectoryStream(inputPath)) {</b>
+<b class="nc">&nbsp;            for (Path childPath : childPaths) {</b>
+<b class="nc">&nbsp;              expanded.add(childPath.toUri());</b>
+<b class="nc">&nbsp;            }</b>
+<b class="nc">&nbsp;          }</b>
+&nbsp;        } else {
+<b class="nc">&nbsp;          expanded.add(input);</b>
+&nbsp;        }
+<b class="nc">&nbsp;      } else {</b>
+<b class="nc">&nbsp;        expanded.add(input);</b>
+&nbsp;      }
+<b class="nc">&nbsp;    }</b>
+<b class="nc">&nbsp;    for (int i = 0; i &lt; expanded.size(); i++) {</b>
+<b class="nc">&nbsp;      URI input = expanded.get(i);</b>
+<b class="nc">&nbsp;      if (input.getScheme() == null) {</b>
+<b class="nc">&nbsp;        expanded.set(i, Paths.get(input.getRawPath()).toUri());</b>
+&nbsp;      }
+&nbsp;    }
+<b class="nc">&nbsp;    return expanded;</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  private static List&lt;URI&gt; retainValid(Iterable&lt;URI&gt; inputs, boolean recursive) {
+<b class="nc">&nbsp;    List&lt;URI&gt; retained = new ArrayList&lt;&gt;();</b>
+<b class="nc">&nbsp;    for (URI input : inputs) {</b>
+&nbsp;      boolean retain;
+<b class="nc">&nbsp;      if (isFileOrDir(input)) {</b>
+<b class="nc">&nbsp;        Path inputPath = Paths.get(input);</b>
+<b class="nc">&nbsp;        retain =</b>
+<b class="nc">&nbsp;            !inputPath.getFileName().toString().startsWith(&quot;.&quot;) &amp;&amp;</b>
+<b class="nc">&nbsp;            (recursive || !Files.isDirectory(inputPath));</b>
+<b class="nc">&nbsp;      } else {</b>
+<b class="nc">&nbsp;        retain = true;</b>
+&nbsp;      }
+<b class="nc">&nbsp;      if (retain) {</b>
+<b class="nc">&nbsp;        retained.add(input);</b>
+&nbsp;      }
+<b class="nc">&nbsp;    }</b>
+<b class="nc">&nbsp;    return retained;</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  private static boolean isExpandable(Iterable&lt;URI&gt; inputs) {
+<b class="nc">&nbsp;    for (URI input : inputs) {</b>
+<b class="nc">&nbsp;      if (isFileOrDir(input) &amp;&amp; Files.isDirectory(Paths.get(input))) {</b>
+<b class="nc">&nbsp;        return true;</b>
+&nbsp;      }
+<b class="nc">&nbsp;    }</b>
+<b class="nc">&nbsp;    return false;</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  private static boolean isFileOrDir(URI uri) {
+<b class="nc">&nbsp;    return &quot;file&quot;.equals(uri.getScheme());</b>
+&nbsp;  }
+&nbsp;
+&nbsp;}
+</code>
+</pre>
+</div>
+
+<script type="text/javascript">
+(function() {
+    var msie = false, msie9 = false;
+    /*@cc_on
+      msie = true;
+      @if (@_jscript_version >= 9)
+        msie9 = true;
+      @end
+    @*/
+
+    if (!msie || msie && msie9) {
+      hljs.highlightAll()
+      hljs.initLineNumbersOnLoad();
+    }
+})();
+</script>
+
+<div class="footer">
+    
+    <div style="float:right;">generated on 2023-11-12 23:26</div>
+</div>
+</body>
+</html>

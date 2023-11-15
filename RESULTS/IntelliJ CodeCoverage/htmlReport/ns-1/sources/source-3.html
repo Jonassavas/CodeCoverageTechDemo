@@ -1,0 +1,254 @@
+
+
+
+<!DOCTYPE html>
+<html id="htmlId">
+<head>
+  <meta http-equiv="Content-Type" content="text/html;charset=windows-1252"> 
+  <title>Coverage Report > BinaryBitmap</title>
+  <style type="text/css">
+    @import "../../css/coverage.css";
+    @import "../../css/idea.min.css";
+  </style>
+  <script type="text/javascript" src="../../js/highlight.min.js"></script>
+  <script type="text/javascript" src="../../js/highlightjs-line-numbers.min.js"></script>
+</head>
+
+<body>
+<div class="content">
+<div class="breadCrumbs">
+Current scope:     <a href="../../index.html">all classes</a>
+    <span class="separator">|</span>
+    <a href="../index.html">com.google.zxing</a>
+</div>
+
+<h1>Coverage Summary for Class: BinaryBitmap (com.google.zxing)</h1>
+
+<table class="coverageStats">
+<tr>
+  <th class="name">Class</th>
+<th class="coverageStat 
+">
+  Class, %
+</th>
+<th class="coverageStat 
+">
+  Method, %
+</th>
+<th class="coverageStat 
+">
+  Line, %
+</th>
+</tr>
+<tr>
+  <td class="name">BinaryBitmap</td>
+<td class="coverageStat">
+  <span class="percent">
+    100%
+  </span>
+  <span class="absValue">
+    (1/1)
+  </span>
+</td>
+<td class="coverageStat">
+  <span class="percent">
+    72.7%
+  </span>
+  <span class="absValue">
+    (8/11)
+  </span>
+</td>
+<td class="coverageStat">
+  <span class="percent">
+    66.7%
+  </span>
+  <span class="absValue">
+    (14/21)
+  </span>
+</td>
+</tr>
+
+</table>
+
+<br/>
+<br/>
+
+
+<pre>
+<code class="sourceCode" id="sourceCode">&nbsp;/*
+&nbsp; * Copyright 2009 ZXing authors
+&nbsp; *
+&nbsp; * Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
+&nbsp; * you may not use this file except in compliance with the License.
+&nbsp; * You may obtain a copy of the License at
+&nbsp; *
+&nbsp; *      http://www.apache.org/licenses/LICENSE-2.0
+&nbsp; *
+&nbsp; * Unless required by applicable law or agreed to in writing, software
+&nbsp; * distributed under the License is distributed on an &quot;AS IS&quot; BASIS,
+&nbsp; * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+&nbsp; * See the License for the specific language governing permissions and
+&nbsp; * limitations under the License.
+&nbsp; */
+&nbsp;
+&nbsp;package com.google.zxing;
+&nbsp;
+&nbsp;import com.google.zxing.common.BitArray;
+&nbsp;import com.google.zxing.common.BitMatrix;
+&nbsp;
+&nbsp;/**
+&nbsp; * This class is the core bitmap class used by ZXing to represent 1 bit data. Reader objects
+&nbsp; * accept a BinaryBitmap and attempt to decode it.
+&nbsp; *
+&nbsp; * @author dswitkin@google.com (Daniel Switkin)
+&nbsp; */
+&nbsp;public final class BinaryBitmap {
+&nbsp;
+&nbsp;  private final Binarizer binarizer;
+&nbsp;  private BitMatrix matrix;
+&nbsp;
+<b class="fc">&nbsp;  public BinaryBitmap(Binarizer binarizer) {</b>
+<b class="fc">&nbsp;    if (binarizer == null) {</b>
+<b class="nc">&nbsp;      throw new IllegalArgumentException(&quot;Binarizer must be non-null.&quot;);</b>
+&nbsp;    }
+<b class="fc">&nbsp;    this.binarizer = binarizer;</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  /**
+&nbsp;   * @return The width of the bitmap.
+&nbsp;   */
+&nbsp;  public int getWidth() {
+<b class="fc">&nbsp;    return binarizer.getWidth();</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  /**
+&nbsp;   * @return The height of the bitmap.
+&nbsp;   */
+&nbsp;  public int getHeight() {
+<b class="fc">&nbsp;    return binarizer.getHeight();</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  /**
+&nbsp;   * Converts one row of luminance data to 1 bit data. May actually do the conversion, or return
+&nbsp;   * cached data. Callers should assume this method is expensive and call it as seldom as possible.
+&nbsp;   * This method is intended for decoding 1D barcodes and may choose to apply sharpening.
+&nbsp;   *
+&nbsp;   * @param y The row to fetch, which must be in [0, bitmap height)
+&nbsp;   * @param row An optional preallocated array. If null or too small, it will be ignored.
+&nbsp;   *            If used, the Binarizer will call BitArray.clear(). Always use the returned object.
+&nbsp;   * @return The array of bits for this row (true means black).
+&nbsp;   * @throws NotFoundException if row can&#39;t be binarized
+&nbsp;   */
+&nbsp;  public BitArray getBlackRow(int y, BitArray row) throws NotFoundException {
+<b class="fc">&nbsp;    return binarizer.getBlackRow(y, row);</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  /**
+&nbsp;   * Converts a 2D array of luminance data to 1 bit. As above, assume this method is expensive
+&nbsp;   * and do not call it repeatedly. This method is intended for decoding 2D barcodes and may or
+&nbsp;   * may not apply sharpening. Therefore, a row from this matrix may not be identical to one
+&nbsp;   * fetched using getBlackRow(), so don&#39;t mix and match between them.
+&nbsp;   *
+&nbsp;   * @return The 2D array of bits for the image (true means black).
+&nbsp;   * @throws NotFoundException if image can&#39;t be binarized to make a matrix
+&nbsp;   */
+&nbsp;  public BitMatrix getBlackMatrix() throws NotFoundException {
+&nbsp;    // The matrix is created on demand the first time it is requested, then cached. There are two
+&nbsp;    // reasons for this:
+&nbsp;    // 1. This work will never be done if the caller only installs 1D Reader objects, or if a
+&nbsp;    //    1D Reader finds a barcode before the 2D Readers run.
+&nbsp;    // 2. This work will only be done once even if the caller installs multiple 2D Readers.
+<b class="fc">&nbsp;    if (matrix == null) {</b>
+<b class="fc">&nbsp;      matrix = binarizer.getBlackMatrix();</b>
+&nbsp;    }
+<b class="fc">&nbsp;    return matrix;</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  /**
+&nbsp;   * @return Whether this bitmap can be cropped.
+&nbsp;   */
+&nbsp;  public boolean isCropSupported() {
+<b class="nc">&nbsp;    return binarizer.getLuminanceSource().isCropSupported();</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  /**
+&nbsp;   * Returns a new object with cropped image data. Implementations may keep a reference to the
+&nbsp;   * original data rather than a copy. Only callable if isCropSupported() is true.
+&nbsp;   *
+&nbsp;   * @param left The left coordinate, which must be in [0,getWidth())
+&nbsp;   * @param top The top coordinate, which must be in [0,getHeight())
+&nbsp;   * @param width The width of the rectangle to crop.
+&nbsp;   * @param height The height of the rectangle to crop.
+&nbsp;   * @return A cropped version of this object.
+&nbsp;   */
+&nbsp;  public BinaryBitmap crop(int left, int top, int width, int height) {
+<b class="fc">&nbsp;    LuminanceSource newSource = binarizer.getLuminanceSource().crop(left, top, width, height);</b>
+<b class="fc">&nbsp;    return new BinaryBitmap(binarizer.createBinarizer(newSource));</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  /**
+&nbsp;   * @return Whether this bitmap supports counter-clockwise rotation.
+&nbsp;   */
+&nbsp;  public boolean isRotateSupported() {
+<b class="fc">&nbsp;    return binarizer.getLuminanceSource().isRotateSupported();</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  /**
+&nbsp;   * Returns a new object with rotated image data by 90 degrees counterclockwise.
+&nbsp;   * Only callable if {@link #isRotateSupported()} is true.
+&nbsp;   *
+&nbsp;   * @return A rotated version of this object.
+&nbsp;   */
+&nbsp;  public BinaryBitmap rotateCounterClockwise() {
+<b class="fc">&nbsp;    LuminanceSource newSource = binarizer.getLuminanceSource().rotateCounterClockwise();</b>
+<b class="fc">&nbsp;    return new BinaryBitmap(binarizer.createBinarizer(newSource));</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  /**
+&nbsp;   * Returns a new object with rotated image data by 45 degrees counterclockwise.
+&nbsp;   * Only callable if {@link #isRotateSupported()} is true.
+&nbsp;   *
+&nbsp;   * @return A rotated version of this object.
+&nbsp;   */
+&nbsp;  public BinaryBitmap rotateCounterClockwise45() {
+<b class="nc">&nbsp;    LuminanceSource newSource = binarizer.getLuminanceSource().rotateCounterClockwise45();</b>
+<b class="nc">&nbsp;    return new BinaryBitmap(binarizer.createBinarizer(newSource));</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  @Override
+&nbsp;  public String toString() {
+&nbsp;    try {
+<b class="nc">&nbsp;      return getBlackMatrix().toString();</b>
+<b class="nc">&nbsp;    } catch (NotFoundException e) {</b>
+<b class="nc">&nbsp;      return &quot;&quot;;</b>
+&nbsp;    }
+&nbsp;  }
+&nbsp;
+&nbsp;}
+</code>
+</pre>
+</div>
+
+<script type="text/javascript">
+(function() {
+    var msie = false, msie9 = false;
+    /*@cc_on
+      msie = true;
+      @if (@_jscript_version >= 9)
+        msie9 = true;
+      @end
+    @*/
+
+    if (!msie || msie && msie9) {
+      hljs.highlightAll()
+      hljs.initLineNumbersOnLoad();
+    }
+})();
+</script>
+
+<div class="footer">
+    
+    <div style="float:right;">generated on 2023-11-12 23:26</div>
+</div>
+</body>
+</html>

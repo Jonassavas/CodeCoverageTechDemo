@@ -1,0 +1,183 @@
+
+
+
+<!DOCTYPE html>
+<html id="htmlId">
+<head>
+  <meta http-equiv="Content-Type" content="text/html;charset=windows-1252"> 
+  <title>Coverage Report > BarcodeRow</title>
+  <style type="text/css">
+    @import "../../css/coverage.css";
+    @import "../../css/idea.min.css";
+  </style>
+  <script type="text/javascript" src="../../js/highlight.min.js"></script>
+  <script type="text/javascript" src="../../js/highlightjs-line-numbers.min.js"></script>
+</head>
+
+<body>
+<div class="content">
+<div class="breadCrumbs">
+Current scope:     <a href="../../index.html">all classes</a>
+    <span class="separator">|</span>
+    <a href="../index.html">com.google.zxing.pdf417.encoder</a>
+</div>
+
+<h1>Coverage Summary for Class: BarcodeRow (com.google.zxing.pdf417.encoder)</h1>
+
+<table class="coverageStats">
+<tr>
+  <th class="name">Class</th>
+<th class="coverageStat 
+">
+  Class, %
+</th>
+<th class="coverageStat 
+">
+  Method, %
+</th>
+<th class="coverageStat 
+">
+  Line, %
+</th>
+</tr>
+<tr>
+  <td class="name">BarcodeRow</td>
+<td class="coverageStat">
+  <span class="percent">
+    100%
+  </span>
+  <span class="absValue">
+    (1/1)
+  </span>
+</td>
+<td class="coverageStat">
+  <span class="percent">
+    80%
+  </span>
+  <span class="absValue">
+    (4/5)
+  </span>
+</td>
+<td class="coverageStat">
+  <span class="percent">
+    90.9%
+  </span>
+  <span class="absValue">
+    (10/11)
+  </span>
+</td>
+</tr>
+
+</table>
+
+<br/>
+<br/>
+
+
+<pre>
+<code class="sourceCode" id="sourceCode">&nbsp;/*
+&nbsp; * Copyright 2011 ZXing authors
+&nbsp; *
+&nbsp; * Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
+&nbsp; * you may not use this file except in compliance with the License.
+&nbsp; * You may obtain a copy of the License at
+&nbsp; *
+&nbsp; *      http://www.apache.org/licenses/LICENSE-2.0
+&nbsp; *
+&nbsp; * Unless required by applicable law or agreed to in writing, software
+&nbsp; * distributed under the License is distributed on an &quot;AS IS&quot; BASIS,
+&nbsp; * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+&nbsp; * See the License for the specific language governing permissions and
+&nbsp; * limitations under the License.
+&nbsp; */
+&nbsp;
+&nbsp;package com.google.zxing.pdf417.encoder;
+&nbsp;
+&nbsp;/**
+&nbsp; * @author Jacob Haynes
+&nbsp; */
+&nbsp;final class BarcodeRow {
+&nbsp;
+&nbsp;  private final byte[] row;
+&nbsp;  //A tacker for position in the bar
+&nbsp;  private int currentLocation;
+&nbsp;
+&nbsp;  /**
+&nbsp;   * Creates a Barcode row of the width
+&nbsp;   */
+<b class="fc">&nbsp;  BarcodeRow(int width) {</b>
+<b class="fc">&nbsp;    this.row = new byte[width];</b>
+<b class="fc">&nbsp;    currentLocation = 0;</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  /**
+&nbsp;   * Sets a specific location in the bar
+&nbsp;   *
+&nbsp;   * @param x The location in the bar
+&nbsp;   * @param value Black if true, white if false;
+&nbsp;   */
+&nbsp;  void set(int x, byte value) {
+<b class="nc">&nbsp;    row[x] = value;</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  /**
+&nbsp;   * Sets a specific location in the bar
+&nbsp;   *
+&nbsp;   * @param x The location in the bar
+&nbsp;   * @param black Black if true, white if false;
+&nbsp;   */
+&nbsp;  private void set(int x, boolean black) {
+<b class="fc">&nbsp;    row[x] = (byte) (black ? 1 : 0);</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  /**
+&nbsp;   * @param black A boolean which is true if the bar black false if it is white
+&nbsp;   * @param width How many spots wide the bar is.
+&nbsp;   */
+&nbsp;  void addBar(boolean black, int width) {
+<b class="fc">&nbsp;    for (int ii = 0; ii &lt; width; ii++) {</b>
+<b class="fc">&nbsp;      set(currentLocation++, black);</b>
+&nbsp;    }
+&nbsp;  }
+&nbsp;
+&nbsp;  /**
+&nbsp;   * This function scales the row
+&nbsp;   *
+&nbsp;   * @param scale How much you want the image to be scaled, must be greater than or equal to 1.
+&nbsp;   * @return the scaled row
+&nbsp;   */
+&nbsp;  byte[] getScaledRow(int scale) {
+<b class="fc">&nbsp;    byte[] output = new byte[row.length * scale];</b>
+<b class="fc">&nbsp;    for (int i = 0; i &lt; output.length; i++) {</b>
+<b class="fc">&nbsp;      output[i] = row[i / scale];</b>
+&nbsp;    }
+<b class="fc">&nbsp;    return output;</b>
+&nbsp;  }
+&nbsp;}
+</code>
+</pre>
+</div>
+
+<script type="text/javascript">
+(function() {
+    var msie = false, msie9 = false;
+    /*@cc_on
+      msie = true;
+      @if (@_jscript_version >= 9)
+        msie9 = true;
+      @end
+    @*/
+
+    if (!msie || msie && msie9) {
+      hljs.highlightAll()
+      hljs.initLineNumbersOnLoad();
+    }
+})();
+</script>
+
+<div class="footer">
+    
+    <div style="float:right;">generated on 2023-11-12 23:26</div>
+</div>
+</body>
+</html>

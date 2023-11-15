@@ -1,0 +1,468 @@
+
+
+
+<!DOCTYPE html>
+<html id="htmlId">
+<head>
+  <meta http-equiv="Content-Type" content="text/html;charset=windows-1252"> 
+  <title>Coverage Report > Detector</title>
+  <style type="text/css">
+    @import "../../css/coverage.css";
+    @import "../../css/idea.min.css";
+  </style>
+  <script type="text/javascript" src="../../js/highlight.min.js"></script>
+  <script type="text/javascript" src="../../js/highlightjs-line-numbers.min.js"></script>
+</head>
+
+<body>
+<div class="content">
+<div class="breadCrumbs">
+Current scope:     <a href="../../index.html">all classes</a>
+    <span class="separator">|</span>
+    <a href="../index.html">com.google.zxing.pdf417.detector</a>
+</div>
+
+<h1>Coverage Summary for Class: Detector (com.google.zxing.pdf417.detector)</h1>
+
+<table class="coverageStats">
+<tr>
+  <th class="name">Class</th>
+<th class="coverageStat 
+">
+  Class, %
+</th>
+<th class="coverageStat 
+">
+  Method, %
+</th>
+<th class="coverageStat 
+">
+  Line, %
+</th>
+</tr>
+<tr>
+  <td class="name">Detector</td>
+<td class="coverageStat">
+  <span class="percent">
+    100%
+  </span>
+  <span class="absValue">
+    (1/1)
+  </span>
+</td>
+<td class="coverageStat">
+  <span class="percent">
+    100%
+  </span>
+  <span class="absValue">
+    (9/9)
+  </span>
+</td>
+<td class="coverageStat">
+  <span class="percent">
+    98.6%
+  </span>
+  <span class="absValue">
+    (144/146)
+  </span>
+</td>
+</tr>
+
+</table>
+
+<br/>
+<br/>
+
+
+<pre>
+<code class="sourceCode" id="sourceCode">&nbsp;/*
+&nbsp; * Copyright 2009 ZXing authors
+&nbsp; *
+&nbsp; * Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
+&nbsp; * you may not use this file except in compliance with the License.
+&nbsp; * You may obtain a copy of the License at
+&nbsp; *
+&nbsp; *      http://www.apache.org/licenses/LICENSE-2.0
+&nbsp; *
+&nbsp; * Unless required by applicable law or agreed to in writing, software
+&nbsp; * distributed under the License is distributed on an &quot;AS IS&quot; BASIS,
+&nbsp; * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+&nbsp; * See the License for the specific language governing permissions and
+&nbsp; * limitations under the License.
+&nbsp; */
+&nbsp;
+&nbsp;package com.google.zxing.pdf417.detector;
+&nbsp;
+&nbsp;import com.google.zxing.BinaryBitmap;
+&nbsp;import com.google.zxing.DecodeHintType;
+&nbsp;import com.google.zxing.NotFoundException;
+&nbsp;import com.google.zxing.ResultPoint;
+&nbsp;import com.google.zxing.common.BitMatrix;
+&nbsp;
+&nbsp;import java.util.ArrayList;
+&nbsp;import java.util.Arrays;
+&nbsp;import java.util.List;
+&nbsp;import java.util.Map;
+&nbsp;
+&nbsp;/**
+&nbsp; * &lt;p&gt;Encapsulates logic that can detect a PDF417 Code in an image, even if the
+&nbsp; * PDF417 Code is rotated or skewed, or partially obscured.&lt;/p&gt;
+&nbsp; *
+&nbsp; * @author SITA Lab (kevin.osullivan@sita.aero)
+&nbsp; * @author dswitkin@google.com (Daniel Switkin)
+&nbsp; * @author Guenther Grau
+&nbsp; */
+&nbsp;public final class Detector {
+&nbsp;
+<b class="fc">&nbsp;  private static final int[] INDEXES_START_PATTERN = {0, 4, 1, 5};</b>
+<b class="fc">&nbsp;  private static final int[] INDEXES_STOP_PATTERN = {6, 2, 7, 3};</b>
+&nbsp;  private static final float MAX_AVG_VARIANCE = 0.42f;
+&nbsp;  private static final float MAX_INDIVIDUAL_VARIANCE = 0.8f;
+&nbsp;  private static final float MAX_STOP_PATTERN_HEIGHT_VARIANCE = 0.5f;
+&nbsp;
+&nbsp;  // B S B S B S B S Bar/Space pattern
+&nbsp;  // 11111111 0 1 0 1 0 1 000
+<b class="fc">&nbsp;  private static final int[] START_PATTERN = {8, 1, 1, 1, 1, 1, 1, 3};</b>
+&nbsp;  // 1111111 0 1 000 1 0 1 00 1
+<b class="fc">&nbsp;  private static final int[] STOP_PATTERN = {7, 1, 1, 3, 1, 1, 1, 2, 1};</b>
+&nbsp;  private static final int MAX_PIXEL_DRIFT = 3;
+&nbsp;  private static final int MAX_PATTERN_DRIFT = 5;
+&nbsp;  // if we set the value too low, then we don&#39;t detect the correct height of the bar if the start patterns are damaged.
+&nbsp;  // if we set the value too high, then we might detect the start pattern from a neighbor barcode.
+&nbsp;  private static final int SKIPPED_ROW_COUNT_MAX = 25;
+&nbsp;  // A PDF471 barcode should have at least 3 rows, with each row being &gt;= 3 times the module width.
+&nbsp;  // Therefore it should be at least 9 pixels tall. To be conservative, we use about half the size to
+&nbsp;  // ensure we don&#39;t miss it.
+&nbsp;  private static final int ROW_STEP = 5;
+&nbsp;  private static final int BARCODE_MIN_HEIGHT = 10;
+<b class="fc">&nbsp;  private static final int[] ROTATIONS = {0, 180, 270, 90};</b>
+&nbsp;
+&nbsp;  private Detector() {
+&nbsp;  }
+&nbsp;
+&nbsp;  /**
+&nbsp;   * &lt;p&gt;Detects a PDF417 Code in an image. Checks 0, 90, 180, and 270 degree rotations.&lt;/p&gt;
+&nbsp;   *
+&nbsp;   * @param image barcode image to decode
+&nbsp;   * @param hints optional hints to detector
+&nbsp;   * @param multiple if true, then the image is searched for multiple codes. If false, then at most one code will
+&nbsp;   * be found and returned
+&nbsp;   * @return {@link PDF417DetectorResult} encapsulating results of detecting a PDF417 code
+&nbsp;   * @throws NotFoundException if no PDF417 Code can be found
+&nbsp;   */
+&nbsp;  public static PDF417DetectorResult detect(BinaryBitmap image, Map&lt;DecodeHintType,?&gt; hints, boolean multiple)
+&nbsp;      throws NotFoundException {
+&nbsp;    // TODO detection improvement, tryHarder could try several different luminance thresholds/blackpoints or even
+&nbsp;    // different binarizers
+&nbsp;    //boolean tryHarder = hints != null &amp;&amp; hints.containsKey(DecodeHintType.TRY_HARDER);
+&nbsp;
+<b class="fc">&nbsp;    BitMatrix originalMatrix = image.getBlackMatrix();</b>
+<b class="fc">&nbsp;    for (int rotation : ROTATIONS) {</b>
+<b class="fc">&nbsp;      BitMatrix bitMatrix = applyRotation(originalMatrix, rotation);</b>
+<b class="fc">&nbsp;      List&lt;ResultPoint[]&gt; barcodeCoordinates = detect(multiple, bitMatrix);</b>
+<b class="fc">&nbsp;      if (!barcodeCoordinates.isEmpty()) {</b>
+<b class="fc">&nbsp;        return new PDF417DetectorResult(bitMatrix, barcodeCoordinates, rotation);</b>
+&nbsp;      }
+&nbsp;    }
+<b class="fc">&nbsp;    return new PDF417DetectorResult(originalMatrix, new ArrayList&lt;&gt;(), 0);</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  /**
+&nbsp;   * Applies a rotation to the supplied BitMatrix.
+&nbsp;   * @param matrix bit matrix to apply rotation to
+&nbsp;   * @param rotation the degrees of rotation to apply
+&nbsp;   * @return BitMatrix with applied rotation
+&nbsp;   */
+&nbsp;  private static BitMatrix applyRotation(BitMatrix matrix, int rotation) {
+<b class="fc">&nbsp;    if (rotation % 360 == 0) {</b>
+<b class="fc">&nbsp;      return matrix;</b>
+&nbsp;    }
+&nbsp;
+<b class="fc">&nbsp;    BitMatrix newMatrix = matrix.clone();</b>
+<b class="fc">&nbsp;    newMatrix.rotate(rotation);</b>
+<b class="fc">&nbsp;    return newMatrix;</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  /**
+&nbsp;   * Detects PDF417 codes in an image. Only checks 0 degree rotation
+&nbsp;   * @param multiple if true, then the image is searched for multiple codes. If false, then at most one code will
+&nbsp;   * be found and returned
+&nbsp;   * @param bitMatrix bit matrix to detect barcodes in
+&nbsp;   * @return List of ResultPoint arrays containing the coordinates of found barcodes
+&nbsp;   */
+&nbsp;  private static List&lt;ResultPoint[]&gt; detect(boolean multiple, BitMatrix bitMatrix) {
+<b class="fc">&nbsp;    List&lt;ResultPoint[]&gt; barcodeCoordinates = new ArrayList&lt;&gt;();</b>
+<b class="fc">&nbsp;    int row = 0;</b>
+<b class="fc">&nbsp;    int column = 0;</b>
+<b class="fc">&nbsp;    boolean foundBarcodeInRow = false;</b>
+<b class="fc">&nbsp;    while (row &lt; bitMatrix.getHeight()) {</b>
+<b class="fc">&nbsp;      ResultPoint[] vertices = findVertices(bitMatrix, row, column);</b>
+&nbsp;
+<b class="fc">&nbsp;      if (vertices[0] == null &amp;&amp; vertices[3] == null) {</b>
+<b class="fc">&nbsp;        if (!foundBarcodeInRow) {</b>
+&nbsp;          // we didn&#39;t find any barcode so that&#39;s the end of searching
+<b class="fc">&nbsp;          break;</b>
+&nbsp;        }
+&nbsp;        // we didn&#39;t find a barcode starting at the given column and row. Try again from the first column and slightly
+&nbsp;        // below the lowest barcode we found so far.
+<b class="fc">&nbsp;        foundBarcodeInRow = false;</b>
+<b class="fc">&nbsp;        column = 0;</b>
+<b class="fc">&nbsp;        for (ResultPoint[] barcodeCoordinate : barcodeCoordinates) {</b>
+<b class="fc">&nbsp;          if (barcodeCoordinate[1] != null) {</b>
+<b class="fc">&nbsp;            row = (int) Math.max(row, barcodeCoordinate[1].getY());</b>
+&nbsp;          }
+<b class="fc">&nbsp;          if (barcodeCoordinate[3] != null) {</b>
+<b class="fc">&nbsp;            row = Math.max(row, (int) barcodeCoordinate[3].getY());</b>
+&nbsp;          }
+<b class="fc">&nbsp;        }</b>
+<b class="fc">&nbsp;        row += ROW_STEP;</b>
+<b class="fc">&nbsp;        continue;</b>
+&nbsp;      }
+<b class="fc">&nbsp;      foundBarcodeInRow = true;</b>
+<b class="fc">&nbsp;      barcodeCoordinates.add(vertices);</b>
+<b class="fc">&nbsp;      if (!multiple) {</b>
+<b class="fc">&nbsp;        break;</b>
+&nbsp;      }
+&nbsp;      // if we didn&#39;t find a right row indicator column, then continue the search for the next barcode after the
+&nbsp;      // start pattern of the barcode just found.
+<b class="fc">&nbsp;      if (vertices[2] != null) {</b>
+<b class="fc">&nbsp;        column = (int) vertices[2].getX();</b>
+<b class="fc">&nbsp;        row = (int) vertices[2].getY();</b>
+&nbsp;      } else {
+<b class="nc">&nbsp;        column = (int) vertices[4].getX();</b>
+<b class="nc">&nbsp;        row = (int) vertices[4].getY();</b>
+&nbsp;      }
+<b class="fc">&nbsp;    }</b>
+<b class="fc">&nbsp;    return barcodeCoordinates;</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  /**
+&nbsp;   * Locate the vertices and the codewords area of a black blob using the Start
+&nbsp;   * and Stop patterns as locators.
+&nbsp;   *
+&nbsp;   * @param matrix the scanned barcode image.
+&nbsp;   * @return an array containing the vertices:
+&nbsp;   *           vertices[0] x, y top left barcode
+&nbsp;   *           vertices[1] x, y bottom left barcode
+&nbsp;   *           vertices[2] x, y top right barcode
+&nbsp;   *           vertices[3] x, y bottom right barcode
+&nbsp;   *           vertices[4] x, y top left codeword area
+&nbsp;   *           vertices[5] x, y bottom left codeword area
+&nbsp;   *           vertices[6] x, y top right codeword area
+&nbsp;   *           vertices[7] x, y bottom right codeword area
+&nbsp;   */
+&nbsp;  private static ResultPoint[] findVertices(BitMatrix matrix, int startRow, int startColumn) {
+<b class="fc">&nbsp;    int height = matrix.getHeight();</b>
+<b class="fc">&nbsp;    int width = matrix.getWidth();</b>
+&nbsp;
+<b class="fc">&nbsp;    ResultPoint[] result = new ResultPoint[8];</b>
+<b class="fc">&nbsp;    int minHeight = BARCODE_MIN_HEIGHT;</b>
+<b class="fc">&nbsp;    copyToResult(result, findRowsWithPattern(matrix, height, width, startRow, startColumn, minHeight, START_PATTERN),</b>
+&nbsp;        INDEXES_START_PATTERN);
+&nbsp;
+<b class="fc">&nbsp;    if (result[4] != null) {</b>
+<b class="fc">&nbsp;      startColumn = (int) result[4].getX();</b>
+<b class="fc">&nbsp;      startRow = (int) result[4].getY();</b>
+<b class="fc">&nbsp;      if (result[5] != null) {</b>
+<b class="fc">&nbsp;        int endRow = (int) result[5].getY();</b>
+<b class="fc">&nbsp;        int startPatternHeight = endRow - startRow;</b>
+<b class="fc">&nbsp;        minHeight = (int) Math.max(startPatternHeight * MAX_STOP_PATTERN_HEIGHT_VARIANCE, BARCODE_MIN_HEIGHT);</b>
+&nbsp;      }
+&nbsp;    }
+<b class="fc">&nbsp;    copyToResult(result, findRowsWithPattern(matrix, height, width, startRow, startColumn, minHeight, STOP_PATTERN),</b>
+&nbsp;        INDEXES_STOP_PATTERN);
+<b class="fc">&nbsp;    return result;</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  private static void copyToResult(ResultPoint[] result, ResultPoint[] tmpResult, int[] destinationIndexes) {
+<b class="fc">&nbsp;    for (int i = 0; i &lt; destinationIndexes.length; i++) {</b>
+<b class="fc">&nbsp;      result[destinationIndexes[i]] = tmpResult[i];</b>
+&nbsp;    }
+&nbsp;  }
+&nbsp;
+&nbsp;  private static ResultPoint[] findRowsWithPattern(BitMatrix matrix,
+&nbsp;                                                   int height,
+&nbsp;                                                   int width,
+&nbsp;                                                   int startRow,
+&nbsp;                                                   int startColumn,
+&nbsp;                                                   int minHeight,
+&nbsp;                                                   int[] pattern) {
+<b class="fc">&nbsp;    ResultPoint[] result = new ResultPoint[4];</b>
+<b class="fc">&nbsp;    boolean found = false;</b>
+<b class="fc">&nbsp;    int[] counters = new int[pattern.length];</b>
+<b class="fc">&nbsp;    for (; startRow &lt; height; startRow += ROW_STEP) {</b>
+<b class="fc">&nbsp;      int[] loc = findGuardPattern(matrix, startColumn, startRow, width, pattern, counters);</b>
+<b class="fc">&nbsp;      if (loc != null) {</b>
+<b class="fc">&nbsp;        while (startRow &gt; 0) {</b>
+<b class="fc">&nbsp;          int[] previousRowLoc = findGuardPattern(matrix, startColumn, --startRow, width, pattern, counters);</b>
+<b class="fc">&nbsp;          if (previousRowLoc != null) {</b>
+<b class="fc">&nbsp;            loc = previousRowLoc;</b>
+&nbsp;          } else {
+<b class="fc">&nbsp;            startRow++;</b>
+<b class="fc">&nbsp;            break;</b>
+&nbsp;          }
+<b class="fc">&nbsp;        }</b>
+<b class="fc">&nbsp;        result[0] = new ResultPoint(loc[0], startRow);</b>
+<b class="fc">&nbsp;        result[1] = new ResultPoint(loc[1], startRow);</b>
+<b class="fc">&nbsp;        found = true;</b>
+<b class="fc">&nbsp;        break;</b>
+&nbsp;      }
+&nbsp;    }
+<b class="fc">&nbsp;    int stopRow = startRow + 1;</b>
+&nbsp;    // Last row of the current symbol that contains pattern
+<b class="fc">&nbsp;    if (found) {</b>
+<b class="fc">&nbsp;      int skippedRowCount = 0;</b>
+<b class="fc">&nbsp;      int[] previousRowLoc = {(int) result[0].getX(), (int) result[1].getX()};</b>
+<b class="fc">&nbsp;      for (; stopRow &lt; height; stopRow++) {</b>
+<b class="fc">&nbsp;        int[] loc = findGuardPattern(matrix, previousRowLoc[0], stopRow, width, pattern, counters);</b>
+&nbsp;        // a found pattern is only considered to belong to the same barcode if the start and end positions
+&nbsp;        // don&#39;t differ too much. Pattern drift should be not bigger than two for consecutive rows. With
+&nbsp;        // a higher number of skipped rows drift could be larger. To keep it simple for now, we allow a slightly
+&nbsp;        // larger drift and don&#39;t check for skipped rows.
+<b class="fc">&nbsp;        if (loc != null &amp;&amp;</b>
+<b class="fc">&nbsp;            Math.abs(previousRowLoc[0] - loc[0]) &lt; MAX_PATTERN_DRIFT &amp;&amp;</b>
+<b class="fc">&nbsp;            Math.abs(previousRowLoc[1] - loc[1]) &lt; MAX_PATTERN_DRIFT) {</b>
+<b class="fc">&nbsp;          previousRowLoc = loc;</b>
+<b class="fc">&nbsp;          skippedRowCount = 0;</b>
+&nbsp;        } else {
+<b class="fc">&nbsp;          if (skippedRowCount &gt; SKIPPED_ROW_COUNT_MAX) {</b>
+<b class="fc">&nbsp;            break;</b>
+&nbsp;          } else {
+<b class="fc">&nbsp;            skippedRowCount++;</b>
+&nbsp;          }
+&nbsp;        }
+&nbsp;      }
+<b class="fc">&nbsp;      stopRow -= skippedRowCount + 1;</b>
+<b class="fc">&nbsp;      result[2] = new ResultPoint(previousRowLoc[0], stopRow);</b>
+<b class="fc">&nbsp;      result[3] = new ResultPoint(previousRowLoc[1], stopRow);</b>
+&nbsp;    }
+<b class="fc">&nbsp;    if (stopRow - startRow &lt; minHeight) {</b>
+<b class="fc">&nbsp;      Arrays.fill(result, null);</b>
+&nbsp;    }
+<b class="fc">&nbsp;    return result;</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  /**
+&nbsp;   * @param matrix row of black/white values to search
+&nbsp;   * @param column x position to start search
+&nbsp;   * @param row y position to start search
+&nbsp;   * @param width the number of pixels to search on this row
+&nbsp;   * @param pattern pattern of counts of number of black and white pixels that are
+&nbsp;   *                 being searched for as a pattern
+&nbsp;   * @param counters array of counters, as long as pattern, to re-use
+&nbsp;   * @return start/end horizontal offset of guard pattern, as an array of two ints.
+&nbsp;   */
+&nbsp;  private static int[] findGuardPattern(BitMatrix matrix,
+&nbsp;                                        int column,
+&nbsp;                                        int row,
+&nbsp;                                        int width,
+&nbsp;                                        int[] pattern,
+&nbsp;                                        int[] counters) {
+<b class="fc">&nbsp;    Arrays.fill(counters, 0, counters.length, 0);</b>
+<b class="fc">&nbsp;    int patternStart = column;</b>
+<b class="fc">&nbsp;    int pixelDrift = 0;</b>
+&nbsp;
+&nbsp;    // if there are black pixels left of the current pixel shift to the left, but only for MAX_PIXEL_DRIFT pixels
+<b class="fc">&nbsp;    while (matrix.get(patternStart, row) &amp;&amp; patternStart &gt; 0 &amp;&amp; pixelDrift++ &lt; MAX_PIXEL_DRIFT) {</b>
+<b class="fc">&nbsp;      patternStart--;</b>
+&nbsp;    }
+<b class="fc">&nbsp;    int x = patternStart;</b>
+<b class="fc">&nbsp;    int counterPosition = 0;</b>
+<b class="fc">&nbsp;    int patternLength = pattern.length;</b>
+<b class="fc">&nbsp;    for (boolean isWhite = false; x &lt; width; x++) {</b>
+<b class="fc">&nbsp;      boolean pixel = matrix.get(x, row);</b>
+<b class="fc">&nbsp;      if (pixel != isWhite) {</b>
+<b class="fc">&nbsp;        counters[counterPosition]++;</b>
+&nbsp;      } else {
+<b class="fc">&nbsp;        if (counterPosition == patternLength - 1) {</b>
+<b class="fc">&nbsp;          if (patternMatchVariance(counters, pattern) &lt; MAX_AVG_VARIANCE) {</b>
+<b class="fc">&nbsp;            return new int[] {patternStart, x};</b>
+&nbsp;          }
+<b class="fc">&nbsp;          patternStart += counters[0] + counters[1];</b>
+<b class="fc">&nbsp;          System.arraycopy(counters, 2, counters, 0, counterPosition - 1);</b>
+<b class="fc">&nbsp;          counters[counterPosition - 1] = 0;</b>
+<b class="fc">&nbsp;          counters[counterPosition] = 0;</b>
+<b class="fc">&nbsp;          counterPosition--;</b>
+&nbsp;        } else {
+<b class="fc">&nbsp;          counterPosition++;</b>
+&nbsp;        }
+<b class="fc">&nbsp;        counters[counterPosition] = 1;</b>
+<b class="fc">&nbsp;        isWhite = !isWhite;</b>
+&nbsp;      }
+&nbsp;    }
+<b class="fc">&nbsp;    if (counterPosition == patternLength - 1 &amp;&amp;</b>
+<b class="fc">&nbsp;        patternMatchVariance(counters, pattern) &lt; MAX_AVG_VARIANCE) {</b>
+<b class="fc">&nbsp;      return new int[] {patternStart, x - 1};</b>
+&nbsp;    }
+<b class="fc">&nbsp;    return null;</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  /**
+&nbsp;   * Determines how closely a set of observed counts of runs of black/white
+&nbsp;   * values matches a given target pattern. This is reported as the ratio of
+&nbsp;   * the total variance from the expected pattern proportions across all
+&nbsp;   * pattern elements, to the length of the pattern.
+&nbsp;   *
+&nbsp;   * @param counters observed counters
+&nbsp;   * @param pattern expected pattern
+&nbsp;   * @return ratio of total variance between counters and pattern compared to total pattern size
+&nbsp;   */
+&nbsp;  private static float patternMatchVariance(int[] counters, int[] pattern) {
+<b class="fc">&nbsp;    int numCounters = counters.length;</b>
+<b class="fc">&nbsp;    int total = 0;</b>
+<b class="fc">&nbsp;    int patternLength = 0;</b>
+<b class="fc">&nbsp;    for (int i = 0; i &lt; numCounters; i++) {</b>
+<b class="fc">&nbsp;      total += counters[i];</b>
+<b class="fc">&nbsp;      patternLength += pattern[i];</b>
+&nbsp;    }
+<b class="fc">&nbsp;    if (total &lt; patternLength) {</b>
+&nbsp;      // If we don&#39;t even have one pixel per unit of bar width, assume this
+&nbsp;      // is too small to reliably match, so fail:
+<b class="fc">&nbsp;      return Float.POSITIVE_INFINITY;</b>
+&nbsp;    }
+&nbsp;    // We&#39;re going to fake floating-point math in integers. We just need to use more bits.
+&nbsp;    // Scale up patternLength so that intermediate values below like scaledCounter will have
+&nbsp;    // more &quot;significant digits&quot;.
+<b class="fc">&nbsp;    float unitBarWidth = (float) total / patternLength;</b>
+<b class="fc">&nbsp;    float maxIndividualVariance = MAX_INDIVIDUAL_VARIANCE * unitBarWidth;</b>
+&nbsp;
+<b class="fc">&nbsp;    float totalVariance = 0.0f;</b>
+<b class="fc">&nbsp;    for (int x = 0; x &lt; numCounters; x++) {</b>
+<b class="fc">&nbsp;      int counter = counters[x];</b>
+<b class="fc">&nbsp;      float scaledPattern = pattern[x] * unitBarWidth;</b>
+<b class="fc">&nbsp;      float variance = counter &gt; scaledPattern ? counter - scaledPattern : scaledPattern - counter;</b>
+<b class="fc">&nbsp;      if (variance &gt; maxIndividualVariance) {</b>
+<b class="fc">&nbsp;        return Float.POSITIVE_INFINITY;</b>
+&nbsp;      }
+<b class="fc">&nbsp;      totalVariance += variance;</b>
+&nbsp;    }
+<b class="fc">&nbsp;    return totalVariance / total;</b>
+&nbsp;  }
+&nbsp;}
+</code>
+</pre>
+</div>
+
+<script type="text/javascript">
+(function() {
+    var msie = false, msie9 = false;
+    /*@cc_on
+      msie = true;
+      @if (@_jscript_version >= 9)
+        msie9 = true;
+      @end
+    @*/
+
+    if (!msie || msie && msie9) {
+      hljs.highlightAll()
+      hljs.initLineNumbersOnLoad();
+    }
+})();
+</script>
+
+<div class="footer">
+    
+    <div style="float:right;">generated on 2023-11-12 23:26</div>
+</div>
+</body>
+</html>

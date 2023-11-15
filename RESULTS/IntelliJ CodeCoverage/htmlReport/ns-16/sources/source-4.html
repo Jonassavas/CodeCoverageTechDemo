@@ -1,0 +1,940 @@
+
+
+
+<!DOCTYPE html>
+<html id="htmlId">
+<head>
+  <meta http-equiv="Content-Type" content="text/html;charset=windows-1252"> 
+  <title>Coverage Report > RSSExpandedReader</title>
+  <style type="text/css">
+    @import "../../css/coverage.css";
+    @import "../../css/idea.min.css";
+  </style>
+  <script type="text/javascript" src="../../js/highlight.min.js"></script>
+  <script type="text/javascript" src="../../js/highlightjs-line-numbers.min.js"></script>
+</head>
+
+<body>
+<div class="content">
+<div class="breadCrumbs">
+Current scope:     <a href="../../index.html">all classes</a>
+    <span class="separator">|</span>
+    <a href="../index.html">com.google.zxing.oned.rss.expanded</a>
+</div>
+
+<h1>Coverage Summary for Class: RSSExpandedReader (com.google.zxing.oned.rss.expanded)</h1>
+
+<table class="coverageStats">
+<tr>
+  <th class="name">Class</th>
+<th class="coverageStat 
+">
+  Class, %
+</th>
+<th class="coverageStat 
+">
+  Method, %
+</th>
+<th class="coverageStat 
+">
+  Line, %
+</th>
+</tr>
+<tr>
+  <td class="name">RSSExpandedReader</td>
+<td class="coverageStat">
+  <span class="percent">
+    100%
+  </span>
+  <span class="absValue">
+    (1/1)
+  </span>
+</td>
+<td class="coverageStat">
+  <span class="percent">
+    95.7%
+  </span>
+  <span class="absValue">
+    (22/23)
+  </span>
+</td>
+<td class="coverageStat">
+  <span class="percent">
+    96.4%
+  </span>
+  <span class="absValue">
+    (379/393)
+  </span>
+</td>
+</tr>
+
+</table>
+
+<br/>
+<br/>
+
+
+<pre>
+<code class="sourceCode" id="sourceCode">&nbsp;/*
+&nbsp; * Copyright (C) 2010 ZXing authors
+&nbsp; *
+&nbsp; * Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
+&nbsp; * you may not use this file except in compliance with the License.
+&nbsp; * You may obtain a copy of the License at
+&nbsp; *
+&nbsp; *      http://www.apache.org/licenses/LICENSE-2.0
+&nbsp; *
+&nbsp; * Unless required by applicable law or agreed to in writing, software
+&nbsp; * distributed under the License is distributed on an &quot;AS IS&quot; BASIS,
+&nbsp; * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+&nbsp; * See the License for the specific language governing permissions and
+&nbsp; * limitations under the License.
+&nbsp; */
+&nbsp;
+&nbsp;/*
+&nbsp; * These authors would like to acknowledge the Spanish Ministry of Industry,
+&nbsp; * Tourism and Trade, for the support in the project TSI020301-2008-2
+&nbsp; * &quot;PIRAmIDE: Personalizable Interactions with Resources on AmI-enabled
+&nbsp; * Mobile Dynamic Environments&quot;, led by Treelogic
+&nbsp; * ( http://www.treelogic.com/ ):
+&nbsp; *
+&nbsp; *   http://www.piramidepse.com/
+&nbsp; */
+&nbsp;
+&nbsp;package com.google.zxing.oned.rss.expanded;
+&nbsp;
+&nbsp;import com.google.zxing.BarcodeFormat;
+&nbsp;import com.google.zxing.DecodeHintType;
+&nbsp;import com.google.zxing.FormatException;
+&nbsp;import com.google.zxing.NotFoundException;
+&nbsp;import com.google.zxing.Result;
+&nbsp;import com.google.zxing.ResultMetadataType;
+&nbsp;import com.google.zxing.ResultPoint;
+&nbsp;import com.google.zxing.common.BitArray;
+&nbsp;import com.google.zxing.common.detector.MathUtils;
+&nbsp;import com.google.zxing.oned.rss.AbstractRSSReader;
+&nbsp;import com.google.zxing.oned.rss.DataCharacter;
+&nbsp;import com.google.zxing.oned.rss.FinderPattern;
+&nbsp;import com.google.zxing.oned.rss.RSSUtils;
+&nbsp;import com.google.zxing.oned.rss.expanded.decoders.AbstractExpandedDecoder;
+&nbsp;
+&nbsp;import java.util.Arrays;
+&nbsp;import java.util.ArrayList;
+&nbsp;import java.util.Collection;
+&nbsp;import java.util.Iterator;
+&nbsp;import java.util.List;
+&nbsp;import java.util.Map;
+&nbsp;import java.util.Collections;
+&nbsp;
+&nbsp;/**
+&nbsp; * @author Pablo Orduña, University of Deusto (pablo.orduna@deusto.es)
+&nbsp; * @author Eduardo Castillejo, University of Deusto (eduardo.castillejo@deusto.es)
+&nbsp; */
+<b class="fc">&nbsp;public final class RSSExpandedReader extends AbstractRSSReader {</b>
+&nbsp;
+<b class="fc">&nbsp;  private static final int[] SYMBOL_WIDEST = {7, 5, 4, 3, 1};</b>
+<b class="fc">&nbsp;  private static final int[] EVEN_TOTAL_SUBSET = {4, 20, 52, 104, 204};</b>
+<b class="fc">&nbsp;  private static final int[] GSUM = {0, 348, 1388, 2948, 3988};</b>
+&nbsp;
+&nbsp;  /** Finder pattern element widths, from section 7.2.7 of ISO/IEC 24724:2006. */
+<b class="fc">&nbsp;  private static final int[][] FINDER_PATTERNS = {</b>
+&nbsp;    {1,8,4,1}, // A
+&nbsp;    {3,6,4,1}, // B
+&nbsp;    {3,4,6,1}, // C
+&nbsp;    {3,2,8,1}, // D
+&nbsp;    {2,6,5,1}, // E
+&nbsp;    {2,2,9,1}  // F
+&nbsp;  };
+&nbsp;
+&nbsp;  /** The element weights used in the checksum calculation, from section 7.2.6 of ISO/IEC 24724:2006. */
+<b class="fc">&nbsp;  private static final int[][] WEIGHTS = {</b>
+&nbsp;    {  1,   3,   9,  27,  81,  32,  96,  77},
+&nbsp;    { 20,  60, 180, 118, 143,   7,  21,  63},
+&nbsp;    {189, 145,  13,  39, 117, 140, 209, 205},
+&nbsp;    {193, 157,  49, 147,  19,  57, 171,  91},
+&nbsp;    { 62, 186, 136, 197, 169,  85,  44, 132},
+&nbsp;    {185, 133, 188, 142,   4,  12,  36, 108},
+&nbsp;    {113, 128, 173,  97,  80,  29,  87,  50},
+&nbsp;    {150,  28,  84,  41, 123, 158,  52, 156},
+&nbsp;    { 46, 138, 203, 187, 139, 206, 196, 166},
+&nbsp;    { 76,  17,  51, 153,  37, 111, 122, 155},
+&nbsp;    { 43, 129, 176, 106, 107, 110, 119, 146},
+&nbsp;    { 16,  48, 144,  10,  30,  90,  59, 177},
+&nbsp;    {109, 116, 137, 200, 178, 112, 125, 164},
+&nbsp;    { 70, 210, 208, 202, 184, 130, 179, 115},
+&nbsp;    {134, 191, 151,  31,  93,  68, 204, 190},
+&nbsp;    {148,  22,  66, 198, 172,   94, 71,   2},
+&nbsp;    {  6,  18,  54, 162,  64,  192,154,  40},
+&nbsp;    {120, 149,  25,  75,  14,   42,126, 167},
+&nbsp;    { 79,  26,  78,  23,  69,  207,199, 175},
+&nbsp;    {103,  98,  83,  38, 114, 131, 182, 124},
+&nbsp;    {161,  61, 183, 127, 170,  88,  53, 159},
+&nbsp;    { 55, 165,  73,   8,  24,  72,   5,  15},
+&nbsp;    { 45, 135, 194, 160,  58, 174, 100,  89}
+&nbsp;  };
+&nbsp;
+&nbsp;  private static final int FINDER_PAT_A = 0;
+&nbsp;  private static final int FINDER_PAT_B = 1;
+&nbsp;  private static final int FINDER_PAT_C = 2;
+&nbsp;  private static final int FINDER_PAT_D = 3;
+&nbsp;  private static final int FINDER_PAT_E = 4;
+&nbsp;  private static final int FINDER_PAT_F = 5;
+&nbsp;
+&nbsp;  /** The possible finder pattern sequences, from section 7.2.7 of ISO/IEC 24724:2006. */
+&nbsp;  @SuppressWarnings(&quot;checkstyle:lineLength&quot;)
+<b class="fc">&nbsp;  private static final int[][] FINDER_PATTERN_SEQUENCES = {</b>
+&nbsp;    { FINDER_PAT_A, FINDER_PAT_A },
+&nbsp;    { FINDER_PAT_A, FINDER_PAT_B, FINDER_PAT_B },
+&nbsp;    { FINDER_PAT_A, FINDER_PAT_C, FINDER_PAT_B, FINDER_PAT_D },
+&nbsp;    { FINDER_PAT_A, FINDER_PAT_E, FINDER_PAT_B, FINDER_PAT_D, FINDER_PAT_C },
+&nbsp;    { FINDER_PAT_A, FINDER_PAT_E, FINDER_PAT_B, FINDER_PAT_D, FINDER_PAT_D, FINDER_PAT_F },
+&nbsp;    { FINDER_PAT_A, FINDER_PAT_E, FINDER_PAT_B, FINDER_PAT_D, FINDER_PAT_E, FINDER_PAT_F, FINDER_PAT_F },
+&nbsp;    { FINDER_PAT_A, FINDER_PAT_A, FINDER_PAT_B, FINDER_PAT_B, FINDER_PAT_C, FINDER_PAT_C, FINDER_PAT_D, FINDER_PAT_D },
+&nbsp;    { FINDER_PAT_A, FINDER_PAT_A, FINDER_PAT_B, FINDER_PAT_B, FINDER_PAT_C, FINDER_PAT_C, FINDER_PAT_D, FINDER_PAT_E, FINDER_PAT_E },
+&nbsp;    { FINDER_PAT_A, FINDER_PAT_A, FINDER_PAT_B, FINDER_PAT_B, FINDER_PAT_C, FINDER_PAT_C, FINDER_PAT_D, FINDER_PAT_E, FINDER_PAT_F, FINDER_PAT_F },
+&nbsp;    { FINDER_PAT_A, FINDER_PAT_A, FINDER_PAT_B, FINDER_PAT_B, FINDER_PAT_C, FINDER_PAT_D, FINDER_PAT_D, FINDER_PAT_E, FINDER_PAT_E, FINDER_PAT_F, FINDER_PAT_F },
+&nbsp;  };
+&nbsp;
+&nbsp;  private static final int MAX_PAIRS = 11;
+&nbsp;
+&nbsp;  private static final float FINDER_PATTERN_MODULES = 15f;
+&nbsp;  private static final float DATA_CHARACTER_MODULES = 17f;
+&nbsp;  private static final float MAX_FINDER_PATTERN_DISTANCE_VARIANCE = 0.1f;
+&nbsp;
+<b class="fc">&nbsp;  private final List&lt;ExpandedPair&gt; pairs = new ArrayList&lt;&gt;(MAX_PAIRS);</b>
+<b class="fc">&nbsp;  private final List&lt;ExpandedRow&gt; rows = new ArrayList&lt;&gt;();</b>
+<b class="fc">&nbsp;  private final int [] startEnd = new int[2];</b>
+&nbsp;  private boolean startFromEven;
+&nbsp;
+&nbsp;  @Override
+&nbsp;  public Result decodeRow(int rowNumber,
+&nbsp;                          BitArray row,
+&nbsp;                          Map&lt;DecodeHintType,?&gt; hints) throws NotFoundException, FormatException {
+&nbsp;    // Rows can start with even pattern if previous rows had an odd number of patterns, so we try twice.
+<b class="fc">&nbsp;    this.startFromEven = false;</b>
+&nbsp;    try {
+<b class="fc">&nbsp;      return constructResult(decodeRow2pairs(rowNumber, row));</b>
+<b class="fc">&nbsp;    } catch (NotFoundException e) {</b>
+&nbsp;      // OK
+&nbsp;    }
+&nbsp;
+<b class="fc">&nbsp;    this.startFromEven = true;</b>
+<b class="fc">&nbsp;    return constructResult(decodeRow2pairs(rowNumber, row));</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  @Override
+&nbsp;  public void reset() {
+<b class="nc">&nbsp;    this.pairs.clear();</b>
+<b class="nc">&nbsp;    this.rows.clear();</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  // Not private for testing
+&nbsp;  List&lt;ExpandedPair&gt; decodeRow2pairs(int rowNumber, BitArray row) throws NotFoundException {
+<b class="fc">&nbsp;    this.pairs.clear();</b>
+<b class="fc">&nbsp;    boolean done = false;</b>
+<b class="fc">&nbsp;    while (!done) {</b>
+&nbsp;      try {
+<b class="fc">&nbsp;        this.pairs.add(retrieveNextPair(row, this.pairs, rowNumber));</b>
+<b class="fc">&nbsp;      } catch (NotFoundException nfe) {</b>
+<b class="fc">&nbsp;        if (this.pairs.isEmpty()) {</b>
+<b class="fc">&nbsp;          throw nfe;</b>
+&nbsp;        }
+&nbsp;        // exit this loop when retrieveNextPair() fails and throws
+<b class="fc">&nbsp;        done = true;</b>
+<b class="fc">&nbsp;      }</b>
+&nbsp;    }
+&nbsp;
+<b class="fc">&nbsp;    if (checkChecksum() &amp;&amp; isValidSequence(this.pairs, true)) {</b>
+<b class="fc">&nbsp;      return this.pairs;</b>
+&nbsp;    }
+&nbsp;
+<b class="fc">&nbsp;    boolean tryStackedDecode = !this.rows.isEmpty();</b>
+<b class="fc">&nbsp;    storeRow(rowNumber); // TODO: deal with reversed rows</b>
+<b class="fc">&nbsp;    if (tryStackedDecode) {</b>
+&nbsp;      // When the image is 180-rotated, then rows are sorted in wrong direction.
+&nbsp;      // Try twice with both the directions.
+<b class="fc">&nbsp;      List&lt;ExpandedPair&gt; ps = checkRows(false);</b>
+<b class="fc">&nbsp;      if (ps != null) {</b>
+<b class="fc">&nbsp;        return ps;</b>
+&nbsp;      }
+<b class="fc">&nbsp;      ps = checkRows(true);</b>
+<b class="fc">&nbsp;      if (ps != null) {</b>
+<b class="fc">&nbsp;        return ps;</b>
+&nbsp;      }
+&nbsp;    }
+&nbsp;
+<b class="fc">&nbsp;    throw NotFoundException.getNotFoundInstance();</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  private List&lt;ExpandedPair&gt; checkRows(boolean reverse) {
+&nbsp;    // Limit number of rows we are checking
+&nbsp;    // We use recursive algorithm with pure complexity and don&#39;t want it to take forever
+&nbsp;    // Stacked barcode can have up to 11 rows, so 25 seems reasonable enough
+<b class="fc">&nbsp;    if (this.rows.size() &gt; 25) {</b>
+<b class="fc">&nbsp;      this.rows.clear();  // We will never have a chance to get result, so clear it</b>
+<b class="fc">&nbsp;      return null;</b>
+&nbsp;    }
+&nbsp;
+<b class="fc">&nbsp;    this.pairs.clear();</b>
+<b class="fc">&nbsp;    if (reverse) {</b>
+<b class="fc">&nbsp;      Collections.reverse(this.rows);</b>
+&nbsp;    }
+&nbsp;
+<b class="fc">&nbsp;    List&lt;ExpandedPair&gt; ps = null;</b>
+&nbsp;    try {
+<b class="fc">&nbsp;      ps = checkRows(new ArrayList&lt;&gt;(), 0);</b>
+<b class="fc">&nbsp;    } catch (NotFoundException e) {</b>
+&nbsp;      // OK
+<b class="fc">&nbsp;    }</b>
+&nbsp;
+<b class="fc">&nbsp;    if (reverse) {</b>
+<b class="fc">&nbsp;      Collections.reverse(this.rows);</b>
+&nbsp;    }
+&nbsp;
+<b class="fc">&nbsp;    return ps;</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  // Try to construct a valid rows sequence
+&nbsp;  // Recursion is used to implement backtracking
+&nbsp;  private List&lt;ExpandedPair&gt; checkRows(List&lt;ExpandedRow&gt; collectedRows, int currentRow) throws NotFoundException {
+<b class="fc">&nbsp;    for (int i = currentRow; i &lt; rows.size(); i++) {</b>
+<b class="fc">&nbsp;      ExpandedRow row = rows.get(i);</b>
+<b class="fc">&nbsp;      this.pairs.clear();</b>
+<b class="fc">&nbsp;      for (ExpandedRow collectedRow : collectedRows) {</b>
+<b class="fc">&nbsp;        this.pairs.addAll(collectedRow.getPairs());</b>
+<b class="fc">&nbsp;      }</b>
+<b class="fc">&nbsp;      this.pairs.addAll(row.getPairs());</b>
+&nbsp;
+<b class="fc">&nbsp;      if (isValidSequence(this.pairs, false)) {</b>
+<b class="fc">&nbsp;        if (checkChecksum()) {</b>
+<b class="fc">&nbsp;          return this.pairs;</b>
+&nbsp;        }
+&nbsp;
+<b class="fc">&nbsp;        List&lt;ExpandedRow&gt; rs = new ArrayList&lt;&gt;(collectedRows);</b>
+<b class="fc">&nbsp;        rs.add(row);</b>
+&nbsp;        try {
+&nbsp;          // Recursion: try to add more rows
+<b class="fc">&nbsp;          return checkRows(rs, i + 1);</b>
+<b class="fc">&nbsp;        } catch (NotFoundException e) {</b>
+&nbsp;          // We failed, try the next candidate
+&nbsp;        }
+&nbsp;      }
+&nbsp;    }
+&nbsp;
+<b class="fc">&nbsp;    throw NotFoundException.getNotFoundInstance();</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  // Whether the pairs form a valid finder pattern sequence, either complete or a prefix
+&nbsp;  private static boolean isValidSequence(List&lt;ExpandedPair&gt; pairs, boolean complete) {
+&nbsp;
+<b class="fc">&nbsp;    for (int[] sequence : FINDER_PATTERN_SEQUENCES) {</b>
+<b class="fc">&nbsp;      boolean sizeOk = (complete ? pairs.size() == sequence.length : pairs.size() &lt;= sequence.length);</b>
+<b class="fc">&nbsp;      if (sizeOk) {</b>
+<b class="fc">&nbsp;        boolean stop = true;</b>
+<b class="fc">&nbsp;        for (int j = 0; j &lt; pairs.size(); j++) {</b>
+<b class="fc">&nbsp;          if (pairs.get(j).getFinderPattern().getValue() != sequence[j]) {</b>
+<b class="fc">&nbsp;            stop = false;</b>
+<b class="fc">&nbsp;            break;</b>
+&nbsp;          }
+&nbsp;        }
+<b class="fc">&nbsp;        if (stop) {</b>
+<b class="fc">&nbsp;          return true;</b>
+&nbsp;        }
+&nbsp;      }
+&nbsp;    }
+&nbsp;
+<b class="fc">&nbsp;    return false;</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  // Whether the pairs, plus another pair of the specified type, would together
+&nbsp;  // form a valid finder pattern sequence, either complete or partial
+&nbsp;  private static boolean mayFollow(List&lt;ExpandedPair&gt; pairs, int value) {
+&nbsp;
+<b class="fc">&nbsp;    if (pairs.isEmpty()) {</b>
+<b class="fc">&nbsp;      return true;</b>
+&nbsp;    }
+&nbsp;
+<b class="fc">&nbsp;    for (int[] sequence : FINDER_PATTERN_SEQUENCES) {</b>
+<b class="fc">&nbsp;      if (pairs.size() + 1 &lt;= sequence.length) {</b>
+&nbsp;        // the proposed sequence (i.e. pairs + value) would fit in this allowed sequence
+<b class="fc">&nbsp;        for (int i = pairs.size(); i &lt; sequence.length; i++) {</b>
+<b class="fc">&nbsp;          if (sequence[i] == value) {</b>
+&nbsp;            // we found our value in this allowed sequence, check to see if the elements preceding it match our existing
+&nbsp;            // pairs; note our existing pairs may not be a full sequence (e.g. if processing a row in a stacked symbol)
+<b class="fc">&nbsp;            boolean matched = true;</b>
+<b class="fc">&nbsp;            for (int j = 0; j &lt; pairs.size(); j++) {</b>
+<b class="fc">&nbsp;              int allowed = sequence[i - j - 1];</b>
+<b class="fc">&nbsp;              int actual = pairs.get(pairs.size() - j - 1).getFinderPattern().getValue();</b>
+<b class="fc">&nbsp;              if (allowed != actual) {</b>
+<b class="fc">&nbsp;                matched = false;</b>
+<b class="fc">&nbsp;                break;</b>
+&nbsp;              }
+&nbsp;            }
+<b class="fc">&nbsp;            if (matched) {</b>
+<b class="fc">&nbsp;              return true;</b>
+&nbsp;            }
+&nbsp;          }
+&nbsp;        }
+&nbsp;      }
+&nbsp;    }
+&nbsp;
+&nbsp;    // the proposed finder pattern sequence is illegal
+<b class="fc">&nbsp;    return false;</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  private void storeRow(int rowNumber) {
+&nbsp;    // Discard if duplicate above or below; otherwise insert in order by row number.
+<b class="fc">&nbsp;    int insertPos = 0;</b>
+<b class="fc">&nbsp;    boolean prevIsSame = false;</b>
+<b class="fc">&nbsp;    boolean nextIsSame = false;</b>
+<b class="fc">&nbsp;    while (insertPos &lt; this.rows.size()) {</b>
+<b class="fc">&nbsp;      ExpandedRow erow = this.rows.get(insertPos);</b>
+<b class="fc">&nbsp;      if (erow.getRowNumber() &gt; rowNumber) {</b>
+<b class="fc">&nbsp;        nextIsSame = erow.isEquivalent(this.pairs);</b>
+<b class="fc">&nbsp;        break;</b>
+&nbsp;      }
+<b class="fc">&nbsp;      prevIsSame = erow.isEquivalent(this.pairs);</b>
+<b class="fc">&nbsp;      insertPos++;</b>
+<b class="fc">&nbsp;    }</b>
+<b class="fc">&nbsp;    if (nextIsSame || prevIsSame) {</b>
+&nbsp;      return;
+&nbsp;    }
+&nbsp;
+&nbsp;    // When the row was partially decoded (e.g. 2 pairs found instead of 3),
+&nbsp;    // it will prevent us from detecting the barcode.
+&nbsp;    // Try to merge partial rows
+&nbsp;
+&nbsp;    // Check whether the row is part of an already detected row
+<b class="fc">&nbsp;    if (isPartialRow(this.pairs, this.rows)) {</b>
+&nbsp;      return;
+&nbsp;    }
+&nbsp;
+<b class="fc">&nbsp;    this.rows.add(insertPos, new ExpandedRow(this.pairs, rowNumber));</b>
+&nbsp;
+<b class="fc">&nbsp;    removePartialRows(this.pairs, this.rows);</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  // Remove all the rows that contains only specified pairs
+&nbsp;  private static void removePartialRows(Collection&lt;ExpandedPair&gt; pairs, Collection&lt;ExpandedRow&gt; rows) {
+<b class="fc">&nbsp;    for (Iterator&lt;ExpandedRow&gt; iterator = rows.iterator(); iterator.hasNext();) {</b>
+<b class="fc">&nbsp;      ExpandedRow r = iterator.next();</b>
+<b class="fc">&nbsp;      if (r.getPairs().size() != pairs.size()) {</b>
+<b class="fc">&nbsp;        boolean allFound = true;</b>
+<b class="fc">&nbsp;        for (ExpandedPair p : r.getPairs()) {</b>
+<b class="fc">&nbsp;          if (!pairs.contains(p)) {</b>
+<b class="fc">&nbsp;            allFound = false;</b>
+<b class="fc">&nbsp;            break;</b>
+&nbsp;          }
+<b class="fc">&nbsp;        }</b>
+<b class="fc">&nbsp;        if (allFound) {</b>
+&nbsp;          // &#39;pairs&#39; contains all the pairs from the row &#39;r&#39;
+<b class="fc">&nbsp;          iterator.remove();</b>
+&nbsp;        }
+&nbsp;      }
+<b class="fc">&nbsp;    }</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  // Returns true when one of the rows already contains all the pairs
+&nbsp;  private static boolean isPartialRow(Iterable&lt;ExpandedPair&gt; pairs, Iterable&lt;ExpandedRow&gt; rows) {
+<b class="fc">&nbsp;    for (ExpandedRow r : rows) {</b>
+<b class="fc">&nbsp;      boolean allFound = true;</b>
+<b class="fc">&nbsp;      for (ExpandedPair p : pairs) {</b>
+<b class="fc">&nbsp;        boolean found = false;</b>
+<b class="fc">&nbsp;        for (ExpandedPair pp : r.getPairs()) {</b>
+<b class="fc">&nbsp;          if (p.equals(pp)) {</b>
+<b class="fc">&nbsp;            found = true;</b>
+<b class="fc">&nbsp;            break;</b>
+&nbsp;          }
+<b class="fc">&nbsp;        }</b>
+<b class="fc">&nbsp;        if (!found) {</b>
+<b class="fc">&nbsp;          allFound = false;</b>
+<b class="fc">&nbsp;          break;</b>
+&nbsp;        }
+<b class="fc">&nbsp;      }</b>
+<b class="fc">&nbsp;      if (allFound) {</b>
+&nbsp;        // the row &#39;r&#39; contain all the pairs from &#39;pairs&#39;
+<b class="fc">&nbsp;        return true;</b>
+&nbsp;      }
+<b class="fc">&nbsp;    }</b>
+<b class="fc">&nbsp;    return false;</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  // Only used for unit testing
+&nbsp;  List&lt;ExpandedRow&gt; getRows() {
+<b class="fc">&nbsp;    return this.rows;</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  // Not private for unit testing
+&nbsp;  static Result constructResult(List&lt;ExpandedPair&gt; pairs) throws NotFoundException, FormatException {
+<b class="fc">&nbsp;    BitArray binary = BitArrayBuilder.buildBitArray(pairs);</b>
+&nbsp;
+<b class="fc">&nbsp;    AbstractExpandedDecoder decoder = AbstractExpandedDecoder.createDecoder(binary);</b>
+<b class="fc">&nbsp;    String resultingString = decoder.parseInformation();</b>
+&nbsp;
+<b class="fc">&nbsp;    ResultPoint[] firstPoints = pairs.get(0).getFinderPattern().getResultPoints();</b>
+<b class="fc">&nbsp;    ResultPoint[] lastPoints  = pairs.get(pairs.size() - 1).getFinderPattern().getResultPoints();</b>
+&nbsp;
+<b class="fc">&nbsp;    Result result = new Result(</b>
+&nbsp;          resultingString,
+&nbsp;          null,
+&nbsp;          new ResultPoint[]{firstPoints[0], firstPoints[1], lastPoints[0], lastPoints[1]},
+&nbsp;          BarcodeFormat.RSS_EXPANDED
+&nbsp;      );
+<b class="fc">&nbsp;    result.putMetadata(ResultMetadataType.SYMBOLOGY_IDENTIFIER, &quot;]e0&quot;);</b>
+<b class="fc">&nbsp;    return result;</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  private boolean checkChecksum() {
+<b class="fc">&nbsp;    ExpandedPair firstPair = this.pairs.get(0);</b>
+<b class="fc">&nbsp;    DataCharacter checkCharacter = firstPair.getLeftChar();</b>
+<b class="fc">&nbsp;    DataCharacter firstCharacter = firstPair.getRightChar();</b>
+&nbsp;
+<b class="fc">&nbsp;    if (firstCharacter == null) {</b>
+<b class="fc">&nbsp;      return false;</b>
+&nbsp;    }
+&nbsp;
+<b class="fc">&nbsp;    int checksum = firstCharacter.getChecksumPortion();</b>
+<b class="fc">&nbsp;    int s = 2;</b>
+&nbsp;
+<b class="fc">&nbsp;    for (int i = 1; i &lt; this.pairs.size(); ++i) {</b>
+<b class="fc">&nbsp;      ExpandedPair currentPair = this.pairs.get(i);</b>
+<b class="fc">&nbsp;      checksum += currentPair.getLeftChar().getChecksumPortion();</b>
+<b class="fc">&nbsp;      s++;</b>
+<b class="fc">&nbsp;      DataCharacter currentRightChar = currentPair.getRightChar();</b>
+<b class="fc">&nbsp;      if (currentRightChar != null) {</b>
+<b class="fc">&nbsp;        checksum += currentRightChar.getChecksumPortion();</b>
+<b class="fc">&nbsp;        s++;</b>
+&nbsp;      }
+&nbsp;    }
+&nbsp;
+<b class="fc">&nbsp;    checksum %= 211;</b>
+&nbsp;
+<b class="fc">&nbsp;    int checkCharacterValue = 211 * (s - 4) + checksum;</b>
+&nbsp;
+<b class="fc">&nbsp;    return checkCharacterValue == checkCharacter.getValue();</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  private static int getNextSecondBar(BitArray row, int initialPos) {
+&nbsp;    int currentPos;
+<b class="fc">&nbsp;    if (row.get(initialPos)) {</b>
+<b class="fc">&nbsp;      currentPos = row.getNextUnset(initialPos);</b>
+<b class="fc">&nbsp;      currentPos = row.getNextSet(currentPos);</b>
+&nbsp;    } else {
+<b class="nc">&nbsp;      currentPos = row.getNextSet(initialPos);</b>
+<b class="nc">&nbsp;      currentPos = row.getNextUnset(currentPos);</b>
+&nbsp;    }
+<b class="fc">&nbsp;    return currentPos;</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  // not private for testing
+&nbsp;  ExpandedPair retrieveNextPair(BitArray row, List&lt;ExpandedPair&gt; previousPairs, int rowNumber)
+&nbsp;      throws NotFoundException {
+<b class="fc">&nbsp;    boolean isOddPattern  = previousPairs.size() % 2 == 0;</b>
+<b class="fc">&nbsp;    if (startFromEven) {</b>
+<b class="fc">&nbsp;      isOddPattern = !isOddPattern;</b>
+&nbsp;    }
+&nbsp;
+&nbsp;    FinderPattern pattern;
+<b class="fc">&nbsp;    DataCharacter leftChar = null;</b>
+&nbsp;
+<b class="fc">&nbsp;    boolean keepFinding = true;</b>
+<b class="fc">&nbsp;    int forcedOffset = -1;</b>
+&nbsp;    do {
+<b class="fc">&nbsp;      this.findNextPair(row, previousPairs, forcedOffset);</b>
+<b class="fc">&nbsp;      pattern = parseFoundFinderPattern(row, rowNumber, isOddPattern, previousPairs);</b>
+<b class="fc">&nbsp;      if (pattern == null) {</b>
+<b class="fc">&nbsp;        forcedOffset = getNextSecondBar(row, this.startEnd[0]); // probable false positive, keep looking</b>
+&nbsp;      } else {
+&nbsp;        try {
+<b class="fc">&nbsp;          leftChar  = this.decodeDataCharacter(row, pattern, isOddPattern, true);</b>
+<b class="fc">&nbsp;          keepFinding = false;</b>
+<b class="fc">&nbsp;        } catch (NotFoundException ignored) {</b>
+<b class="fc">&nbsp;          forcedOffset = getNextSecondBar(row, this.startEnd[0]); // probable false positive, keep looking</b>
+<b class="fc">&nbsp;        }</b>
+&nbsp;      }
+<b class="fc">&nbsp;    } while (keepFinding);</b>
+&nbsp;
+&nbsp;    // When stacked symbol is split over multiple rows, there&#39;s no way to guess if this pair can be last or not.
+&nbsp;    // boolean mayBeLast = checkPairSequence(previousPairs, pattern);
+&nbsp;
+<b class="fc">&nbsp;    if (!previousPairs.isEmpty() &amp;&amp; previousPairs.get(previousPairs.size() - 1).mustBeLast()) {</b>
+<b class="fc">&nbsp;      throw NotFoundException.getNotFoundInstance();</b>
+&nbsp;    }
+&nbsp;
+&nbsp;    DataCharacter rightChar;
+&nbsp;    try {
+<b class="fc">&nbsp;      rightChar = this.decodeDataCharacter(row, pattern, isOddPattern, false);</b>
+<b class="fc">&nbsp;    } catch (NotFoundException ignored) {</b>
+<b class="fc">&nbsp;      rightChar = null;</b>
+<b class="fc">&nbsp;    }</b>
+<b class="fc">&nbsp;    return new ExpandedPair(leftChar, rightChar, pattern);</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  private void findNextPair(BitArray row, List&lt;ExpandedPair&gt; previousPairs, int forcedOffset)
+&nbsp;      throws NotFoundException {
+<b class="fc">&nbsp;    int[] counters = this.getDecodeFinderCounters();</b>
+<b class="fc">&nbsp;    counters[0] = 0;</b>
+<b class="fc">&nbsp;    counters[1] = 0;</b>
+<b class="fc">&nbsp;    counters[2] = 0;</b>
+<b class="fc">&nbsp;    counters[3] = 0;</b>
+&nbsp;
+<b class="fc">&nbsp;    int width = row.getSize();</b>
+&nbsp;
+&nbsp;    int rowOffset;
+<b class="fc">&nbsp;    if (forcedOffset &gt;= 0) {</b>
+<b class="fc">&nbsp;      rowOffset = forcedOffset;</b>
+<b class="fc">&nbsp;    } else if (previousPairs.isEmpty()) {</b>
+<b class="fc">&nbsp;      rowOffset = 0;</b>
+&nbsp;    } else {
+<b class="fc">&nbsp;      ExpandedPair lastPair = previousPairs.get(previousPairs.size() - 1);</b>
+<b class="fc">&nbsp;      rowOffset = lastPair.getFinderPattern().getStartEnd()[1];</b>
+&nbsp;    }
+<b class="fc">&nbsp;    boolean searchingEvenPair = previousPairs.size() % 2 != 0;</b>
+<b class="fc">&nbsp;    if (startFromEven) {</b>
+<b class="fc">&nbsp;      searchingEvenPair = !searchingEvenPair;</b>
+&nbsp;    }
+&nbsp;
+<b class="fc">&nbsp;    boolean isWhite = false;</b>
+<b class="fc">&nbsp;    while (rowOffset &lt; width) {</b>
+<b class="fc">&nbsp;      isWhite = !row.get(rowOffset);</b>
+<b class="fc">&nbsp;      if (!isWhite) {</b>
+<b class="fc">&nbsp;        break;</b>
+&nbsp;      }
+<b class="fc">&nbsp;      rowOffset++;</b>
+&nbsp;    }
+&nbsp;
+<b class="fc">&nbsp;    int counterPosition = 0;</b>
+<b class="fc">&nbsp;    int patternStart = rowOffset;</b>
+<b class="fc">&nbsp;    for (int x = rowOffset; x &lt; width; x++) {</b>
+<b class="fc">&nbsp;      if (row.get(x) != isWhite) {</b>
+<b class="fc">&nbsp;        counters[counterPosition]++;</b>
+&nbsp;      } else {
+<b class="fc">&nbsp;        if (counterPosition == 3) {</b>
+<b class="fc">&nbsp;          if (searchingEvenPair) {</b>
+<b class="fc">&nbsp;            reverseCounters(counters);</b>
+&nbsp;          }
+&nbsp;
+<b class="fc">&nbsp;          if (isFinderPattern(counters)) {</b>
+<b class="fc">&nbsp;            this.startEnd[0] = patternStart;</b>
+<b class="fc">&nbsp;            this.startEnd[1] = x;</b>
+&nbsp;            return;
+&nbsp;          }
+&nbsp;
+<b class="fc">&nbsp;          if (searchingEvenPair) {</b>
+<b class="fc">&nbsp;            reverseCounters(counters);</b>
+&nbsp;          }
+&nbsp;
+<b class="fc">&nbsp;          patternStart += counters[0] + counters[1];</b>
+<b class="fc">&nbsp;          counters[0] = counters[2];</b>
+<b class="fc">&nbsp;          counters[1] = counters[3];</b>
+<b class="fc">&nbsp;          counters[2] = 0;</b>
+<b class="fc">&nbsp;          counters[3] = 0;</b>
+<b class="fc">&nbsp;          counterPosition--;</b>
+&nbsp;        } else {
+<b class="fc">&nbsp;          counterPosition++;</b>
+&nbsp;        }
+<b class="fc">&nbsp;        counters[counterPosition] = 1;</b>
+<b class="fc">&nbsp;        isWhite = !isWhite;</b>
+&nbsp;      }
+&nbsp;    }
+<b class="fc">&nbsp;    throw NotFoundException.getNotFoundInstance();</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  private static void reverseCounters(int [] counters) {
+<b class="fc">&nbsp;    int length = counters.length;</b>
+<b class="fc">&nbsp;    for (int i = 0; i &lt; length / 2; ++i) {</b>
+<b class="fc">&nbsp;      int tmp = counters[i];</b>
+<b class="fc">&nbsp;      counters[i] = counters[length - i - 1];</b>
+<b class="fc">&nbsp;      counters[length - i - 1] = tmp;</b>
+&nbsp;    }
+&nbsp;  }
+&nbsp;
+&nbsp;  private FinderPattern parseFoundFinderPattern(BitArray row,
+&nbsp;                                                int rowNumber,
+&nbsp;                                                boolean oddPattern,
+&nbsp;                                                List&lt;ExpandedPair&gt; previousPairs) {
+&nbsp;    // Actually we found elements 2-5.
+&nbsp;    int firstCounter;
+&nbsp;    int start;
+&nbsp;    int end;
+&nbsp;
+<b class="fc">&nbsp;    if (oddPattern) {</b>
+&nbsp;      // If pattern number is odd, we need to locate element 1 *before* the current block.
+&nbsp;
+<b class="fc">&nbsp;      int firstElementStart = this.startEnd[0] - 1;</b>
+&nbsp;      // Locate element 1
+<b class="fc">&nbsp;      while (firstElementStart &gt;= 0 &amp;&amp; !row.get(firstElementStart)) {</b>
+<b class="fc">&nbsp;        firstElementStart--;</b>
+&nbsp;      }
+&nbsp;
+<b class="fc">&nbsp;      firstElementStart++;</b>
+<b class="fc">&nbsp;      firstCounter = this.startEnd[0] - firstElementStart;</b>
+<b class="fc">&nbsp;      start = firstElementStart;</b>
+<b class="fc">&nbsp;      end = this.startEnd[1];</b>
+&nbsp;
+<b class="fc">&nbsp;    } else {</b>
+&nbsp;      // If pattern number is even, the pattern is reversed, so we need to locate element 1 *after* the current block.
+&nbsp;
+<b class="fc">&nbsp;      start = this.startEnd[0];</b>
+&nbsp;
+<b class="fc">&nbsp;      end = row.getNextUnset(this.startEnd[1] + 1);</b>
+<b class="fc">&nbsp;      firstCounter = end - this.startEnd[1];</b>
+&nbsp;    }
+&nbsp;
+&nbsp;    // Make &#39;counters&#39; hold 1-4
+<b class="fc">&nbsp;    int [] counters = this.getDecodeFinderCounters();</b>
+<b class="fc">&nbsp;    System.arraycopy(counters, 0, counters, 1, counters.length - 1);</b>
+&nbsp;
+<b class="fc">&nbsp;    counters[0] = firstCounter;</b>
+&nbsp;    int value;
+&nbsp;    try {
+<b class="fc">&nbsp;      value = parseFinderValue(counters, FINDER_PATTERNS);</b>
+<b class="fc">&nbsp;    } catch (NotFoundException ignored) {</b>
+<b class="fc">&nbsp;      return null;</b>
+<b class="fc">&nbsp;    }</b>
+&nbsp;
+&nbsp;    // Check that the pattern type that we *think* we found can exist as part of a valid sequence of finder patterns.
+<b class="fc">&nbsp;    if (!mayFollow(previousPairs, value)) {</b>
+<b class="fc">&nbsp;      return null;</b>
+&nbsp;    }
+&nbsp;
+&nbsp;    // Check that the finder pattern that we *think* we found is not too far from where we would expect to find it,
+&nbsp;    // given that finder patterns are 15 modules wide and the data characters between them are 17 modules wide.
+<b class="fc">&nbsp;    if (!previousPairs.isEmpty()) {</b>
+<b class="fc">&nbsp;      ExpandedPair prev = previousPairs.get(previousPairs.size() - 1);</b>
+<b class="fc">&nbsp;      int prevStart = prev.getFinderPattern().getStartEnd()[0];</b>
+<b class="fc">&nbsp;      int prevEnd = prev.getFinderPattern().getStartEnd()[1];</b>
+<b class="fc">&nbsp;      int prevWidth = prevEnd - prevStart;</b>
+<b class="fc">&nbsp;      float charWidth = (prevWidth / FINDER_PATTERN_MODULES) * DATA_CHARACTER_MODULES;</b>
+<b class="fc">&nbsp;      float minX = prevEnd + (2 * charWidth * (1 - MAX_FINDER_PATTERN_DISTANCE_VARIANCE));</b>
+<b class="fc">&nbsp;      float maxX = prevEnd + (2 * charWidth * (1 + MAX_FINDER_PATTERN_DISTANCE_VARIANCE));</b>
+<b class="fc">&nbsp;      if (start &lt; minX || start &gt; maxX) {</b>
+<b class="fc">&nbsp;        return null;</b>
+&nbsp;      }
+&nbsp;    }
+&nbsp;
+<b class="fc">&nbsp;    return new FinderPattern(value, new int[] {start, end}, start, end, rowNumber);</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  DataCharacter decodeDataCharacter(BitArray row,
+&nbsp;                                    FinderPattern pattern,
+&nbsp;                                    boolean isOddPattern,
+&nbsp;                                    boolean leftChar) throws NotFoundException {
+<b class="fc">&nbsp;    int[] counters = this.getDataCharacterCounters();</b>
+<b class="fc">&nbsp;    Arrays.fill(counters, 0);</b>
+&nbsp;
+<b class="fc">&nbsp;    if (leftChar) {</b>
+<b class="fc">&nbsp;      recordPatternInReverse(row, pattern.getStartEnd()[0], counters);</b>
+&nbsp;    } else {
+<b class="fc">&nbsp;      recordPattern(row, pattern.getStartEnd()[1], counters);</b>
+&nbsp;      // reverse it
+<b class="fc">&nbsp;      for (int i = 0, j = counters.length - 1; i &lt; j; i++, j--) {</b>
+<b class="fc">&nbsp;        int temp = counters[i];</b>
+<b class="fc">&nbsp;        counters[i] = counters[j];</b>
+<b class="fc">&nbsp;        counters[j] = temp;</b>
+&nbsp;      }
+&nbsp;    } //counters[] has the pixels of the module
+&nbsp;
+<b class="fc">&nbsp;    int numModules = 17; //left and right data characters have all the same length</b>
+<b class="fc">&nbsp;    float elementWidth = MathUtils.sum(counters) / (float) numModules;</b>
+&nbsp;
+&nbsp;    // Sanity check: element width for pattern and the character should match
+<b class="fc">&nbsp;    float expectedElementWidth = (pattern.getStartEnd()[1] - pattern.getStartEnd()[0]) / 15.0f;</b>
+<b class="fc">&nbsp;    if (Math.abs(elementWidth - expectedElementWidth) / expectedElementWidth &gt; 0.3f) {</b>
+<b class="fc">&nbsp;      throw NotFoundException.getNotFoundInstance();</b>
+&nbsp;    }
+&nbsp;
+<b class="fc">&nbsp;    int[] oddCounts = this.getOddCounts();</b>
+<b class="fc">&nbsp;    int[] evenCounts = this.getEvenCounts();</b>
+<b class="fc">&nbsp;    float[] oddRoundingErrors = this.getOddRoundingErrors();</b>
+<b class="fc">&nbsp;    float[] evenRoundingErrors = this.getEvenRoundingErrors();</b>
+&nbsp;
+<b class="fc">&nbsp;    for (int i = 0; i &lt; counters.length; i++) {</b>
+<b class="fc">&nbsp;      float value = 1.0f * counters[i] / elementWidth;</b>
+<b class="fc">&nbsp;      int count = (int) (value + 0.5f); // Round</b>
+<b class="fc">&nbsp;      if (count &lt; 1) {</b>
+<b class="fc">&nbsp;        if (value &lt; 0.3f) {</b>
+<b class="fc">&nbsp;          throw NotFoundException.getNotFoundInstance();</b>
+&nbsp;        }
+<b class="fc">&nbsp;        count = 1;</b>
+<b class="fc">&nbsp;      } else if (count &gt; 8) {</b>
+<b class="fc">&nbsp;        if (value &gt; 8.7f) {</b>
+<b class="fc">&nbsp;          throw NotFoundException.getNotFoundInstance();</b>
+&nbsp;        }
+<b class="fc">&nbsp;        count = 8;</b>
+&nbsp;      }
+<b class="fc">&nbsp;      int offset = i / 2;</b>
+<b class="fc">&nbsp;      if ((i &amp; 0x01) == 0) {</b>
+<b class="fc">&nbsp;        oddCounts[offset] = count;</b>
+<b class="fc">&nbsp;        oddRoundingErrors[offset] = value - count;</b>
+&nbsp;      } else {
+<b class="fc">&nbsp;        evenCounts[offset] = count;</b>
+<b class="fc">&nbsp;        evenRoundingErrors[offset] = value - count;</b>
+&nbsp;      }
+&nbsp;    }
+&nbsp;
+<b class="fc">&nbsp;    adjustOddEvenCounts(numModules);</b>
+&nbsp;
+<b class="fc">&nbsp;    int weightRowNumber = 4 * pattern.getValue() + (isOddPattern ? 0 : 2) + (leftChar ? 0 : 1) - 1;</b>
+&nbsp;
+<b class="fc">&nbsp;    int oddSum = 0;</b>
+<b class="fc">&nbsp;    int oddChecksumPortion = 0;</b>
+<b class="fc">&nbsp;    for (int i = oddCounts.length - 1; i &gt;= 0; i--) {</b>
+<b class="fc">&nbsp;      if (isNotA1left(pattern, isOddPattern, leftChar)) {</b>
+<b class="fc">&nbsp;        int weight = WEIGHTS[weightRowNumber][2 * i];</b>
+<b class="fc">&nbsp;        oddChecksumPortion += oddCounts[i] * weight;</b>
+&nbsp;      }
+<b class="fc">&nbsp;      oddSum += oddCounts[i];</b>
+&nbsp;    }
+<b class="fc">&nbsp;    int evenChecksumPortion = 0;</b>
+<b class="fc">&nbsp;    for (int i = evenCounts.length - 1; i &gt;= 0; i--) {</b>
+<b class="fc">&nbsp;      if (isNotA1left(pattern, isOddPattern, leftChar)) {</b>
+<b class="fc">&nbsp;        int weight = WEIGHTS[weightRowNumber][2 * i + 1];</b>
+<b class="fc">&nbsp;        evenChecksumPortion += evenCounts[i] * weight;</b>
+&nbsp;      }
+&nbsp;    }
+<b class="fc">&nbsp;    int checksumPortion = oddChecksumPortion + evenChecksumPortion;</b>
+&nbsp;
+<b class="fc">&nbsp;    if ((oddSum &amp; 0x01) != 0 || oddSum &gt; 13 || oddSum &lt; 4) {</b>
+<b class="fc">&nbsp;      throw NotFoundException.getNotFoundInstance();</b>
+&nbsp;    }
+&nbsp;
+<b class="fc">&nbsp;    int group = (13 - oddSum) / 2;</b>
+<b class="fc">&nbsp;    int oddWidest = SYMBOL_WIDEST[group];</b>
+<b class="fc">&nbsp;    int evenWidest = 9 - oddWidest;</b>
+<b class="fc">&nbsp;    int vOdd = RSSUtils.getRSSvalue(oddCounts, oddWidest, true);</b>
+<b class="fc">&nbsp;    int vEven = RSSUtils.getRSSvalue(evenCounts, evenWidest, false);</b>
+<b class="fc">&nbsp;    int tEven = EVEN_TOTAL_SUBSET[group];</b>
+<b class="fc">&nbsp;    int gSum = GSUM[group];</b>
+<b class="fc">&nbsp;    int value = vOdd * tEven + vEven + gSum;</b>
+&nbsp;
+<b class="fc">&nbsp;    return new DataCharacter(value, checksumPortion);</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  private static boolean isNotA1left(FinderPattern pattern, boolean isOddPattern, boolean leftChar) {
+&nbsp;    // A1: pattern.getValue is 0 (A), and it&#39;s an oddPattern, and it is a left char
+<b class="fc">&nbsp;    return !(pattern.getValue() == 0 &amp;&amp; isOddPattern &amp;&amp; leftChar);</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  private void adjustOddEvenCounts(int numModules) throws NotFoundException {
+&nbsp;
+<b class="fc">&nbsp;    int oddSum = MathUtils.sum(this.getOddCounts());</b>
+<b class="fc">&nbsp;    int evenSum = MathUtils.sum(this.getEvenCounts());</b>
+&nbsp;
+<b class="fc">&nbsp;    boolean incrementOdd = false;</b>
+<b class="fc">&nbsp;    boolean decrementOdd = false;</b>
+&nbsp;
+<b class="fc">&nbsp;    if (oddSum &gt; 13) {</b>
+<b class="fc">&nbsp;      decrementOdd = true;</b>
+<b class="fc">&nbsp;    } else if (oddSum &lt; 4) {</b>
+<b class="nc">&nbsp;      incrementOdd = true;</b>
+&nbsp;    }
+<b class="fc">&nbsp;    boolean incrementEven = false;</b>
+<b class="fc">&nbsp;    boolean decrementEven = false;</b>
+<b class="fc">&nbsp;    if (evenSum &gt; 13) {</b>
+<b class="fc">&nbsp;      decrementEven = true;</b>
+<b class="fc">&nbsp;    } else if (evenSum &lt; 4) {</b>
+<b class="nc">&nbsp;      incrementEven = true;</b>
+&nbsp;    }
+&nbsp;
+<b class="fc">&nbsp;    int mismatch = oddSum + evenSum - numModules;</b>
+<b class="fc">&nbsp;    boolean oddParityBad = (oddSum &amp; 0x01) == 1;</b>
+<b class="fc">&nbsp;    boolean evenParityBad = (evenSum &amp; 0x01) == 0;</b>
+<b class="fc">&nbsp;    switch (mismatch) {</b>
+&nbsp;      case 1:
+<b class="fc">&nbsp;        if (oddParityBad) {</b>
+<b class="fc">&nbsp;          if (evenParityBad) {</b>
+<b class="nc">&nbsp;            throw NotFoundException.getNotFoundInstance();</b>
+&nbsp;          }
+<b class="fc">&nbsp;          decrementOdd = true;</b>
+&nbsp;        } else {
+<b class="fc">&nbsp;          if (!evenParityBad) {</b>
+<b class="nc">&nbsp;            throw NotFoundException.getNotFoundInstance();</b>
+&nbsp;          }
+<b class="fc">&nbsp;          decrementEven = true;</b>
+&nbsp;        }
+<b class="fc">&nbsp;        break;</b>
+&nbsp;      case -1:
+<b class="fc">&nbsp;        if (oddParityBad) {</b>
+<b class="fc">&nbsp;          if (evenParityBad) {</b>
+<b class="nc">&nbsp;            throw NotFoundException.getNotFoundInstance();</b>
+&nbsp;          }
+<b class="fc">&nbsp;          incrementOdd = true;</b>
+&nbsp;        } else {
+<b class="fc">&nbsp;          if (!evenParityBad) {</b>
+<b class="nc">&nbsp;            throw NotFoundException.getNotFoundInstance();</b>
+&nbsp;          }
+<b class="fc">&nbsp;          incrementEven = true;</b>
+&nbsp;        }
+<b class="fc">&nbsp;        break;</b>
+&nbsp;      case 0:
+<b class="fc">&nbsp;        if (oddParityBad) {</b>
+<b class="fc">&nbsp;          if (!evenParityBad) {</b>
+<b class="nc">&nbsp;            throw NotFoundException.getNotFoundInstance();</b>
+&nbsp;          }
+&nbsp;          // Both bad
+<b class="fc">&nbsp;          if (oddSum &lt; evenSum) {</b>
+<b class="fc">&nbsp;            incrementOdd = true;</b>
+<b class="fc">&nbsp;            decrementEven = true;</b>
+&nbsp;          } else {
+<b class="fc">&nbsp;            decrementOdd = true;</b>
+<b class="fc">&nbsp;            incrementEven = true;</b>
+&nbsp;          }
+&nbsp;        } else {
+<b class="fc">&nbsp;          if (evenParityBad) {</b>
+<b class="nc">&nbsp;            throw NotFoundException.getNotFoundInstance();</b>
+&nbsp;          }
+&nbsp;          // Nothing to do!
+&nbsp;        }
+&nbsp;        break;
+&nbsp;      default:
+<b class="fc">&nbsp;        throw NotFoundException.getNotFoundInstance();</b>
+&nbsp;    }
+&nbsp;
+<b class="fc">&nbsp;    if (incrementOdd) {</b>
+<b class="fc">&nbsp;      if (decrementOdd) {</b>
+<b class="nc">&nbsp;        throw NotFoundException.getNotFoundInstance();</b>
+&nbsp;      }
+<b class="fc">&nbsp;      increment(this.getOddCounts(), this.getOddRoundingErrors());</b>
+&nbsp;    }
+<b class="fc">&nbsp;    if (decrementOdd) {</b>
+<b class="fc">&nbsp;      decrement(this.getOddCounts(), this.getOddRoundingErrors());</b>
+&nbsp;    }
+<b class="fc">&nbsp;    if (incrementEven) {</b>
+<b class="fc">&nbsp;      if (decrementEven) {</b>
+<b class="nc">&nbsp;        throw NotFoundException.getNotFoundInstance();</b>
+&nbsp;      }
+<b class="fc">&nbsp;      increment(this.getEvenCounts(), this.getOddRoundingErrors());</b>
+&nbsp;    }
+<b class="fc">&nbsp;    if (decrementEven) {</b>
+<b class="fc">&nbsp;      decrement(this.getEvenCounts(), this.getEvenRoundingErrors());</b>
+&nbsp;    }
+&nbsp;  }
+&nbsp;}
+</code>
+</pre>
+</div>
+
+<script type="text/javascript">
+(function() {
+    var msie = false, msie9 = false;
+    /*@cc_on
+      msie = true;
+      @if (@_jscript_version >= 9)
+        msie9 = true;
+      @end
+    @*/
+
+    if (!msie || msie && msie9) {
+      hljs.highlightAll()
+      hljs.initLineNumbersOnLoad();
+    }
+})();
+</script>
+
+<div class="footer">
+    
+    <div style="float:right;">generated on 2023-11-12 23:26</div>
+</div>
+</body>
+</html>

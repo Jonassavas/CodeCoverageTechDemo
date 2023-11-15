@@ -1,0 +1,218 @@
+
+
+
+<!DOCTYPE html>
+<html id="htmlId">
+<head>
+  <meta http-equiv="Content-Type" content="text/html;charset=windows-1252"> 
+  <title>Coverage Report > SMSParsedResult</title>
+  <style type="text/css">
+    @import "../../css/coverage.css";
+    @import "../../css/idea.min.css";
+  </style>
+  <script type="text/javascript" src="../../js/highlight.min.js"></script>
+  <script type="text/javascript" src="../../js/highlightjs-line-numbers.min.js"></script>
+</head>
+
+<body>
+<div class="content">
+<div class="breadCrumbs">
+Current scope:     <a href="../../index.html">all classes</a>
+    <span class="separator">|</span>
+    <a href="../index.html">com.google.zxing.client.result</a>
+</div>
+
+<h1>Coverage Summary for Class: SMSParsedResult (com.google.zxing.client.result)</h1>
+
+<table class="coverageStats">
+<tr>
+  <th class="name">Class</th>
+<th class="coverageStat 
+">
+  Class, %
+</th>
+<th class="coverageStat 
+">
+  Method, %
+</th>
+<th class="coverageStat 
+">
+  Line, %
+</th>
+</tr>
+<tr>
+  <td class="name">SMSParsedResult</td>
+<td class="coverageStat">
+  <span class="percent">
+    100%
+  </span>
+  <span class="absValue">
+    (1/1)
+  </span>
+</td>
+<td class="coverageStat">
+  <span class="percent">
+    100%
+  </span>
+  <span class="absValue">
+    (8/8)
+  </span>
+</td>
+<td class="coverageStat">
+  <span class="percent">
+    97.7%
+  </span>
+  <span class="absValue">
+    (42/43)
+  </span>
+</td>
+</tr>
+
+</table>
+
+<br/>
+<br/>
+
+
+<pre>
+<code class="sourceCode" id="sourceCode">&nbsp;/*
+&nbsp; * Copyright 2008 ZXing authors
+&nbsp; *
+&nbsp; * Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
+&nbsp; * you may not use this file except in compliance with the License.
+&nbsp; * You may obtain a copy of the License at
+&nbsp; *
+&nbsp; *      http://www.apache.org/licenses/LICENSE-2.0
+&nbsp; *
+&nbsp; * Unless required by applicable law or agreed to in writing, software
+&nbsp; * distributed under the License is distributed on an &quot;AS IS&quot; BASIS,
+&nbsp; * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+&nbsp; * See the License for the specific language governing permissions and
+&nbsp; * limitations under the License.
+&nbsp; */
+&nbsp;
+&nbsp;package com.google.zxing.client.result;
+&nbsp;
+&nbsp;/**
+&nbsp; * Represents a parsed result that encodes an SMS message, including recipients, subject
+&nbsp; * and body text.
+&nbsp; *
+&nbsp; * @author Sean Owen
+&nbsp; */
+&nbsp;public final class SMSParsedResult extends ParsedResult {
+&nbsp;
+&nbsp;  private final String[] numbers;
+&nbsp;  private final String[] vias;
+&nbsp;  private final String subject;
+&nbsp;  private final String body;
+&nbsp;
+&nbsp;  public SMSParsedResult(String number,
+&nbsp;                         String via,
+&nbsp;                         String subject,
+&nbsp;                         String body) {
+<b class="fc">&nbsp;    super(ParsedResultType.SMS);</b>
+<b class="fc">&nbsp;    this.numbers = new String[] {number};</b>
+<b class="fc">&nbsp;    this.vias = new String[] {via};</b>
+<b class="fc">&nbsp;    this.subject = subject;</b>
+<b class="fc">&nbsp;    this.body = body;</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  public SMSParsedResult(String[] numbers,
+&nbsp;                         String[] vias,
+&nbsp;                         String subject,
+&nbsp;                         String body) {
+<b class="fc">&nbsp;    super(ParsedResultType.SMS);</b>
+<b class="fc">&nbsp;    this.numbers = numbers;</b>
+<b class="fc">&nbsp;    this.vias = vias;</b>
+<b class="fc">&nbsp;    this.subject = subject;</b>
+<b class="fc">&nbsp;    this.body = body;</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  public String getSMSURI() {
+<b class="fc">&nbsp;    StringBuilder result = new StringBuilder();</b>
+<b class="fc">&nbsp;    result.append(&quot;sms:&quot;);</b>
+<b class="fc">&nbsp;    boolean first = true;</b>
+<b class="fc">&nbsp;    for (int i = 0; i &lt; numbers.length; i++) {</b>
+<b class="fc">&nbsp;      if (first) {</b>
+<b class="fc">&nbsp;        first = false;</b>
+&nbsp;      } else {
+<b class="nc">&nbsp;        result.append(&#39;,&#39;);</b>
+&nbsp;      }
+<b class="fc">&nbsp;      result.append(numbers[i]);</b>
+<b class="fc">&nbsp;      if (vias != null &amp;&amp; vias[i] != null) {</b>
+<b class="fc">&nbsp;        result.append(&quot;;via=&quot;);</b>
+<b class="fc">&nbsp;        result.append(vias[i]);</b>
+&nbsp;      }
+&nbsp;    }
+<b class="fc">&nbsp;    boolean hasBody = body != null;</b>
+<b class="fc">&nbsp;    boolean hasSubject = subject != null;</b>
+<b class="fc">&nbsp;    if (hasBody || hasSubject) {</b>
+<b class="fc">&nbsp;      result.append(&#39;?&#39;);</b>
+<b class="fc">&nbsp;      if (hasBody) {</b>
+<b class="fc">&nbsp;        result.append(&quot;body=&quot;);</b>
+<b class="fc">&nbsp;        result.append(body);</b>
+&nbsp;      }
+<b class="fc">&nbsp;      if (hasSubject) {</b>
+<b class="fc">&nbsp;        if (hasBody) {</b>
+<b class="fc">&nbsp;          result.append(&#39;&amp;&#39;);</b>
+&nbsp;        }
+<b class="fc">&nbsp;        result.append(&quot;subject=&quot;);</b>
+<b class="fc">&nbsp;        result.append(subject);</b>
+&nbsp;      }
+&nbsp;    }
+<b class="fc">&nbsp;    return result.toString();</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  public String[] getNumbers() {
+<b class="fc">&nbsp;    return numbers;</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  public String[] getVias() {
+<b class="fc">&nbsp;    return vias;</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  public String getSubject() {
+<b class="fc">&nbsp;    return subject;</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  public String getBody() {
+<b class="fc">&nbsp;    return body;</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  @Override
+&nbsp;  public String getDisplayResult() {
+<b class="fc">&nbsp;    StringBuilder result = new StringBuilder(100);</b>
+<b class="fc">&nbsp;    maybeAppend(numbers, result);</b>
+<b class="fc">&nbsp;    maybeAppend(subject, result);</b>
+<b class="fc">&nbsp;    maybeAppend(body, result);</b>
+<b class="fc">&nbsp;    return result.toString();</b>
+&nbsp;  }
+&nbsp;
+&nbsp;}
+</code>
+</pre>
+</div>
+
+<script type="text/javascript">
+(function() {
+    var msie = false, msie9 = false;
+    /*@cc_on
+      msie = true;
+      @if (@_jscript_version >= 9)
+        msie9 = true;
+      @end
+    @*/
+
+    if (!msie || msie && msie9) {
+      hljs.highlightAll()
+      hljs.initLineNumbersOnLoad();
+    }
+})();
+</script>
+
+<div class="footer">
+    
+    <div style="float:right;">generated on 2023-11-12 23:26</div>
+</div>
+</body>
+</html>

@@ -1,0 +1,216 @@
+
+
+
+<!DOCTYPE html>
+<html id="htmlId">
+<head>
+  <meta http-equiv="Content-Type" content="text/html;charset=windows-1252"> 
+  <title>Coverage Report > UPCEANExtension2Support</title>
+  <style type="text/css">
+    @import "../../css/coverage.css";
+    @import "../../css/idea.min.css";
+  </style>
+  <script type="text/javascript" src="../../js/highlight.min.js"></script>
+  <script type="text/javascript" src="../../js/highlightjs-line-numbers.min.js"></script>
+</head>
+
+<body>
+<div class="content">
+<div class="breadCrumbs">
+Current scope:     <a href="../../index.html">all classes</a>
+    <span class="separator">|</span>
+    <a href="../index.html">com.google.zxing.oned</a>
+</div>
+
+<h1>Coverage Summary for Class: UPCEANExtension2Support (com.google.zxing.oned)</h1>
+
+<table class="coverageStats">
+<tr>
+  <th class="name">Class</th>
+<th class="coverageStat 
+">
+  Class, %
+</th>
+<th class="coverageStat 
+">
+  Method, %
+</th>
+<th class="coverageStat 
+">
+  Line, %
+</th>
+</tr>
+<tr>
+  <td class="name">UPCEANExtension2Support</td>
+<td class="coverageStat">
+  <span class="percent">
+    100%
+  </span>
+  <span class="absValue">
+    (1/1)
+  </span>
+</td>
+<td class="coverageStat">
+  <span class="percent">
+    100%
+  </span>
+  <span class="absValue">
+    (4/4)
+  </span>
+</td>
+<td class="coverageStat">
+  <span class="percent">
+    97.5%
+  </span>
+  <span class="absValue">
+    (39/40)
+  </span>
+</td>
+</tr>
+
+</table>
+
+<br/>
+<br/>
+
+
+<pre>
+<code class="sourceCode" id="sourceCode">&nbsp;/*
+&nbsp; * Copyright (C) 2012 ZXing authors
+&nbsp; *
+&nbsp; * Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
+&nbsp; * you may not use this file except in compliance with the License.
+&nbsp; * You may obtain a copy of the License at
+&nbsp; *
+&nbsp; *      http://www.apache.org/licenses/LICENSE-2.0
+&nbsp; *
+&nbsp; * Unless required by applicable law or agreed to in writing, software
+&nbsp; * distributed under the License is distributed on an &quot;AS IS&quot; BASIS,
+&nbsp; * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+&nbsp; * See the License for the specific language governing permissions and
+&nbsp; * limitations under the License.
+&nbsp; */
+&nbsp;
+&nbsp;package com.google.zxing.oned;
+&nbsp;
+&nbsp;import com.google.zxing.BarcodeFormat;
+&nbsp;import com.google.zxing.NotFoundException;
+&nbsp;import com.google.zxing.Result;
+&nbsp;import com.google.zxing.ResultMetadataType;
+&nbsp;import com.google.zxing.ResultPoint;
+&nbsp;import com.google.zxing.common.BitArray;
+&nbsp;
+&nbsp;import java.util.EnumMap;
+&nbsp;import java.util.Map;
+&nbsp;
+&nbsp;/**
+&nbsp; * @see UPCEANExtension5Support
+&nbsp; */
+<b class="fc">&nbsp;final class UPCEANExtension2Support {</b>
+&nbsp;
+<b class="fc">&nbsp;  private final int[] decodeMiddleCounters = new int[4];</b>
+<b class="fc">&nbsp;  private final StringBuilder decodeRowStringBuffer = new StringBuilder();</b>
+&nbsp;
+&nbsp;  Result decodeRow(int rowNumber, BitArray row, int[] extensionStartRange) throws NotFoundException {
+&nbsp;
+<b class="fc">&nbsp;    StringBuilder result = decodeRowStringBuffer;</b>
+<b class="fc">&nbsp;    result.setLength(0);</b>
+<b class="fc">&nbsp;    int end = decodeMiddle(row, extensionStartRange, result);</b>
+&nbsp;
+<b class="fc">&nbsp;    String resultString = result.toString();</b>
+<b class="fc">&nbsp;    Map&lt;ResultMetadataType,Object&gt; extensionData = parseExtensionString(resultString);</b>
+&nbsp;
+<b class="fc">&nbsp;    Result extensionResult =</b>
+&nbsp;        new Result(resultString,
+&nbsp;                   null,
+&nbsp;                   new ResultPoint[] {
+&nbsp;                       new ResultPoint((extensionStartRange[0] + extensionStartRange[1]) / 2.0f, rowNumber),
+&nbsp;                       new ResultPoint(end, rowNumber),
+&nbsp;                   },
+&nbsp;                   BarcodeFormat.UPC_EAN_EXTENSION);
+<b class="fc">&nbsp;    if (extensionData != null) {</b>
+<b class="fc">&nbsp;      extensionResult.putAllMetadata(extensionData);</b>
+&nbsp;    }
+<b class="fc">&nbsp;    return extensionResult;</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  private int decodeMiddle(BitArray row, int[] startRange, StringBuilder resultString) throws NotFoundException {
+<b class="fc">&nbsp;    int[] counters = decodeMiddleCounters;</b>
+<b class="fc">&nbsp;    counters[0] = 0;</b>
+<b class="fc">&nbsp;    counters[1] = 0;</b>
+<b class="fc">&nbsp;    counters[2] = 0;</b>
+<b class="fc">&nbsp;    counters[3] = 0;</b>
+<b class="fc">&nbsp;    int end = row.getSize();</b>
+<b class="fc">&nbsp;    int rowOffset = startRange[1];</b>
+&nbsp;
+<b class="fc">&nbsp;    int checkParity = 0;</b>
+&nbsp;
+<b class="fc">&nbsp;    for (int x = 0; x &lt; 2 &amp;&amp; rowOffset &lt; end; x++) {</b>
+<b class="fc">&nbsp;      int bestMatch = UPCEANReader.decodeDigit(row, counters, rowOffset, UPCEANReader.L_AND_G_PATTERNS);</b>
+<b class="fc">&nbsp;      resultString.append((char) (&#39;0&#39; + bestMatch % 10));</b>
+<b class="fc">&nbsp;      for (int counter : counters) {</b>
+<b class="fc">&nbsp;        rowOffset += counter;</b>
+&nbsp;      }
+<b class="fc">&nbsp;      if (bestMatch &gt;= 10) {</b>
+<b class="fc">&nbsp;        checkParity |= 1 &lt;&lt; (1 - x);</b>
+&nbsp;      }
+<b class="fc">&nbsp;      if (x != 1) {</b>
+&nbsp;        // Read off separator if not last
+<b class="fc">&nbsp;        rowOffset = row.getNextSet(rowOffset);</b>
+<b class="fc">&nbsp;        rowOffset = row.getNextUnset(rowOffset);</b>
+&nbsp;      }
+&nbsp;    }
+&nbsp;
+<b class="fc">&nbsp;    if (resultString.length() != 2) {</b>
+<b class="fc">&nbsp;      throw NotFoundException.getNotFoundInstance();</b>
+&nbsp;    }
+&nbsp;
+<b class="fc">&nbsp;    if (Integer.parseInt(resultString.toString()) % 4 != checkParity) {</b>
+<b class="fc">&nbsp;      throw NotFoundException.getNotFoundInstance();</b>
+&nbsp;    }
+&nbsp;
+<b class="fc">&nbsp;    return rowOffset;</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  /**
+&nbsp;   * @param raw raw content of extension
+&nbsp;   * @return formatted interpretation of raw content as a {@link Map} mapping
+&nbsp;   *  one {@link ResultMetadataType} to appropriate value, or {@code null} if not known
+&nbsp;   */
+&nbsp;  private static Map&lt;ResultMetadataType,Object&gt; parseExtensionString(String raw) {
+<b class="fc">&nbsp;    if (raw.length() != 2) {</b>
+<b class="nc">&nbsp;      return null;</b>
+&nbsp;    }
+<b class="fc">&nbsp;    Map&lt;ResultMetadataType,Object&gt; result = new EnumMap&lt;&gt;(ResultMetadataType.class);</b>
+<b class="fc">&nbsp;    result.put(ResultMetadataType.ISSUE_NUMBER, Integer.valueOf(raw));</b>
+<b class="fc">&nbsp;    return result;</b>
+&nbsp;  }
+&nbsp;
+&nbsp;}
+</code>
+</pre>
+</div>
+
+<script type="text/javascript">
+(function() {
+    var msie = false, msie9 = false;
+    /*@cc_on
+      msie = true;
+      @if (@_jscript_version >= 9)
+        msie9 = true;
+      @end
+    @*/
+
+    if (!msie || msie && msie9) {
+      hljs.highlightAll()
+      hljs.initLineNumbersOnLoad();
+    }
+})();
+</script>
+
+<div class="footer">
+    
+    <div style="float:right;">generated on 2023-11-12 23:26</div>
+</div>
+</body>
+</html>

@@ -1,0 +1,641 @@
+
+
+
+<!DOCTYPE html>
+<html id="htmlId">
+<head>
+  <meta http-equiv="Content-Type" content="text/html;charset=windows-1252"> 
+  <title>Coverage Report > BitMatrix</title>
+  <style type="text/css">
+    @import "../../css/coverage.css";
+    @import "../../css/idea.min.css";
+  </style>
+  <script type="text/javascript" src="../../js/highlight.min.js"></script>
+  <script type="text/javascript" src="../../js/highlightjs-line-numbers.min.js"></script>
+</head>
+
+<body>
+<div class="content">
+<div class="breadCrumbs">
+Current scope:     <a href="../../index.html">all classes</a>
+    <span class="separator">|</span>
+    <a href="../index.html">com.google.zxing.common</a>
+</div>
+
+<h1>Coverage Summary for Class: BitMatrix (com.google.zxing.common)</h1>
+
+<table class="coverageStats">
+<tr>
+  <th class="name">Class</th>
+<th class="coverageStat 
+">
+  Class, %
+</th>
+<th class="coverageStat 
+">
+  Method, %
+</th>
+<th class="coverageStat 
+">
+  Line, %
+</th>
+</tr>
+<tr>
+  <td class="name">BitMatrix</td>
+<td class="coverageStat">
+  <span class="percent">
+    100%
+  </span>
+  <span class="absValue">
+    (1/1)
+  </span>
+</td>
+<td class="coverageStat">
+  <span class="percent">
+    93.5%
+  </span>
+  <span class="absValue">
+    (29/31)
+  </span>
+</td>
+<td class="coverageStat">
+  <span class="percent">
+    94.8%
+  </span>
+  <span class="absValue">
+    (201/212)
+  </span>
+</td>
+</tr>
+
+</table>
+
+<br/>
+<br/>
+
+
+<pre>
+<code class="sourceCode" id="sourceCode">&nbsp;/*
+&nbsp; * Copyright 2007 ZXing authors
+&nbsp; *
+&nbsp; * Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
+&nbsp; * you may not use this file except in compliance with the License.
+&nbsp; * You may obtain a copy of the License at
+&nbsp; *
+&nbsp; *      http://www.apache.org/licenses/LICENSE-2.0
+&nbsp; *
+&nbsp; * Unless required by applicable law or agreed to in writing, software
+&nbsp; * distributed under the License is distributed on an &quot;AS IS&quot; BASIS,
+&nbsp; * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+&nbsp; * See the License for the specific language governing permissions and
+&nbsp; * limitations under the License.
+&nbsp; */
+&nbsp;
+&nbsp;package com.google.zxing.common;
+&nbsp;
+&nbsp;import java.util.Arrays;
+&nbsp;
+&nbsp;/**
+&nbsp; * &lt;p&gt;Represents a 2D matrix of bits. In function arguments below, and throughout the common
+&nbsp; * module, x is the column position, and y is the row position. The ordering is always x, y.
+&nbsp; * The origin is at the top-left.&lt;/p&gt;
+&nbsp; *
+&nbsp; * &lt;p&gt;Internally the bits are represented in a 1-D array of 32-bit ints. However, each row begins
+&nbsp; * with a new int. This is done intentionally so that we can copy out a row into a BitArray very
+&nbsp; * efficiently.&lt;/p&gt;
+&nbsp; *
+&nbsp; * &lt;p&gt;The ordering of bits is row-major. Within each int, the least significant bits are used first,
+&nbsp; * meaning they represent lower x values. This is compatible with BitArray&#39;s implementation.&lt;/p&gt;
+&nbsp; *
+&nbsp; * @author Sean Owen
+&nbsp; * @author dswitkin@google.com (Daniel Switkin)
+&nbsp; */
+&nbsp;public final class BitMatrix implements Cloneable {
+&nbsp;
+&nbsp;  private int width;
+&nbsp;  private int height;
+&nbsp;  private int rowSize;
+&nbsp;  private int[] bits;
+&nbsp;
+&nbsp;  /**
+&nbsp;   * Creates an empty square {@code BitMatrix}.
+&nbsp;   *
+&nbsp;   * @param dimension height and width
+&nbsp;   */
+&nbsp;  public BitMatrix(int dimension) {
+<b class="fc">&nbsp;    this(dimension, dimension);</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  /**
+&nbsp;   * Creates an empty {@code BitMatrix}.
+&nbsp;   *
+&nbsp;   * @param width bit matrix width
+&nbsp;   * @param height bit matrix height
+&nbsp;   */
+<b class="fc">&nbsp;  public BitMatrix(int width, int height) {</b>
+<b class="fc">&nbsp;    if (width &lt; 1 || height &lt; 1) {</b>
+<b class="nc">&nbsp;      throw new IllegalArgumentException(&quot;Both dimensions must be greater than 0&quot;);</b>
+&nbsp;    }
+<b class="fc">&nbsp;    this.width = width;</b>
+<b class="fc">&nbsp;    this.height = height;</b>
+<b class="fc">&nbsp;    this.rowSize = (width + 31) / 32;</b>
+<b class="fc">&nbsp;    bits = new int[rowSize * height];</b>
+&nbsp;  }
+&nbsp;
+<b class="fc">&nbsp;  private BitMatrix(int width, int height, int rowSize, int[] bits) {</b>
+<b class="fc">&nbsp;    this.width = width;</b>
+<b class="fc">&nbsp;    this.height = height;</b>
+<b class="fc">&nbsp;    this.rowSize = rowSize;</b>
+<b class="fc">&nbsp;    this.bits = bits;</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  /**
+&nbsp;   * Interprets a 2D array of booleans as a {@code BitMatrix}, where &quot;true&quot; means an &quot;on&quot; bit.
+&nbsp;   *
+&nbsp;   * @param image bits of the image, as a row-major 2D array. Elements are arrays representing rows
+&nbsp;   * @return {@code BitMatrix} representation of image
+&nbsp;   */
+&nbsp;  public static BitMatrix parse(boolean[][] image) {
+<b class="fc">&nbsp;    int height = image.length;</b>
+<b class="fc">&nbsp;    int width = image[0].length;</b>
+<b class="fc">&nbsp;    BitMatrix bits = new BitMatrix(width, height);</b>
+<b class="fc">&nbsp;    for (int i = 0; i &lt; height; i++) {</b>
+<b class="fc">&nbsp;      boolean[] imageI = image[i];</b>
+<b class="fc">&nbsp;      for (int j = 0; j &lt; width; j++) {</b>
+<b class="fc">&nbsp;        if (imageI[j]) {</b>
+<b class="fc">&nbsp;          bits.set(j, i);</b>
+&nbsp;        }
+&nbsp;      }
+&nbsp;    }
+<b class="fc">&nbsp;    return bits;</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  public static BitMatrix parse(String stringRepresentation, String setString, String unsetString) {
+<b class="fc">&nbsp;    if (stringRepresentation == null) {</b>
+<b class="nc">&nbsp;      throw new IllegalArgumentException();</b>
+&nbsp;    }
+&nbsp;
+<b class="fc">&nbsp;    boolean[] bits = new boolean[stringRepresentation.length()];</b>
+<b class="fc">&nbsp;    int bitsPos = 0;</b>
+<b class="fc">&nbsp;    int rowStartPos = 0;</b>
+<b class="fc">&nbsp;    int rowLength = -1;</b>
+<b class="fc">&nbsp;    int nRows = 0;</b>
+<b class="fc">&nbsp;    int pos = 0;</b>
+<b class="fc">&nbsp;    while (pos &lt; stringRepresentation.length()) {</b>
+<b class="fc">&nbsp;      if (stringRepresentation.charAt(pos) == &#39;\n&#39; ||</b>
+<b class="fc">&nbsp;          stringRepresentation.charAt(pos) == &#39;\r&#39;) {</b>
+<b class="fc">&nbsp;        if (bitsPos &gt; rowStartPos) {</b>
+<b class="fc">&nbsp;          if (rowLength == -1) {</b>
+<b class="fc">&nbsp;            rowLength = bitsPos - rowStartPos;</b>
+<b class="fc">&nbsp;          } else if (bitsPos - rowStartPos != rowLength) {</b>
+<b class="nc">&nbsp;            throw new IllegalArgumentException(&quot;row lengths do not match&quot;);</b>
+&nbsp;          }
+<b class="fc">&nbsp;          rowStartPos = bitsPos;</b>
+<b class="fc">&nbsp;          nRows++;</b>
+&nbsp;        }
+<b class="fc">&nbsp;        pos++;</b>
+<b class="fc">&nbsp;      }  else if (stringRepresentation.startsWith(setString, pos)) {</b>
+<b class="fc">&nbsp;        pos += setString.length();</b>
+<b class="fc">&nbsp;        bits[bitsPos] = true;</b>
+<b class="fc">&nbsp;        bitsPos++;</b>
+<b class="fc">&nbsp;      } else if (stringRepresentation.startsWith(unsetString, pos)) {</b>
+<b class="fc">&nbsp;        pos += unsetString.length();</b>
+<b class="fc">&nbsp;        bits[bitsPos] = false;</b>
+<b class="fc">&nbsp;        bitsPos++;</b>
+&nbsp;      } else {
+<b class="fc">&nbsp;        throw new IllegalArgumentException(</b>
+<b class="fc">&nbsp;            &quot;illegal character encountered: &quot; + stringRepresentation.substring(pos));</b>
+&nbsp;      }
+&nbsp;    }
+&nbsp;
+&nbsp;    // no EOL at end?
+<b class="fc">&nbsp;    if (bitsPos &gt; rowStartPos) {</b>
+<b class="fc">&nbsp;      if (rowLength == -1) {</b>
+<b class="fc">&nbsp;        rowLength = bitsPos - rowStartPos;</b>
+<b class="fc">&nbsp;      } else if (bitsPos - rowStartPos != rowLength) {</b>
+<b class="nc">&nbsp;        throw new IllegalArgumentException(&quot;row lengths do not match&quot;);</b>
+&nbsp;      }
+<b class="fc">&nbsp;      nRows++;</b>
+&nbsp;    }
+&nbsp;
+<b class="fc">&nbsp;    BitMatrix matrix = new BitMatrix(rowLength, nRows);</b>
+<b class="fc">&nbsp;    for (int i = 0; i &lt; bitsPos; i++) {</b>
+<b class="fc">&nbsp;      if (bits[i]) {</b>
+<b class="fc">&nbsp;        matrix.set(i % rowLength, i / rowLength);</b>
+&nbsp;      }
+&nbsp;    }
+<b class="fc">&nbsp;    return matrix;</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  /**
+&nbsp;   * &lt;p&gt;Gets the requested bit, where true means black.&lt;/p&gt;
+&nbsp;   *
+&nbsp;   * @param x The horizontal component (i.e. which column)
+&nbsp;   * @param y The vertical component (i.e. which row)
+&nbsp;   * @return value of given bit in matrix
+&nbsp;   */
+&nbsp;  public boolean get(int x, int y) {
+<b class="fc">&nbsp;    int offset = y * rowSize + (x / 32);</b>
+<b class="fc">&nbsp;    return ((bits[offset] &gt;&gt;&gt; (x &amp; 0x1f)) &amp; 1) != 0;</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  /**
+&nbsp;   * &lt;p&gt;Sets the given bit to true.&lt;/p&gt;
+&nbsp;   *
+&nbsp;   * @param x The horizontal component (i.e. which column)
+&nbsp;   * @param y The vertical component (i.e. which row)
+&nbsp;   */
+&nbsp;  public void set(int x, int y) {
+<b class="fc">&nbsp;    int offset = y * rowSize + (x / 32);</b>
+<b class="fc">&nbsp;    bits[offset] |= 1 &lt;&lt; (x &amp; 0x1f);</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  public void unset(int x, int y) {
+<b class="fc">&nbsp;    int offset = y * rowSize + (x / 32);</b>
+<b class="fc">&nbsp;    bits[offset] &amp;= ~(1 &lt;&lt; (x &amp; 0x1f));</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  /**
+&nbsp;   * &lt;p&gt;Flips the given bit.&lt;/p&gt;
+&nbsp;   *
+&nbsp;   * @param x The horizontal component (i.e. which column)
+&nbsp;   * @param y The vertical component (i.e. which row)
+&nbsp;   */
+&nbsp;  public void flip(int x, int y) {
+<b class="fc">&nbsp;    int offset = y * rowSize + (x / 32);</b>
+<b class="fc">&nbsp;    bits[offset] ^= 1 &lt;&lt; (x &amp; 0x1f);</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  /**
+&nbsp;   * &lt;p&gt;Flips every bit in the matrix.&lt;/p&gt;
+&nbsp;   */
+&nbsp;  public void flip() {
+<b class="fc">&nbsp;    int max = bits.length;</b>
+<b class="fc">&nbsp;    for (int i = 0; i &lt; max; i++) {</b>
+<b class="fc">&nbsp;      bits[i] = ~bits[i];</b>
+&nbsp;    }
+&nbsp;  }
+&nbsp;
+&nbsp;  /**
+&nbsp;   * Exclusive-or (XOR): Flip the bit in this {@code BitMatrix} if the corresponding
+&nbsp;   * mask bit is set.
+&nbsp;   *
+&nbsp;   * @param mask XOR mask
+&nbsp;   */
+&nbsp;  public void xor(BitMatrix mask) {
+<b class="fc">&nbsp;    if (width != mask.width || height != mask.height || rowSize != mask.rowSize) {</b>
+<b class="fc">&nbsp;      throw new IllegalArgumentException(&quot;input matrix dimensions do not match&quot;);</b>
+&nbsp;    }
+<b class="fc">&nbsp;    BitArray rowArray = new BitArray(width);</b>
+<b class="fc">&nbsp;    for (int y = 0; y &lt; height; y++) {</b>
+<b class="fc">&nbsp;      int offset = y * rowSize;</b>
+<b class="fc">&nbsp;      int[] row = mask.getRow(y, rowArray).getBitArray();</b>
+<b class="fc">&nbsp;      for (int x = 0; x &lt; rowSize; x++) {</b>
+<b class="fc">&nbsp;        bits[offset + x] ^= row[x];</b>
+&nbsp;      }
+&nbsp;    }
+&nbsp;  }
+&nbsp;
+&nbsp;  /**
+&nbsp;   * Clears all bits (sets to false).
+&nbsp;   */
+&nbsp;  public void clear() {
+<b class="fc">&nbsp;    int max = bits.length;</b>
+<b class="fc">&nbsp;    for (int i = 0; i &lt; max; i++) {</b>
+<b class="fc">&nbsp;      bits[i] = 0;</b>
+&nbsp;    }
+&nbsp;  }
+&nbsp;
+&nbsp;  /**
+&nbsp;   * &lt;p&gt;Sets a square region of the bit matrix to true.&lt;/p&gt;
+&nbsp;   *
+&nbsp;   * @param left The horizontal position to begin at (inclusive)
+&nbsp;   * @param top The vertical position to begin at (inclusive)
+&nbsp;   * @param width The width of the region
+&nbsp;   * @param height The height of the region
+&nbsp;   */
+&nbsp;  public void setRegion(int left, int top, int width, int height) {
+<b class="fc">&nbsp;    if (top &lt; 0 || left &lt; 0) {</b>
+<b class="nc">&nbsp;      throw new IllegalArgumentException(&quot;Left and top must be nonnegative&quot;);</b>
+&nbsp;    }
+<b class="fc">&nbsp;    if (height &lt; 1 || width &lt; 1) {</b>
+<b class="nc">&nbsp;      throw new IllegalArgumentException(&quot;Height and width must be at least 1&quot;);</b>
+&nbsp;    }
+<b class="fc">&nbsp;    int right = left + width;</b>
+<b class="fc">&nbsp;    int bottom = top + height;</b>
+<b class="fc">&nbsp;    if (bottom &gt; this.height || right &gt; this.width) {</b>
+<b class="nc">&nbsp;      throw new IllegalArgumentException(&quot;The region must fit inside the matrix&quot;);</b>
+&nbsp;    }
+<b class="fc">&nbsp;    for (int y = top; y &lt; bottom; y++) {</b>
+<b class="fc">&nbsp;      int offset = y * rowSize;</b>
+<b class="fc">&nbsp;      for (int x = left; x &lt; right; x++) {</b>
+<b class="fc">&nbsp;        bits[offset + (x / 32)] |= 1 &lt;&lt; (x &amp; 0x1f);</b>
+&nbsp;      }
+&nbsp;    }
+&nbsp;  }
+&nbsp;
+&nbsp;  /**
+&nbsp;   * A fast method to retrieve one row of data from the matrix as a BitArray.
+&nbsp;   *
+&nbsp;   * @param y The row to retrieve
+&nbsp;   * @param row An optional caller-allocated BitArray, will be allocated if null or too small
+&nbsp;   * @return The resulting BitArray - this reference should always be used even when passing
+&nbsp;   *         your own row
+&nbsp;   */
+&nbsp;  public BitArray getRow(int y, BitArray row) {
+<b class="fc">&nbsp;    if (row == null || row.getSize() &lt; width) {</b>
+<b class="fc">&nbsp;      row = new BitArray(width);</b>
+&nbsp;    } else {
+<b class="fc">&nbsp;      row.clear();</b>
+&nbsp;    }
+<b class="fc">&nbsp;    int offset = y * rowSize;</b>
+<b class="fc">&nbsp;    for (int x = 0; x &lt; rowSize; x++) {</b>
+<b class="fc">&nbsp;      row.setBulk(x * 32, bits[offset + x]);</b>
+&nbsp;    }
+<b class="fc">&nbsp;    return row;</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  /**
+&nbsp;   * @param y row to set
+&nbsp;   * @param row {@link BitArray} to copy from
+&nbsp;   */
+&nbsp;  public void setRow(int y, BitArray row) {
+<b class="fc">&nbsp;    System.arraycopy(row.getBitArray(), 0, bits, y * rowSize, rowSize);</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  /**
+&nbsp;   * Modifies this {@code BitMatrix} to represent the same but rotated the given degrees (0, 90, 180, 270)
+&nbsp;   *
+&nbsp;   * @param degrees number of degrees to rotate through counter-clockwise (0, 90, 180, 270)
+&nbsp;   */
+&nbsp;  public void rotate(int degrees) {
+<b class="fc">&nbsp;    switch (degrees % 360) {</b>
+&nbsp;      case 0:
+&nbsp;        return;
+&nbsp;      case 90:
+<b class="fc">&nbsp;        rotate90();</b>
+&nbsp;        return;
+&nbsp;      case 180:
+<b class="fc">&nbsp;        rotate180();</b>
+&nbsp;        return;
+&nbsp;      case 270:
+<b class="fc">&nbsp;        rotate90();</b>
+<b class="fc">&nbsp;        rotate180();</b>
+&nbsp;        return;
+&nbsp;    }
+<b class="nc">&nbsp;    throw new IllegalArgumentException(&quot;degrees must be a multiple of 0, 90, 180, or 270&quot;);</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  /**
+&nbsp;   * Modifies this {@code BitMatrix} to represent the same but rotated 180 degrees
+&nbsp;   */
+&nbsp;  public void rotate180() {
+<b class="fc">&nbsp;    BitArray topRow = new BitArray(width);</b>
+<b class="fc">&nbsp;    BitArray bottomRow = new BitArray(width);</b>
+<b class="fc">&nbsp;    int maxHeight = (height + 1) / 2;</b>
+<b class="fc">&nbsp;    for (int i = 0; i &lt; maxHeight; i++) {</b>
+<b class="fc">&nbsp;      topRow = getRow(i, topRow);</b>
+<b class="fc">&nbsp;      int bottomRowIndex = height - 1 - i;</b>
+<b class="fc">&nbsp;      bottomRow = getRow(bottomRowIndex, bottomRow);</b>
+<b class="fc">&nbsp;      topRow.reverse();</b>
+<b class="fc">&nbsp;      bottomRow.reverse();</b>
+<b class="fc">&nbsp;      setRow(i, bottomRow);</b>
+<b class="fc">&nbsp;      setRow(bottomRowIndex, topRow);</b>
+&nbsp;    }
+&nbsp;  }
+&nbsp;
+&nbsp;  /**
+&nbsp;   * Modifies this {@code BitMatrix} to represent the same but rotated 90 degrees counterclockwise
+&nbsp;   */
+&nbsp;  public void rotate90() {
+<b class="fc">&nbsp;    int newWidth = height;</b>
+<b class="fc">&nbsp;    int newHeight = width;</b>
+<b class="fc">&nbsp;    int newRowSize = (newWidth + 31) / 32;</b>
+<b class="fc">&nbsp;    int[] newBits = new int[newRowSize * newHeight];</b>
+&nbsp;
+<b class="fc">&nbsp;    for (int y = 0; y &lt; height; y++) {</b>
+<b class="fc">&nbsp;      for (int x = 0; x &lt; width; x++) {</b>
+<b class="fc">&nbsp;        int offset = y * rowSize + (x / 32);</b>
+<b class="fc">&nbsp;        if (((bits[offset] &gt;&gt;&gt; (x &amp; 0x1f)) &amp; 1) != 0) {</b>
+<b class="fc">&nbsp;          int newOffset = (newHeight - 1 - x) * newRowSize + (y / 32);</b>
+<b class="fc">&nbsp;          newBits[newOffset] |= 1 &lt;&lt; (y &amp; 0x1f);</b>
+&nbsp;        }
+&nbsp;      }
+&nbsp;    }
+<b class="fc">&nbsp;    width = newWidth;</b>
+<b class="fc">&nbsp;    height = newHeight;</b>
+<b class="fc">&nbsp;    rowSize = newRowSize;</b>
+<b class="fc">&nbsp;    bits = newBits;</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  /**
+&nbsp;   * This is useful in detecting the enclosing rectangle of a &#39;pure&#39; barcode.
+&nbsp;   *
+&nbsp;   * @return {@code left,top,width,height} enclosing rectangle of all 1 bits, or null if it is all white
+&nbsp;   */
+&nbsp;  public int[] getEnclosingRectangle() {
+<b class="fc">&nbsp;    int left = width;</b>
+<b class="fc">&nbsp;    int top = height;</b>
+<b class="fc">&nbsp;    int right = -1;</b>
+<b class="fc">&nbsp;    int bottom = -1;</b>
+&nbsp;
+<b class="fc">&nbsp;    for (int y = 0; y &lt; height; y++) {</b>
+<b class="fc">&nbsp;      for (int x32 = 0; x32 &lt; rowSize; x32++) {</b>
+<b class="fc">&nbsp;        int theBits = bits[y * rowSize + x32];</b>
+<b class="fc">&nbsp;        if (theBits != 0) {</b>
+<b class="fc">&nbsp;          if (y &lt; top) {</b>
+<b class="fc">&nbsp;            top = y;</b>
+&nbsp;          }
+<b class="fc">&nbsp;          if (y &gt; bottom) {</b>
+<b class="fc">&nbsp;            bottom = y;</b>
+&nbsp;          }
+<b class="fc">&nbsp;          if (x32 * 32 &lt; left) {</b>
+<b class="fc">&nbsp;            int bit = 0;</b>
+<b class="fc">&nbsp;            while ((theBits &lt;&lt; (31 - bit)) == 0) {</b>
+<b class="fc">&nbsp;              bit++;</b>
+&nbsp;            }
+<b class="fc">&nbsp;            if ((x32 * 32 + bit) &lt; left) {</b>
+<b class="fc">&nbsp;              left = x32 * 32 + bit;</b>
+&nbsp;            }
+&nbsp;          }
+<b class="fc">&nbsp;          if (x32 * 32 + 31 &gt; right) {</b>
+<b class="fc">&nbsp;            int bit = 31;</b>
+<b class="fc">&nbsp;            while ((theBits &gt;&gt;&gt; bit) == 0) {</b>
+<b class="fc">&nbsp;              bit--;</b>
+&nbsp;            }
+<b class="fc">&nbsp;            if ((x32 * 32 + bit) &gt; right) {</b>
+<b class="fc">&nbsp;              right = x32 * 32 + bit;</b>
+&nbsp;            }
+&nbsp;          }
+&nbsp;        }
+&nbsp;      }
+&nbsp;    }
+&nbsp;
+<b class="fc">&nbsp;    if (right &lt; left || bottom &lt; top) {</b>
+<b class="fc">&nbsp;      return null;</b>
+&nbsp;    }
+&nbsp;
+<b class="fc">&nbsp;    return new int[] {left, top, right - left + 1, bottom - top + 1};</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  /**
+&nbsp;   * This is useful in detecting a corner of a &#39;pure&#39; barcode.
+&nbsp;   *
+&nbsp;   * @return {@code x,y} coordinate of top-left-most 1 bit, or null if it is all white
+&nbsp;   */
+&nbsp;  public int[] getTopLeftOnBit() {
+<b class="fc">&nbsp;    int bitsOffset = 0;</b>
+<b class="fc">&nbsp;    while (bitsOffset &lt; bits.length &amp;&amp; bits[bitsOffset] == 0) {</b>
+<b class="fc">&nbsp;      bitsOffset++;</b>
+&nbsp;    }
+<b class="fc">&nbsp;    if (bitsOffset == bits.length) {</b>
+<b class="fc">&nbsp;      return null;</b>
+&nbsp;    }
+<b class="fc">&nbsp;    int y = bitsOffset / rowSize;</b>
+<b class="fc">&nbsp;    int x = (bitsOffset % rowSize) * 32;</b>
+&nbsp;
+<b class="fc">&nbsp;    int theBits = bits[bitsOffset];</b>
+<b class="fc">&nbsp;    int bit = 0;</b>
+<b class="fc">&nbsp;    while ((theBits &lt;&lt; (31 - bit)) == 0) {</b>
+<b class="fc">&nbsp;      bit++;</b>
+&nbsp;    }
+<b class="fc">&nbsp;    x += bit;</b>
+<b class="fc">&nbsp;    return new int[] {x, y};</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  public int[] getBottomRightOnBit() {
+<b class="fc">&nbsp;    int bitsOffset = bits.length - 1;</b>
+<b class="fc">&nbsp;    while (bitsOffset &gt;= 0 &amp;&amp; bits[bitsOffset] == 0) {</b>
+<b class="fc">&nbsp;      bitsOffset--;</b>
+&nbsp;    }
+<b class="fc">&nbsp;    if (bitsOffset &lt; 0) {</b>
+<b class="fc">&nbsp;      return null;</b>
+&nbsp;    }
+&nbsp;
+<b class="fc">&nbsp;    int y = bitsOffset / rowSize;</b>
+<b class="fc">&nbsp;    int x = (bitsOffset % rowSize) * 32;</b>
+&nbsp;
+<b class="fc">&nbsp;    int theBits = bits[bitsOffset];</b>
+<b class="fc">&nbsp;    int bit = 31;</b>
+<b class="fc">&nbsp;    while ((theBits &gt;&gt;&gt; bit) == 0) {</b>
+<b class="fc">&nbsp;      bit--;</b>
+&nbsp;    }
+<b class="fc">&nbsp;    x += bit;</b>
+&nbsp;
+<b class="fc">&nbsp;    return new int[] {x, y};</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  /**
+&nbsp;   * @return The width of the matrix
+&nbsp;   */
+&nbsp;  public int getWidth() {
+<b class="fc">&nbsp;    return width;</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  /**
+&nbsp;   * @return The height of the matrix
+&nbsp;   */
+&nbsp;  public int getHeight() {
+<b class="fc">&nbsp;    return height;</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  /**
+&nbsp;   * @return The row size of the matrix
+&nbsp;   */
+&nbsp;  public int getRowSize() {
+<b class="nc">&nbsp;    return rowSize;</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  @Override
+&nbsp;  public boolean equals(Object o) {
+<b class="fc">&nbsp;    if (!(o instanceof BitMatrix)) {</b>
+<b class="nc">&nbsp;      return false;</b>
+&nbsp;    }
+<b class="fc">&nbsp;    BitMatrix other = (BitMatrix) o;</b>
+<b class="fc">&nbsp;    return width == other.width &amp;&amp; height == other.height &amp;&amp; rowSize == other.rowSize &amp;&amp;</b>
+<b class="fc">&nbsp;    Arrays.equals(bits, other.bits);</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  @Override
+&nbsp;  public int hashCode() {
+<b class="fc">&nbsp;    int hash = width;</b>
+<b class="fc">&nbsp;    hash = 31 * hash + width;</b>
+<b class="fc">&nbsp;    hash = 31 * hash + height;</b>
+<b class="fc">&nbsp;    hash = 31 * hash + rowSize;</b>
+<b class="fc">&nbsp;    hash = 31 * hash + Arrays.hashCode(bits);</b>
+<b class="fc">&nbsp;    return hash;</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  /**
+&nbsp;   * @return string representation using &quot;X&quot; for set and &quot; &quot; for unset bits
+&nbsp;   */
+&nbsp;  @Override
+&nbsp;  public String toString() {
+<b class="fc">&nbsp;    return toString(&quot;X &quot;, &quot;  &quot;);</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  /**
+&nbsp;   * @param setString representation of a set bit
+&nbsp;   * @param unsetString representation of an unset bit
+&nbsp;   * @return string representation of entire matrix utilizing given strings
+&nbsp;   */
+&nbsp;  public String toString(String setString, String unsetString) {
+<b class="fc">&nbsp;    return buildToString(setString, unsetString, &quot;\n&quot;);</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  /**
+&nbsp;   * @param setString representation of a set bit
+&nbsp;   * @param unsetString representation of an unset bit
+&nbsp;   * @param lineSeparator newline character in string representation
+&nbsp;   * @return string representation of entire matrix utilizing given strings and line separator
+&nbsp;   * @deprecated call {@link #toString(String,String)} only, which uses \n line separator always
+&nbsp;   */
+&nbsp;  @Deprecated
+&nbsp;  public String toString(String setString, String unsetString, String lineSeparator) {
+<b class="nc">&nbsp;    return buildToString(setString, unsetString, lineSeparator);</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  private String buildToString(String setString, String unsetString, String lineSeparator) {
+<b class="fc">&nbsp;    StringBuilder result = new StringBuilder(height * (width + 1));</b>
+<b class="fc">&nbsp;    for (int y = 0; y &lt; height; y++) {</b>
+<b class="fc">&nbsp;      for (int x = 0; x &lt; width; x++) {</b>
+<b class="fc">&nbsp;        result.append(get(x, y) ? setString : unsetString);</b>
+&nbsp;      }
+<b class="fc">&nbsp;      result.append(lineSeparator);</b>
+&nbsp;    }
+<b class="fc">&nbsp;    return result.toString();</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  @Override
+&nbsp;  public BitMatrix clone() {
+<b class="fc">&nbsp;    return new BitMatrix(width, height, rowSize, bits.clone());</b>
+&nbsp;  }
+&nbsp;
+&nbsp;}
+</code>
+</pre>
+</div>
+
+<script type="text/javascript">
+(function() {
+    var msie = false, msie9 = false;
+    /*@cc_on
+      msie = true;
+      @if (@_jscript_version >= 9)
+        msie9 = true;
+      @end
+    @*/
+
+    if (!msie || msie && msie9) {
+      hljs.highlightAll()
+      hljs.initLineNumbersOnLoad();
+    }
+})();
+</script>
+
+<div class="footer">
+    
+    <div style="float:right;">generated on 2023-11-12 23:26</div>
+</div>
+</body>
+</html>

@@ -1,0 +1,479 @@
+
+
+
+<!DOCTYPE html>
+<html id="htmlId">
+<head>
+  <meta http-equiv="Content-Type" content="text/html;charset=windows-1252"> 
+  <title>Coverage Report > MinimalECIInput</title>
+  <style type="text/css">
+    @import "../../css/coverage.css";
+    @import "../../css/idea.min.css";
+  </style>
+  <script type="text/javascript" src="../../js/highlight.min.js"></script>
+  <script type="text/javascript" src="../../js/highlightjs-line-numbers.min.js"></script>
+</head>
+
+<body>
+<div class="content">
+<div class="breadCrumbs">
+Current scope:     <a href="../../index.html">all classes</a>
+    <span class="separator">|</span>
+    <a href="../index.html">com.google.zxing.common</a>
+</div>
+
+<h1>Coverage Summary for Class: MinimalECIInput (com.google.zxing.common)</h1>
+
+<table class="coverageStats">
+
+<tr>
+  <th class="name">Class</th>
+<th class="coverageStat 
+">
+  Method, %
+</th>
+<th class="coverageStat 
+">
+  Line, %
+</th>
+</tr>
+<tr>
+  <td class="name">MinimalECIInput</td>
+<td class="coverageStat">
+  <span class="percent">
+    84.6%
+  </span>
+  <span class="absValue">
+    (11/13)
+  </span>
+</td>
+<td class="coverageStat">
+  <span class="percent">
+    71.2%
+  </span>
+  <span class="absValue">
+    (74/104)
+  </span>
+</td>
+</tr>
+  <tr>
+    <td class="name">MinimalECIInput$1</td>
+  </tr>
+  <tr>
+    <td class="name">MinimalECIInput$InputEdge</td>
+<td class="coverageStat">
+  <span class="percent">
+    100%
+  </span>
+  <span class="absValue">
+    (3/3)
+  </span>
+</td>
+<td class="coverageStat">
+  <span class="percent">
+    100%
+  </span>
+  <span class="absValue">
+    (13/13)
+  </span>
+</td>
+  </tr>
+<tr>
+  <td class="name"><strong>Total</strong></td>
+<td class="coverageStat">
+  <span class="percent">
+    87.5%
+  </span>
+  <span class="absValue">
+    (14/16)
+  </span>
+</td>
+<td class="coverageStat">
+  <span class="percent">
+    74.4%
+  </span>
+  <span class="absValue">
+    (87/117)
+  </span>
+</td>
+</tr>
+</table>
+
+<br/>
+<br/>
+
+
+<pre>
+<code class="sourceCode" id="sourceCode">&nbsp;/*
+&nbsp; * Copyright 2021 ZXing authors
+&nbsp; *
+&nbsp; * Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
+&nbsp; * you may not use this file except in compliance with the License.
+&nbsp; * You may obtain a copy of the License at
+&nbsp; *
+&nbsp; *      http://www.apache.org/licenses/LICENSE-2.0
+&nbsp; *
+&nbsp; * Unless required by applicable law or agreed to in writing, software
+&nbsp; * distributed under the License is distributed on an &quot;AS IS&quot; BASIS,
+&nbsp; * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+&nbsp; * See the License for the specific language governing permissions and
+&nbsp; * limitations under the License.
+&nbsp; */
+&nbsp;
+&nbsp;package com.google.zxing.common;
+&nbsp;
+&nbsp;import java.nio.charset.Charset;
+&nbsp;import java.util.ArrayList;
+&nbsp;import java.util.List;
+&nbsp;
+&nbsp;/**
+&nbsp; * Class that converts a character string into a sequence of ECIs and bytes
+&nbsp; *
+&nbsp; * The implementation uses the Dijkstra algorithm to produce minimal encodings
+&nbsp; *
+&nbsp; * @author Alex Geller
+&nbsp; */
+&nbsp;public class MinimalECIInput implements ECIInput {
+&nbsp;
+&nbsp;  private static final int COST_PER_ECI = 3; // approximated (latch + 2 codewords)
+&nbsp;  private final int[] bytes;
+&nbsp;  private final int fnc1;
+&nbsp;
+&nbsp; /**
+&nbsp;  * Constructs a minimal input
+&nbsp;  *
+&nbsp;  * @param stringToEncode the character string to encode
+&nbsp;  * @param priorityCharset The preferred {@link Charset}. When the value of the argument is null, the algorithm
+&nbsp;  *   chooses charsets that leads to a minimal representation. Otherwise the algorithm will use the priority
+&nbsp;  *   charset to encode any character in the input that can be encoded by it if the charset is among the
+&nbsp;  *   supported charsets.
+&nbsp;  * @param fnc1 denotes the character in the input that represents the FNC1 character or -1 if this is not GS1
+&nbsp;  *   input.
+&nbsp;  */
+<b class="fc">&nbsp;  public MinimalECIInput(String stringToEncode, Charset priorityCharset, int fnc1) {</b>
+<b class="fc">&nbsp;    this.fnc1 = fnc1;</b>
+<b class="fc">&nbsp;    ECIEncoderSet encoderSet = new ECIEncoderSet(stringToEncode, priorityCharset, fnc1);</b>
+<b class="fc">&nbsp;    if (encoderSet.length() == 1) { //optimization for the case when all can be encoded without ECI in ISO-8859-1</b>
+<b class="fc">&nbsp;      bytes = new int[stringToEncode.length()];</b>
+<b class="fc">&nbsp;      for (int i = 0; i &lt; bytes.length; i++) {</b>
+<b class="fc">&nbsp;        char c = stringToEncode.charAt(i);</b>
+<b class="fc">&nbsp;        bytes[i] = c == fnc1 ? 1000 : (int) c;</b>
+&nbsp;      }
+&nbsp;    } else {
+<b class="fc">&nbsp;      bytes = encodeMinimally(stringToEncode, encoderSet, fnc1);</b>
+&nbsp;    }
+&nbsp;  }
+&nbsp;
+&nbsp;  public int getFNC1Character() {
+<b class="fc">&nbsp;    return fnc1;</b>
+&nbsp;  }
+&nbsp;
+&nbsp; /**
+&nbsp;  * Returns the length of this input.  The length is the number
+&nbsp;  * of {@code byte}s, FNC1 characters or ECIs in the sequence.
+&nbsp;  *
+&nbsp;  * @return  the number of {@code char}s in this sequence
+&nbsp;  */
+&nbsp;  public int length() {
+<b class="fc">&nbsp;    return bytes.length;</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  public boolean haveNCharacters(int index, int n) {
+<b class="fc">&nbsp;    if (index + n - 1 &gt;= bytes.length) {</b>
+<b class="fc">&nbsp;      return false;</b>
+&nbsp;    }
+<b class="fc">&nbsp;    for (int i = 0; i &lt; n; i++) {</b>
+<b class="fc">&nbsp;      if (isECI(index + i)) {</b>
+<b class="fc">&nbsp;        return false;</b>
+&nbsp;      }
+&nbsp;    }
+<b class="fc">&nbsp;    return true;</b>
+&nbsp;  }
+&nbsp;
+&nbsp; /**
+&nbsp;  * Returns the {@code byte} value at the specified index.  An index ranges from zero
+&nbsp;  * to {@code length() - 1}.  The first {@code byte} value of the sequence is at
+&nbsp;  * index zero, the next at index one, and so on, as for array
+&nbsp;  * indexing.
+&nbsp;  *
+&nbsp;  * @param   index the index of the {@code byte} value to be returned
+&nbsp;  *
+&nbsp;  * @return  the specified {@code byte} value as character or the FNC1 character
+&nbsp;  *
+&nbsp;  * @throws  IndexOutOfBoundsException
+&nbsp;  *          if the {@code index} argument is negative or not less than
+&nbsp;  *          {@code length()}
+&nbsp;  * @throws  IllegalArgumentException
+&nbsp;  *          if the value at the {@code index} argument is an ECI (@see #isECI)
+&nbsp;  */
+&nbsp;  public char charAt(int index) {
+<b class="fc">&nbsp;    if (index &lt; 0 || index &gt;= length()) {</b>
+<b class="nc">&nbsp;      throw new IndexOutOfBoundsException(&quot;&quot; + index);</b>
+&nbsp;    }
+<b class="fc">&nbsp;    if (isECI(index)) {</b>
+<b class="nc">&nbsp;      throw new IllegalArgumentException(&quot;value at &quot; + index + &quot; is not a character but an ECI&quot;);</b>
+&nbsp;    }
+<b class="fc">&nbsp;    return isFNC1(index) ? (char) fnc1 : (char) bytes[index];</b>
+&nbsp;  }
+&nbsp;
+&nbsp; /**
+&nbsp;  * Returns a {@code CharSequence} that is a subsequence of this sequence.
+&nbsp;  * The subsequence starts with the {@code char} value at the specified index and
+&nbsp;  * ends with the {@code char} value at index {@code end - 1}.  The length
+&nbsp;  * (in {@code char}s) of the
+&nbsp;  * returned sequence is {@code end - start}, so if {@code start == end}
+&nbsp;  * then an empty sequence is returned.
+&nbsp;  *
+&nbsp;  * @param   start   the start index, inclusive
+&nbsp;  * @param   end     the end index, exclusive
+&nbsp;  *
+&nbsp;  * @return  the specified subsequence
+&nbsp;  *
+&nbsp;  * @throws  IndexOutOfBoundsException
+&nbsp;  *          if {@code start} or {@code end} are negative,
+&nbsp;  *          if {@code end} is greater than {@code length()},
+&nbsp;  *          or if {@code start} is greater than {@code end}
+&nbsp;  * @throws  IllegalArgumentException
+&nbsp;  *          if a value in the range {@code start}-{@code end} is an ECI (@see #isECI)
+&nbsp;  */
+&nbsp;  public CharSequence subSequence(int start, int end) {
+<b class="nc">&nbsp;    if (start &lt; 0 || start &gt; end || end &gt; length()) {</b>
+<b class="nc">&nbsp;      throw new IndexOutOfBoundsException(&quot;&quot; + start);</b>
+&nbsp;    }
+<b class="nc">&nbsp;    StringBuilder result = new StringBuilder();</b>
+<b class="nc">&nbsp;    for (int i = start; i &lt; end; i++) {</b>
+<b class="nc">&nbsp;      if (isECI(i)) {</b>
+<b class="nc">&nbsp;        throw new IllegalArgumentException(&quot;value at &quot; + i + &quot; is not a character but an ECI&quot;);</b>
+&nbsp;      }
+<b class="nc">&nbsp;      result.append(charAt(i));</b>
+&nbsp;    }
+<b class="nc">&nbsp;    return result;</b>
+&nbsp;  }
+&nbsp;
+&nbsp; /**
+&nbsp;  * Determines if a value is an ECI
+&nbsp;  *
+&nbsp;  * @param   index the index of the value
+&nbsp;  *
+&nbsp;  * @return  true if the value at position {@code index} is an ECI
+&nbsp;  *
+&nbsp;  * @throws  IndexOutOfBoundsException
+&nbsp;  *          if the {@code index} argument is negative or not less than
+&nbsp;  *          {@code length()}
+&nbsp;  */
+&nbsp;  public boolean isECI(int index) {
+<b class="fc">&nbsp;    if (index &lt; 0 || index &gt;= length()) {</b>
+<b class="nc">&nbsp;      throw new IndexOutOfBoundsException(&quot;&quot; + index);</b>
+&nbsp;    }
+<b class="fc">&nbsp;    return bytes[index] &gt; 255 &amp;&amp; bytes[index] &lt;= 999;</b>
+&nbsp;  }
+&nbsp;
+&nbsp; /**
+&nbsp;  * Determines if a value is the FNC1 character
+&nbsp;  *
+&nbsp;  * @param   index the index of the value
+&nbsp;  *
+&nbsp;  * @return  true if the value at position {@code index} is the FNC1 character
+&nbsp;  *
+&nbsp;  * @throws  IndexOutOfBoundsException
+&nbsp;  *          if the {@code index} argument is negative or not less than
+&nbsp;  *          {@code length()}
+&nbsp;  */
+&nbsp;  public boolean isFNC1(int index) {
+<b class="fc">&nbsp;    if (index &lt; 0 || index &gt;= length()) {</b>
+<b class="nc">&nbsp;      throw new IndexOutOfBoundsException(&quot;&quot; + index);</b>
+&nbsp;    }
+<b class="fc">&nbsp;    return bytes[index] == 1000;</b>
+&nbsp;  }
+&nbsp;
+&nbsp; /**
+&nbsp;  * Returns the {@code int} ECI value at the specified index.  An index ranges from zero
+&nbsp;  * to {@code length() - 1}.  The first {@code byte} value of the sequence is at
+&nbsp;  * index zero, the next at index one, and so on, as for array
+&nbsp;  * indexing.
+&nbsp;  *
+&nbsp;  * @param   index the index of the {@code int} value to be returned
+&nbsp;  *
+&nbsp;  * @return  the specified {@code int} ECI value.
+&nbsp;  *          The ECI specified the encoding of all bytes with a higher index until the
+&nbsp;  *          next ECI or until the end of the input if no other ECI follows.
+&nbsp;  *
+&nbsp;  * @throws  IndexOutOfBoundsException
+&nbsp;  *          if the {@code index} argument is negative or not less than
+&nbsp;  *          {@code length()}
+&nbsp;  * @throws  IllegalArgumentException
+&nbsp;  *          if the value at the {@code index} argument is not an ECI (@see #isECI)
+&nbsp;  */
+&nbsp;  public int getECIValue(int index) {
+<b class="fc">&nbsp;    if (index &lt; 0 || index &gt;= length()) {</b>
+<b class="nc">&nbsp;      throw new IndexOutOfBoundsException(&quot;&quot; + index);</b>
+&nbsp;    }
+<b class="fc">&nbsp;    if (!isECI(index)) {</b>
+<b class="nc">&nbsp;      throw new IllegalArgumentException(&quot;value at &quot; + index + &quot; is not an ECI but a character&quot;);</b>
+&nbsp;    }
+<b class="fc">&nbsp;    return bytes[index] - 256;</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  @Override
+&nbsp;  public String toString() {
+<b class="nc">&nbsp;    StringBuilder result = new StringBuilder();</b>
+<b class="nc">&nbsp;    for (int i = 0; i &lt; length(); i++) {</b>
+<b class="nc">&nbsp;      if (i &gt; 0) {</b>
+<b class="nc">&nbsp;        result.append(&quot;, &quot;);</b>
+&nbsp;      }
+<b class="nc">&nbsp;      if (isECI(i)) {</b>
+<b class="nc">&nbsp;        result.append(&quot;ECI(&quot;);</b>
+<b class="nc">&nbsp;        result.append(getECIValue(i));</b>
+<b class="nc">&nbsp;        result.append(&#39;)&#39;);</b>
+<b class="nc">&nbsp;      } else if (charAt(i) &lt; 128) {</b>
+<b class="nc">&nbsp;        result.append(&#39;\&#39;&#39;);</b>
+<b class="nc">&nbsp;        result.append(charAt(i));</b>
+<b class="nc">&nbsp;        result.append(&#39;\&#39;&#39;);</b>
+&nbsp;      } else {
+<b class="nc">&nbsp;        result.append((int) charAt(i));</b>
+&nbsp;      }
+&nbsp;    }
+<b class="nc">&nbsp;    return result.toString();</b>
+&nbsp;  }
+&nbsp;  static void addEdge(InputEdge[][] edges, int to, InputEdge edge) {
+<b class="fc">&nbsp;    if (edges[to][edge.encoderIndex] == null ||</b>
+<b class="fc">&nbsp;        edges[to][edge.encoderIndex].cachedTotalSize &gt; edge.cachedTotalSize) {</b>
+<b class="fc">&nbsp;      edges[to][edge.encoderIndex] = edge;</b>
+&nbsp;    }
+&nbsp;  }
+&nbsp;
+&nbsp;  static void addEdges(String stringToEncode,
+&nbsp;                       ECIEncoderSet encoderSet,
+&nbsp;                       InputEdge[][] edges,
+&nbsp;                       int from,
+&nbsp;                       InputEdge previous,
+&nbsp;                       int fnc1) {
+&nbsp;
+<b class="fc">&nbsp;    char ch = stringToEncode.charAt(from);</b>
+&nbsp;
+<b class="fc">&nbsp;    int start = 0;</b>
+<b class="fc">&nbsp;    int end = encoderSet.length();</b>
+<b class="fc">&nbsp;    if (encoderSet.getPriorityEncoderIndex() &gt;= 0 &amp;&amp; (ch == fnc1 || encoderSet.canEncode(ch,</b>
+<b class="fc">&nbsp;        encoderSet.getPriorityEncoderIndex()))) {</b>
+<b class="fc">&nbsp;      start = encoderSet.getPriorityEncoderIndex();</b>
+<b class="fc">&nbsp;      end = start + 1;</b>
+&nbsp;    }
+&nbsp;
+<b class="fc">&nbsp;    for (int i = start; i &lt; end; i++) {</b>
+<b class="fc">&nbsp;      if (ch == fnc1 || encoderSet.canEncode(ch,i)) {</b>
+<b class="fc">&nbsp;        addEdge(edges, from + 1, new InputEdge(ch, encoderSet, i, previous, fnc1));</b>
+&nbsp;      }
+&nbsp;    }
+&nbsp;  }
+&nbsp;
+&nbsp;  static int[] encodeMinimally(String stringToEncode, ECIEncoderSet encoderSet, int fnc1) {
+<b class="fc">&nbsp;    int inputLength = stringToEncode.length();</b>
+&nbsp;
+&nbsp;    // Array that represents vertices. There is a vertex for every character and encoding.
+<b class="fc">&nbsp;    InputEdge[][] edges = new InputEdge[inputLength + 1][encoderSet.length()];</b>
+<b class="fc">&nbsp;    addEdges(stringToEncode, encoderSet, edges, 0, null, fnc1);</b>
+&nbsp;
+<b class="fc">&nbsp;    for (int i = 1; i &lt;= inputLength; i++) {</b>
+<b class="fc">&nbsp;      for (int j = 0; j &lt; encoderSet.length(); j++) {</b>
+<b class="fc">&nbsp;        if (edges[i][j] != null &amp;&amp; i &lt; inputLength) {</b>
+<b class="fc">&nbsp;          addEdges(stringToEncode, encoderSet, edges, i, edges[i][j], fnc1);</b>
+&nbsp;        }
+&nbsp;      }
+&nbsp;      //optimize memory by removing edges that have been passed.
+<b class="fc">&nbsp;      for (int j = 0; j &lt; encoderSet.length(); j++) {</b>
+<b class="fc">&nbsp;        edges[i - 1][j] = null;</b>
+&nbsp;      }
+&nbsp;    }
+<b class="fc">&nbsp;    int minimalJ = -1;</b>
+<b class="fc">&nbsp;    int minimalSize = Integer.MAX_VALUE;</b>
+<b class="fc">&nbsp;    for (int j = 0; j &lt; encoderSet.length(); j++) {</b>
+<b class="fc">&nbsp;      if (edges[inputLength][j] != null) {</b>
+<b class="fc">&nbsp;        InputEdge edge = edges[inputLength][j];</b>
+<b class="fc">&nbsp;        if (edge.cachedTotalSize &lt; minimalSize) {</b>
+<b class="fc">&nbsp;          minimalSize = edge.cachedTotalSize;</b>
+<b class="fc">&nbsp;          minimalJ = j;</b>
+&nbsp;        }
+&nbsp;      }
+&nbsp;    }
+<b class="fc">&nbsp;    if (minimalJ &lt; 0) {</b>
+<b class="nc">&nbsp;      throw new IllegalStateException(&quot;Failed to encode \&quot;&quot; + stringToEncode + &quot;\&quot;&quot;);</b>
+&nbsp;    }
+<b class="fc">&nbsp;    List&lt;Integer&gt; intsAL = new ArrayList&lt;&gt;();</b>
+<b class="fc">&nbsp;    InputEdge current = edges[inputLength][minimalJ];</b>
+<b class="fc">&nbsp;    while (current != null) {</b>
+<b class="fc">&nbsp;      if (current.isFNC1()) {</b>
+<b class="nc">&nbsp;        intsAL.add(0, 1000);</b>
+&nbsp;      } else {
+<b class="fc">&nbsp;        byte[] bytes = encoderSet.encode(current.c,current.encoderIndex);</b>
+<b class="fc">&nbsp;        for (int i = bytes.length - 1; i &gt;= 0; i--) {</b>
+<b class="fc">&nbsp;          intsAL.add(0, (bytes[i] &amp; 0xFF));</b>
+&nbsp;        }
+&nbsp;      }
+<b class="fc">&nbsp;      int previousEncoderIndex = current.previous == null ? 0 : current.previous.encoderIndex;</b>
+<b class="fc">&nbsp;      if (previousEncoderIndex != current.encoderIndex) {</b>
+<b class="fc">&nbsp;        intsAL.add(0,256 + encoderSet.getECIValue(current.encoderIndex));</b>
+&nbsp;      }
+<b class="fc">&nbsp;      current = current.previous;</b>
+<b class="fc">&nbsp;    }</b>
+<b class="fc">&nbsp;    int[] ints = new int[intsAL.size()];</b>
+<b class="fc">&nbsp;    for (int i = 0; i &lt; ints.length; i++) {</b>
+<b class="fc">&nbsp;      ints[i] = intsAL.get(i);</b>
+&nbsp;    }
+<b class="fc">&nbsp;    return ints;</b>
+&nbsp;  }
+&nbsp;
+<b class="fc">&nbsp;  private static final class InputEdge {</b>
+&nbsp;    private final char c;
+&nbsp;    private final int encoderIndex; //the encoding of this edge
+&nbsp;    private final InputEdge previous;
+&nbsp;    private final int cachedTotalSize;
+&nbsp;
+<b class="fc">&nbsp;    private InputEdge(char c, ECIEncoderSet encoderSet, int encoderIndex, InputEdge previous, int fnc1) {</b>
+<b class="fc">&nbsp;      this.c = c == fnc1 ? 1000 : c;</b>
+<b class="fc">&nbsp;      this.encoderIndex = encoderIndex;</b>
+<b class="fc">&nbsp;      this.previous = previous;</b>
+&nbsp;
+<b class="fc">&nbsp;      int size = this.c == 1000 ? 1 : encoderSet.encode(c, encoderIndex).length;</b>
+<b class="fc">&nbsp;      int previousEncoderIndex = previous == null ? 0 : previous.encoderIndex;</b>
+<b class="fc">&nbsp;      if (previousEncoderIndex != encoderIndex) {</b>
+<b class="fc">&nbsp;        size += COST_PER_ECI;</b>
+&nbsp;      }
+<b class="fc">&nbsp;      if (previous != null) {</b>
+<b class="fc">&nbsp;        size += previous.cachedTotalSize;</b>
+&nbsp;      }
+<b class="fc">&nbsp;      this.cachedTotalSize = size;</b>
+&nbsp;    }
+&nbsp;
+&nbsp;    boolean isFNC1() {
+<b class="fc">&nbsp;      return c == 1000;</b>
+&nbsp;    }
+&nbsp;
+&nbsp;  }
+&nbsp;}
+</code>
+</pre>
+</div>
+
+<script type="text/javascript">
+(function() {
+    var msie = false, msie9 = false;
+    /*@cc_on
+      msie = true;
+      @if (@_jscript_version >= 9)
+        msie9 = true;
+      @end
+    @*/
+
+    if (!msie || msie && msie9) {
+      hljs.highlightAll()
+      hljs.initLineNumbersOnLoad();
+    }
+})();
+</script>
+
+<div class="footer">
+    
+    <div style="float:right;">generated on 2023-11-12 23:26</div>
+</div>
+</body>
+</html>

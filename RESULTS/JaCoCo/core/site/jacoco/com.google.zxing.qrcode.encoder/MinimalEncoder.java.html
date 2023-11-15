@@ -1,0 +1,668 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>MinimalEncoder.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">ZXing Core</a> &gt; <a href="index.source.html" class="el_package">com.google.zxing.qrcode.encoder</a> &gt; <span class="el_source">MinimalEncoder.java</span></div><h1>MinimalEncoder.java</h1><pre class="source lang-java linenums">/*
+ * Copyright 2021 ZXing authors
+ *
+ * Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an &quot;AS IS&quot; BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+package com.google.zxing.qrcode.encoder;
+
+import com.google.zxing.qrcode.decoder.Mode;
+import com.google.zxing.qrcode.decoder.Version;
+import com.google.zxing.common.BitArray;
+import com.google.zxing.common.ECIEncoderSet;
+import com.google.zxing.WriterException;
+import com.google.zxing.qrcode.decoder.ErrorCorrectionLevel;
+
+import java.nio.charset.Charset;
+import java.util.ArrayList;
+import java.util.List;
+
+
+/**
+ * Encoder that encodes minimally
+ *
+ * Algorithm:
+ *
+ * The eleventh commandment was &quot;Thou Shalt Compute&quot; or &quot;Thou Shalt Not Compute&quot; - I forget which (Alan Perilis).
+ *
+ * This implementation computes. As an alternative, the QR-Code specification suggests heuristics like this one:
+ *
+ * If initial input data is in the exclusive subset of the Alphanumeric character set AND if there are less than
+ * [6,7,8] characters followed by data from the remainder of the 8-bit byte character set, THEN select the 8-
+ * bit byte mode ELSE select Alphanumeric mode;
+ *
+ * This is probably right for 99.99% of cases but there is at least this one counter example: The string &quot;AAAAAAa&quot;
+ * encodes 2 bits smaller as ALPHANUMERIC(AAAAAA), BYTE(a) than by encoding it as BYTE(AAAAAAa).
+ * Perhaps that is the only counter example but without having proof, it remains unclear.
+ *
+ * ECI switching:
+ *
+ * In multi language content the algorithm selects the most compact representation using ECI modes.
+ * For example the most compact representation of the string &quot;\u0150\u015C&quot; (O-double-acute, S-circumflex) is
+ * ECI(UTF-8), BYTE(\u0150\u015C) while prepending one or more times the same leading character as in
+ * &quot;\u0150\u0150\u015C&quot;, the most compact representation uses two ECIs so that the string is encoded as
+ * ECI(ISO-8859-2), BYTE(\u0150\u0150), ECI(ISO-8859-3), BYTE(\u015C).
+ *
+ * @author Alex Geller
+ */
+final class MinimalEncoder {
+
+<span class="fc" id="L60">  private enum VersionSize {</span>
+<span class="fc" id="L61">    SMALL(&quot;version 1-9&quot;),</span>
+<span class="fc" id="L62">    MEDIUM(&quot;version 10-26&quot;),</span>
+<span class="fc" id="L63">    LARGE(&quot;version 27-40&quot;);</span>
+
+    private final String description;
+
+<span class="fc" id="L67">    VersionSize(String description) {</span>
+<span class="fc" id="L68">      this.description = description;</span>
+<span class="fc" id="L69">    }</span>
+
+    public String toString() {
+<span class="nc" id="L72">      return description;</span>
+    }
+  }
+
+  private final String stringToEncode;
+  private final boolean isGS1;
+  private final ECIEncoderSet encoders;
+  private final ErrorCorrectionLevel ecLevel;
+
+  /**
+   * Creates a MinimalEncoder
+   *
+   * @param stringToEncode The string to encode
+   * @param priorityCharset The preferred {@link Charset}. When the value of the argument is null, the algorithm
+   *   chooses charsets that leads to a minimal representation. Otherwise the algorithm will use the priority
+   *   charset to encode any character in the input that can be encoded by it if the charset is among the
+   *   supported charsets.
+   * @param isGS1 {@code true} if a FNC1 is to be prepended; {@code false} otherwise
+   * @param ecLevel The error correction level.
+   * @see ResultList#getVersion
+   */
+<span class="fc" id="L93">  MinimalEncoder(String stringToEncode, Charset priorityCharset, boolean isGS1, ErrorCorrectionLevel ecLevel) {</span>
+<span class="fc" id="L94">    this.stringToEncode = stringToEncode;</span>
+<span class="fc" id="L95">    this.isGS1 = isGS1;</span>
+<span class="fc" id="L96">    this.encoders = new ECIEncoderSet(stringToEncode, priorityCharset, -1);</span>
+<span class="fc" id="L97">    this.ecLevel = ecLevel;</span>
+<span class="fc" id="L98">  }</span>
+
+  /**
+   * Encodes the string minimally
+   *
+   * @param stringToEncode The string to encode
+   * @param version The preferred {@link Version}. A minimal version is computed (see
+   *   {@link ResultList#getVersion method} when the value of the argument is null
+   * @param priorityCharset The preferred {@link Charset}. When the value of the argument is null, the algorithm
+   *   chooses charsets that leads to a minimal representation. Otherwise the algorithm will use the priority
+   *   charset to encode any character in the input that can be encoded by it if the charset is among the
+   *   supported charsets.
+   * @param isGS1 {@code true} if a FNC1 is to be prepended; {@code false} otherwise
+   * @param ecLevel The error correction level.
+   * @return An instance of {@code ResultList} representing the minimal solution.
+   * @see ResultList#getBits
+   * @see ResultList#getVersion
+   * @see ResultList#getSize
+   */
+  static ResultList encode(String stringToEncode, Version version, Charset priorityCharset, boolean isGS1,
+      ErrorCorrectionLevel ecLevel) throws WriterException {
+<span class="fc" id="L119">    return new MinimalEncoder(stringToEncode, priorityCharset, isGS1, ecLevel).encode(version);</span>
+  }
+
+  ResultList encode(Version version) throws WriterException {
+<span class="pc bpc" id="L123" title="1 of 2 branches missed.">    if (version == null) { // compute minimal encoding trying the three version sizes.</span>
+<span class="fc" id="L124">      Version[] versions = { getVersion(VersionSize.SMALL),</span>
+<span class="fc" id="L125">                             getVersion(VersionSize.MEDIUM),</span>
+<span class="fc" id="L126">                             getVersion(VersionSize.LARGE) };</span>
+<span class="fc" id="L127">      ResultList[] results = { encodeSpecificVersion(versions[0]),</span>
+<span class="fc" id="L128">                               encodeSpecificVersion(versions[1]),</span>
+<span class="fc" id="L129">                               encodeSpecificVersion(versions[2]) };</span>
+<span class="fc" id="L130">      int smallestSize = Integer.MAX_VALUE;</span>
+<span class="fc" id="L131">      int smallestResult = -1;</span>
+<span class="fc bfc" id="L132" title="All 2 branches covered.">      for (int i = 0; i &lt; 3; i++) {</span>
+<span class="fc" id="L133">        int size = results[i].getSize();</span>
+<span class="pc bpc" id="L134" title="1 of 4 branches missed.">        if (Encoder.willFit(size, versions[i], ecLevel) &amp;&amp; size &lt; smallestSize) {</span>
+<span class="fc" id="L135">          smallestSize = size;</span>
+<span class="fc" id="L136">          smallestResult = i;</span>
+        }
+      }
+<span class="pc bpc" id="L139" title="1 of 2 branches missed.">      if (smallestResult &lt; 0) {</span>
+<span class="nc" id="L140">        throw new WriterException(&quot;Data too big for any version&quot;);</span>
+      }
+<span class="fc" id="L142">      return results[smallestResult];</span>
+    } else { // compute minimal encoding for a given version
+<span class="nc" id="L144">      ResultList result = encodeSpecificVersion(version);</span>
+<span class="nc bnc" id="L145" title="All 2 branches missed.">      if (!Encoder.willFit(result.getSize(), getVersion(getVersionSize(result.getVersion())), ecLevel)) {</span>
+<span class="nc" id="L146">        throw new WriterException(&quot;Data too big for version&quot; + version);</span>
+      }
+<span class="nc" id="L148">      return result;</span>
+    }
+  }
+
+  static VersionSize getVersionSize(Version version) {
+<span class="fc bfc" id="L153" title="All 4 branches covered.">    return version.getVersionNumber() &lt;= 9 ? VersionSize.SMALL : version.getVersionNumber() &lt;= 26 ?</span>
+<span class="fc" id="L154">      VersionSize.MEDIUM : VersionSize.LARGE;</span>
+  }
+
+  static Version getVersion(VersionSize versionSize) {
+<span class="fc bfc" id="L158" title="All 3 branches covered.">    switch (versionSize) {</span>
+      case SMALL:
+<span class="fc" id="L160">        return Version.getVersionForNumber(9);</span>
+      case MEDIUM:
+<span class="fc" id="L162">        return Version.getVersionForNumber(26);</span>
+      case LARGE:
+      default:
+<span class="fc" id="L165">        return Version.getVersionForNumber(40);</span>
+    }
+  }
+
+  static boolean isNumeric(char c) {
+<span class="fc bfc" id="L170" title="All 4 branches covered.">    return c &gt;= '0' &amp;&amp; c &lt;= '9';</span>
+  }
+
+  static boolean isDoubleByteKanji(char c) {
+<span class="fc" id="L174">    return Encoder.isOnlyDoubleByteKanji(String.valueOf(c));</span>
+  }
+
+  static boolean isAlphanumeric(char c) {
+<span class="fc bfc" id="L178" title="All 2 branches covered.">    return Encoder.getAlphanumericCode(c) != -1;</span>
+  }
+
+  boolean canEncode(Mode mode, char c) {
+<span class="pc bpc" id="L182" title="2 of 5 branches missed.">    switch (mode) {</span>
+<span class="fc" id="L183">      case KANJI: return isDoubleByteKanji(c);</span>
+<span class="fc" id="L184">      case ALPHANUMERIC: return isAlphanumeric(c);</span>
+<span class="fc" id="L185">      case NUMERIC: return isNumeric(c);</span>
+<span class="nc" id="L186">      case BYTE: return true; // any character can be encoded as byte(s). Up to the caller to manage splitting into</span>
+                              // multiple bytes when String.getBytes(Charset) return more than one byte.
+      default:
+<span class="nc" id="L189">        return false;</span>
+    }
+  }
+
+  static int getCompactedOrdinal(Mode mode) {
+<span class="pc bpc" id="L194" title="1 of 2 branches missed.">    if (mode == null) {</span>
+<span class="nc" id="L195">      return 0;</span>
+    }
+<span class="pc bpc" id="L197" title="1 of 5 branches missed.">    switch (mode) {</span>
+      case KANJI:
+<span class="fc" id="L199">        return 0;</span>
+      case ALPHANUMERIC:
+<span class="fc" id="L201">        return 1;</span>
+      case NUMERIC:
+<span class="fc" id="L203">        return 2;</span>
+      case BYTE:
+<span class="fc" id="L205">        return 3;</span>
+      default:
+<span class="nc" id="L207">        throw new IllegalStateException(&quot;Illegal mode &quot; + mode);</span>
+    }
+  }
+
+  void addEdge(Edge[][][] edges, int position, Edge edge) {
+<span class="fc" id="L212">    int vertexIndex = position + edge.characterLength;</span>
+<span class="fc" id="L213">    Edge[] modeEdges = edges[vertexIndex][edge.charsetEncoderIndex];</span>
+<span class="fc" id="L214">    int modeOrdinal = getCompactedOrdinal(edge.mode);</span>
+<span class="fc bfc" id="L215" title="All 4 branches covered.">    if (modeEdges[modeOrdinal] == null || modeEdges[modeOrdinal].cachedTotalSize &gt; edge.cachedTotalSize) {</span>
+<span class="fc" id="L216">      modeEdges[modeOrdinal] = edge;</span>
+    }
+<span class="fc" id="L218">  }</span>
+
+  void addEdges(Version version, Edge[][][] edges, int from, Edge previous) {
+<span class="fc" id="L221">    int start = 0;</span>
+<span class="fc" id="L222">    int end = encoders.length();</span>
+<span class="fc" id="L223">    int priorityEncoderIndex = encoders.getPriorityEncoderIndex();</span>
+<span class="pc bpc" id="L224" title="3 of 4 branches missed.">    if (priorityEncoderIndex &gt;= 0 &amp;&amp; encoders.canEncode(stringToEncode.charAt(from),priorityEncoderIndex)) {</span>
+<span class="nc" id="L225">      start = priorityEncoderIndex;</span>
+<span class="nc" id="L226">      end = priorityEncoderIndex + 1;</span>
+    }
+
+<span class="fc bfc" id="L229" title="All 2 branches covered.">    for (int i = start; i &lt; end; i++) {</span>
+<span class="fc bfc" id="L230" title="All 2 branches covered.">      if (encoders.canEncode(stringToEncode.charAt(from), i)) {</span>
+<span class="fc" id="L231">        addEdge(edges, from, new Edge(Mode.BYTE, from, i, 1, previous, version));</span>
+      }
+    }
+
+<span class="fc bfc" id="L235" title="All 2 branches covered.">    if (canEncode(Mode.KANJI, stringToEncode.charAt(from))) {</span>
+<span class="fc" id="L236">      addEdge(edges, from, new Edge(Mode.KANJI, from, 0, 1, previous, version));</span>
+    }
+
+<span class="fc" id="L239">    int inputLength = stringToEncode.length();</span>
+<span class="fc bfc" id="L240" title="All 2 branches covered.">    if (canEncode(Mode.ALPHANUMERIC, stringToEncode.charAt(from))) {</span>
+<span class="fc bfc" id="L241" title="All 2 branches covered.">      addEdge(edges, from, new Edge(Mode.ALPHANUMERIC, from, 0, from + 1 &gt;= inputLength ||</span>
+<span class="fc bfc" id="L242" title="All 2 branches covered.">          !canEncode(Mode.ALPHANUMERIC, stringToEncode.charAt(from + 1)) ? 1 : 2, previous, version));</span>
+    }
+
+<span class="fc bfc" id="L245" title="All 2 branches covered.">    if (canEncode(Mode.NUMERIC, stringToEncode.charAt(from))) {</span>
+<span class="fc bfc" id="L246" title="All 2 branches covered.">      addEdge(edges, from, new Edge(Mode.NUMERIC, from, 0, from + 1 &gt;= inputLength ||</span>
+<span class="fc bfc" id="L247" title="All 4 branches covered.">          !canEncode(Mode.NUMERIC, stringToEncode.charAt(from + 1)) ? 1 : from + 2 &gt;= inputLength ||</span>
+<span class="fc bfc" id="L248" title="All 2 branches covered.">          !canEncode(Mode.NUMERIC, stringToEncode.charAt(from + 2)) ? 2 : 3, previous, version));</span>
+    }
+<span class="fc" id="L250">  }</span>
+  ResultList encodeSpecificVersion(Version version) throws WriterException {
+
+    @SuppressWarnings(&quot;checkstyle:lineLength&quot;)
+    /* A vertex represents a tuple of a position in the input, a mode and a character encoding where position 0
+     * denotes the position left of the first character, 1 the position left of the second character and so on.
+     * Likewise the end vertices are located after the last character at position stringToEncode.length().
+     *
+     * An edge leading to such a vertex encodes one or more of the characters left of the position that the vertex
+     * represents and encodes it in the same encoding and mode as the vertex on which the edge ends. In other words,
+     * all edges leading to a particular vertex encode the same characters in the same mode with the same character
+     * encoding. They differ only by their source vertices who are all located at i+1 minus the number of encoded
+     * characters.
+     *
+     * The edges leading to a vertex are stored in such a way that there is a fast way to enumerate the edges ending
+     * on a particular vertex.
+     *
+     * The algorithm processes the vertices in order of their position thereby performing the following:
+     *
+     * For every vertex at position i the algorithm enumerates the edges ending on the vertex and removes all but the
+     * shortest from that list.
+     * Then it processes the vertices for the position i+1. If i+1 == stringToEncode.length() then the algorithm ends
+     * and chooses the the edge with the smallest size from any of the edges leading to vertices at this position.
+     * Otherwise the algorithm computes all possible outgoing edges for the vertices at the position i+1
+     *
+     * Examples:
+     * The process is illustrated by showing the graph (edges) after each iteration from left to right over the input:
+     * An edge is drawn as follows &quot;(&quot; + fromVertex + &quot;) -- &quot; + encodingMode + &quot;(&quot; + encodedInput + &quot;) (&quot; +
+     * accumulatedSize + &quot;) --&gt; (&quot; + toVertex + &quot;)&quot;
+     *
+     * Example 1 encoding the string &quot;ABCDE&quot;:
+     * Note: This example assumes that alphanumeric encoding is only possible in multiples of two characters so that
+     * the example is both short and showing the principle. In reality this restriction does not exist.
+     *
+     * Initial situation
+     * (initial) -- BYTE(A) (20) --&gt; (1_BYTE)
+     * (initial) -- ALPHANUMERIC(AB)                     (24) --&gt; (2_ALPHANUMERIC)
+     *
+     * Situation after adding edges to vertices at position 1
+     * (initial) -- BYTE(A) (20) --&gt; (1_BYTE) -- BYTE(B) (28) --&gt; (2_BYTE)
+     *                               (1_BYTE) -- ALPHANUMERIC(BC)                             (44) --&gt; (3_ALPHANUMERIC)
+     * (initial) -- ALPHANUMERIC(AB)                     (24) --&gt; (2_ALPHANUMERIC)
+     *
+     * Situation after adding edges to vertices at position 2
+     * (initial) -- BYTE(A) (20) --&gt; (1_BYTE)
+     * (initial) -- ALPHANUMERIC(AB)                     (24) --&gt; (2_ALPHANUMERIC)
+     * (initial) -- BYTE(A) (20) --&gt; (1_BYTE) -- BYTE(B) (28) --&gt; (2_BYTE)
+                                   * (1_BYTE) -- ALPHANUMERIC(BC)                             (44) --&gt; (3_ALPHANUMERIC)
+     * (initial) -- ALPHANUMERIC(AB)                     (24) --&gt; (2_ALPHANUMERIC) -- BYTE(C) (44) --&gt; (3_BYTE)
+     *                                                            (2_ALPHANUMERIC) -- ALPHANUMERIC(CD)                             (35) --&gt; (4_ALPHANUMERIC)
+     *
+     * Situation after adding edges to vertices at position 3
+     * (initial) -- BYTE(A) (20) --&gt; (1_BYTE) -- BYTE(B) (28) --&gt; (2_BYTE) -- BYTE(C)         (36) --&gt; (3_BYTE)
+     *                               (1_BYTE) -- ALPHANUMERIC(BC)                             (44) --&gt; (3_ALPHANUMERIC) -- BYTE(D) (64) --&gt; (4_BYTE)
+     *                                                                                                 (3_ALPHANUMERIC) -- ALPHANUMERIC(DE)                             (55) --&gt; (5_ALPHANUMERIC)
+     * (initial) -- ALPHANUMERIC(AB)                     (24) --&gt; (2_ALPHANUMERIC) -- ALPHANUMERIC(CD)                             (35) --&gt; (4_ALPHANUMERIC)
+     *                                                            (2_ALPHANUMERIC) -- ALPHANUMERIC(CD)                             (35) --&gt; (4_ALPHANUMERIC)
+     *
+     * Situation after adding edges to vertices at position 4
+     * (initial) -- BYTE(A) (20) --&gt; (1_BYTE) -- BYTE(B) (28) --&gt; (2_BYTE) -- BYTE(C)         (36) --&gt; (3_BYTE) -- BYTE(D) (44) --&gt; (4_BYTE)
+     *                               (1_BYTE) -- ALPHANUMERIC(BC)                             (44) --&gt; (3_ALPHANUMERIC) -- ALPHANUMERIC(DE)                             (55) --&gt; (5_ALPHANUMERIC)
+     * (initial) -- ALPHANUMERIC(AB)                     (24) --&gt; (2_ALPHANUMERIC) -- ALPHANUMERIC(CD)                             (35) --&gt; (4_ALPHANUMERIC) -- BYTE(E) (55) --&gt; (5_BYTE)
+     *
+     * Situation after adding edges to vertices at position 5
+     * (initial) -- BYTE(A) (20) --&gt; (1_BYTE) -- BYTE(B) (28) --&gt; (2_BYTE) -- BYTE(C)         (36) --&gt; (3_BYTE) -- BYTE(D)         (44) --&gt; (4_BYTE) -- BYTE(E)         (52) --&gt; (5_BYTE)
+     *                               (1_BYTE) -- ALPHANUMERIC(BC)                             (44) --&gt; (3_ALPHANUMERIC) -- ALPHANUMERIC(DE)                             (55) --&gt; (5_ALPHANUMERIC)
+     * (initial) -- ALPHANUMERIC(AB)                     (24) --&gt; (2_ALPHANUMERIC) -- ALPHANUMERIC(CD)                             (35) --&gt; (4_ALPHANUMERIC)
+     *
+     * Encoding as BYTE(ABCDE) has the smallest size of 52 and is hence chosen. The encodation ALPHANUMERIC(ABCD),
+     * BYTE(E) is longer with a size of 55.
+     *
+     * Example 2 encoding the string &quot;XXYY&quot; where X denotes a character unique to character set ISO-8859-2 and Y a
+     * character unique to ISO-8859-3. Both characters encode as double byte in UTF-8:
+     *
+     * Initial situation
+     * (initial) -- BYTE(X) (32) --&gt; (1_BYTE_ISO-8859-2)
+     * (initial) -- BYTE(X) (40) --&gt; (1_BYTE_UTF-8)
+     * (initial) -- BYTE(X) (40) --&gt; (1_BYTE_UTF-16BE)
+     *
+     * Situation after adding edges to vertices at position 1
+     * (initial) -- BYTE(X) (32) --&gt; (1_BYTE_ISO-8859-2) -- BYTE(X) (40) --&gt; (2_BYTE_ISO-8859-2)
+     *                               (1_BYTE_ISO-8859-2) -- BYTE(X) (72) --&gt; (2_BYTE_UTF-8)
+     *                               (1_BYTE_ISO-8859-2) -- BYTE(X) (72) --&gt; (2_BYTE_UTF-16BE)
+     * (initial) -- BYTE(X) (40) --&gt; (1_BYTE_UTF-8)
+     * (initial) -- BYTE(X) (40) --&gt; (1_BYTE_UTF-16BE)
+     *
+     * Situation after adding edges to vertices at position 2
+     * (initial) -- BYTE(X) (32) --&gt; (1_BYTE_ISO-8859-2) -- BYTE(X) (40) --&gt; (2_BYTE_ISO-8859-2)
+     *                                                                       (2_BYTE_ISO-8859-2) -- BYTE(Y) (72) --&gt; (3_BYTE_ISO-8859-3)
+     *                                                                       (2_BYTE_ISO-8859-2) -- BYTE(Y) (80) --&gt; (3_BYTE_UTF-8)
+     *                                                                       (2_BYTE_ISO-8859-2) -- BYTE(Y) (80) --&gt; (3_BYTE_UTF-16BE)
+     * (initial) -- BYTE(X) (40) --&gt; (1_BYTE_UTF-8) -- BYTE(X) (56) --&gt; (2_BYTE_UTF-8)
+     * (initial) -- BYTE(X) (40) --&gt; (1_BYTE_UTF-16BE) -- BYTE(X) (56) --&gt; (2_BYTE_UTF-16BE)
+     *
+     * Situation after adding edges to vertices at position 3
+     * (initial) -- BYTE(X) (32) --&gt; (1_BYTE_ISO-8859-2) -- BYTE(X) (40) --&gt; (2_BYTE_ISO-8859-2) -- BYTE(Y) (72) --&gt; (3_BYTE_ISO-8859-3)
+     *                                                                                                               (3_BYTE_ISO-8859-3) -- BYTE(Y) (80) --&gt; (4_BYTE_ISO-8859-3)
+     *                                                                                                               (3_BYTE_ISO-8859-3) -- BYTE(Y) (112) --&gt; (4_BYTE_UTF-8)
+     *                                                                                                               (3_BYTE_ISO-8859-3) -- BYTE(Y) (112) --&gt; (4_BYTE_UTF-16BE)
+     * (initial) -- BYTE(X) (40) --&gt; (1_BYTE_UTF-8) -- BYTE(X) (56) --&gt; (2_BYTE_UTF-8) -- BYTE(Y) (72) --&gt; (3_BYTE_UTF-8)
+     * (initial) -- BYTE(X) (40) --&gt; (1_BYTE_UTF-16BE) -- BYTE(X) (56) --&gt; (2_BYTE_UTF-16BE) -- BYTE(Y) (72) --&gt; (3_BYTE_UTF-16BE)
+     *
+     * Situation after adding edges to vertices at position 4
+     * (initial) -- BYTE(X) (32) --&gt; (1_BYTE_ISO-8859-2) -- BYTE(X) (40) --&gt; (2_BYTE_ISO-8859-2) -- BYTE(Y) (72) --&gt; (3_BYTE_ISO-8859-3) -- BYTE(Y) (80) --&gt; (4_BYTE_ISO-8859-3)
+     *                                                                                                               (3_BYTE_UTF-8) -- BYTE(Y) (88) --&gt; (4_BYTE_UTF-8)
+     *                                                                                                               (3_BYTE_UTF-16BE) -- BYTE(Y) (88) --&gt; (4_BYTE_UTF-16BE)
+     * (initial) -- BYTE(X) (40) --&gt; (1_BYTE_UTF-8) -- BYTE(X) (56) --&gt; (2_BYTE_UTF-8) -- BYTE(Y) (72) --&gt; (3_BYTE_UTF-8)
+     * (initial) -- BYTE(X) (40) --&gt; (1_BYTE_UTF-16BE) -- BYTE(X) (56) --&gt; (2_BYTE_UTF-16BE) -- BYTE(Y) (72) --&gt; (3_BYTE_UTF-16BE)
+     *
+     * Encoding as ECI(ISO-8859-2),BYTE(XX),ECI(ISO-8859-3),BYTE(YY) has the smallest size of 80 and is hence chosen.
+     * The encodation ECI(UTF-8),BYTE(XXYY) is longer with a size of 88.
+     */
+
+<span class="fc" id="L363">    int inputLength = stringToEncode.length();</span>
+
+    // Array that represents vertices. There is a vertex for every character, encoding and mode. The vertex contains
+    // a list of all edges that lead to it that have the same encoding and mode.
+    // The lists are created lazily
+
+    // The last dimension in the array below encodes the 4 modes KANJI, ALPHANUMERIC, NUMERIC and BYTE via the
+    // function getCompactedOrdinal(Mode)
+<span class="fc" id="L371">    Edge[][][] edges = new Edge[inputLength + 1][encoders.length()][4];</span>
+<span class="fc" id="L372">    addEdges(version, edges, 0, null);</span>
+
+<span class="fc bfc" id="L374" title="All 2 branches covered.">    for (int i = 1; i &lt;= inputLength; i++) {</span>
+<span class="fc bfc" id="L375" title="All 2 branches covered.">      for (int j = 0; j &lt; encoders.length(); j++) {</span>
+<span class="fc bfc" id="L376" title="All 2 branches covered.">        for (int k = 0; k &lt; 4; k++) {</span>
+<span class="fc bfc" id="L377" title="All 4 branches covered.">          if (edges[i][j][k] != null &amp;&amp; i &lt; inputLength) {</span>
+<span class="fc" id="L378">            addEdges(version, edges, i, edges[i][j][k]);</span>
+          }
+        }
+      }
+
+    }
+<span class="fc" id="L384">    int minimalJ = -1;</span>
+<span class="fc" id="L385">    int minimalK = -1;</span>
+<span class="fc" id="L386">    int minimalSize = Integer.MAX_VALUE;</span>
+<span class="fc bfc" id="L387" title="All 2 branches covered.">    for (int j = 0; j &lt; encoders.length(); j++) {</span>
+<span class="fc bfc" id="L388" title="All 2 branches covered.">      for (int k = 0; k &lt; 4; k++) {</span>
+<span class="fc bfc" id="L389" title="All 2 branches covered.">        if (edges[inputLength][j][k] != null) {</span>
+<span class="fc" id="L390">          Edge edge = edges[inputLength][j][k];</span>
+<span class="fc bfc" id="L391" title="All 2 branches covered.">          if (edge.cachedTotalSize &lt; minimalSize) {</span>
+<span class="fc" id="L392">            minimalSize = edge.cachedTotalSize;</span>
+<span class="fc" id="L393">            minimalJ = j;</span>
+<span class="fc" id="L394">            minimalK = k;</span>
+          }
+        }
+      }
+    }
+<span class="pc bpc" id="L399" title="1 of 2 branches missed.">    if (minimalJ &lt; 0) {</span>
+<span class="nc" id="L400">      throw new WriterException(&quot;Internal error: failed to encode \&quot;&quot; + stringToEncode + &quot;\&quot;&quot;);</span>
+    }
+<span class="fc" id="L402">    return new ResultList(version, edges[inputLength][minimalJ][minimalK]);</span>
+  }
+
+  private final class Edge {
+    private final Mode mode;
+    private final int fromPosition;
+    private final int charsetEncoderIndex;
+    private final int characterLength;
+    private final Edge previous;
+    private final int cachedTotalSize;
+
+    private Edge(Mode mode, int fromPosition, int charsetEncoderIndex, int characterLength, Edge previous,
+<span class="fc" id="L414">                 Version version) {</span>
+<span class="fc" id="L415">      this.mode = mode;</span>
+<span class="fc" id="L416">      this.fromPosition = fromPosition;</span>
+<span class="fc bfc" id="L417" title="All 4 branches covered.">      this.charsetEncoderIndex = mode == Mode.BYTE || previous == null ? charsetEncoderIndex :</span>
+<span class="fc" id="L418">          previous.charsetEncoderIndex; // inherit the encoding if not of type BYTE</span>
+<span class="fc" id="L419">      this.characterLength = characterLength;</span>
+<span class="fc" id="L420">      this.previous = previous;</span>
+
+<span class="fc bfc" id="L422" title="All 2 branches covered.">      int size = previous != null ? previous.cachedTotalSize : 0;</span>
+
+<span class="fc bfc" id="L424" title="All 10 branches covered.">      boolean needECI = mode == Mode.BYTE &amp;&amp;</span>
+          (previous == null &amp;&amp; this.charsetEncoderIndex != 0) || // at the beginning and charset is not ISO-8859-1
+          (previous != null &amp;&amp; this.charsetEncoderIndex != previous.charsetEncoderIndex);
+
+<span class="fc bfc" id="L428" title="All 6 branches covered.">      if (previous == null || mode != previous.mode || needECI) {</span>
+<span class="fc" id="L429">        size += 4 + mode.getCharacterCountBits(version);</span>
+      }
+<span class="pc bpc" id="L431" title="1 of 5 branches missed.">      switch (mode) {</span>
+        case KANJI:
+<span class="fc" id="L433">          size += 13;</span>
+<span class="fc" id="L434">          break;</span>
+        case ALPHANUMERIC:
+<span class="fc bfc" id="L436" title="All 2 branches covered.">          size += characterLength == 1 ? 6 : 11;</span>
+<span class="fc" id="L437">          break;</span>
+        case NUMERIC:
+<span class="fc bfc" id="L439" title="All 4 branches covered.">          size += characterLength == 1 ? 4 : characterLength == 2 ? 7 : 10;</span>
+<span class="fc" id="L440">          break;</span>
+        case BYTE:
+<span class="fc" id="L442">          size += 8 * encoders.encode(stringToEncode.substring(fromPosition, fromPosition + characterLength),</span>
+              charsetEncoderIndex).length;
+<span class="fc bfc" id="L444" title="All 2 branches covered.">          if (needECI) {</span>
+<span class="fc" id="L445">            size += 4 + 8; // the ECI assignment numbers for ISO-8859-x, UTF-8 and UTF-16 are all 8 bit long</span>
+          }
+          break;
+      }
+<span class="fc" id="L449">      cachedTotalSize = size;</span>
+<span class="fc" id="L450">    }</span>
+  }
+
+  final class ResultList {
+
+<span class="fc" id="L455">    private final List&lt;ResultList.ResultNode&gt; list = new ArrayList&lt;&gt;();</span>
+    private final Version version;
+
+<span class="fc" id="L458">    ResultList(Version version, Edge solution) {</span>
+<span class="fc" id="L459">      int length = 0;</span>
+<span class="fc" id="L460">      Edge current = solution;</span>
+<span class="fc" id="L461">      boolean containsECI = false;</span>
+
+<span class="fc bfc" id="L463" title="All 2 branches covered.">      while (current != null) {</span>
+<span class="fc" id="L464">        length += current.characterLength;</span>
+<span class="fc" id="L465">        Edge previous = current.previous;</span>
+
+<span class="fc bfc" id="L467" title="All 4 branches covered.">        boolean needECI = current.mode == Mode.BYTE &amp;&amp;</span>
+<span class="fc bfc" id="L468" title="All 4 branches covered.">            (previous == null &amp;&amp; current.charsetEncoderIndex != 0) || // at the beginning and charset is not ISO-8859-1</span>
+<span class="fc bfc" id="L469" title="All 2 branches covered.">            (previous != null &amp;&amp; current.charsetEncoderIndex != previous.charsetEncoderIndex);</span>
+
+<span class="fc bfc" id="L471" title="All 2 branches covered.">        if (needECI) {</span>
+<span class="fc" id="L472">          containsECI = true;</span>
+        }
+
+<span class="fc bfc" id="L475" title="All 6 branches covered.">        if (previous == null || previous.mode != current.mode || needECI) {</span>
+<span class="fc" id="L476">          list.add(0, new ResultNode(current.mode, current.fromPosition, current.charsetEncoderIndex, length));</span>
+<span class="fc" id="L477">          length = 0;</span>
+        }
+
+<span class="fc bfc" id="L480" title="All 2 branches covered.">        if (needECI) {</span>
+<span class="fc" id="L481">          list.add(0, new ResultNode(Mode.ECI, current.fromPosition, current.charsetEncoderIndex, 0));</span>
+        }
+<span class="fc" id="L483">        current = previous;</span>
+<span class="fc" id="L484">      }</span>
+
+      // prepend FNC1 if needed. If the bits contain an ECI then the FNC1 must be preceeded by an ECI.
+      // If there is no ECI at the beginning then we put an ECI to the default charset (ISO-8859-1)
+<span class="fc bfc" id="L488" title="All 2 branches covered.">      if (isGS1) {</span>
+<span class="fc" id="L489">        ResultNode first = list.get(0);</span>
+<span class="pc bpc" id="L490" title="3 of 6 branches missed.">        if (first != null &amp;&amp; first.mode != Mode.ECI &amp;&amp; containsECI) {</span>
+          // prepend a default character set ECI
+<span class="nc" id="L492">          list.add(0, new ResultNode(Mode.ECI, 0, 0, 0));</span>
+        }
+<span class="fc" id="L494">        first = list.get(0);</span>
+        // prepend or insert a FNC1_FIRST_POSITION after the ECI (if any)
+<span class="pc bpc" id="L496" title="1 of 2 branches missed.">        list.add(first.mode != Mode.ECI ? 0 : 1, new ResultNode(Mode.FNC1_FIRST_POSITION, 0, 0, 0));</span>
+      }
+
+      // set version to smallest version into which the bits fit.
+<span class="fc" id="L500">      int versionNumber = version.getVersionNumber();</span>
+      int lowerLimit;
+      int upperLimit;
+<span class="fc bfc" id="L503" title="All 3 branches covered.">      switch (getVersionSize(version)) {</span>
+        case SMALL:
+<span class="fc" id="L505">          lowerLimit = 1;</span>
+<span class="fc" id="L506">          upperLimit = 9;</span>
+<span class="fc" id="L507">          break;</span>
+        case MEDIUM:
+<span class="fc" id="L509">          lowerLimit = 10;</span>
+<span class="fc" id="L510">          upperLimit = 26;</span>
+<span class="fc" id="L511">          break;</span>
+        case LARGE:
+        default:
+<span class="fc" id="L514">          lowerLimit = 27;</span>
+<span class="fc" id="L515">          upperLimit = 40;</span>
+          break;
+      }
+<span class="fc" id="L518">      int size = getSize(version);</span>
+      // increase version if needed
+<span class="pc bpc" id="L520" title="3 of 4 branches missed.">      while (versionNumber &lt; upperLimit &amp;&amp; !Encoder.willFit(size, Version.getVersionForNumber(versionNumber),</span>
+<span class="nc" id="L521">        ecLevel)) {</span>
+<span class="nc" id="L522">        versionNumber++;</span>
+      }
+      // shrink version if possible
+<span class="fc bfc" id="L525" title="All 4 branches covered.">      while (versionNumber &gt; lowerLimit &amp;&amp; Encoder.willFit(size, Version.getVersionForNumber(versionNumber - 1),</span>
+<span class="fc" id="L526">        ecLevel)) {</span>
+<span class="fc" id="L527">        versionNumber--;</span>
+      }
+<span class="fc" id="L529">      this.version = Version.getVersionForNumber(versionNumber);</span>
+<span class="fc" id="L530">    }</span>
+
+    /**
+     * returns the size in bits
+     */
+    int getSize() {
+<span class="fc" id="L536">      return getSize(version);</span>
+    }
+
+    private int getSize(Version version) {
+<span class="fc" id="L540">      int result = 0;</span>
+<span class="fc bfc" id="L541" title="All 2 branches covered.">      for (ResultNode resultNode : list) {</span>
+<span class="fc" id="L542">        result += resultNode.getSize(version);</span>
+<span class="fc" id="L543">      }</span>
+<span class="fc" id="L544">      return result;</span>
+    }
+
+    /**
+     * appends the bits
+     */
+    void getBits(BitArray bits) throws WriterException {
+<span class="nc bnc" id="L551" title="All 2 branches missed.">      for (ResultNode resultNode : list) {</span>
+<span class="nc" id="L552">        resultNode.getBits(bits);</span>
+<span class="nc" id="L553">      }</span>
+<span class="nc" id="L554">    }</span>
+
+    Version getVersion() {
+<span class="nc" id="L557">      return version;</span>
+    }
+
+    public String toString() {
+<span class="fc" id="L561">      StringBuilder result = new StringBuilder();</span>
+<span class="fc" id="L562">      ResultNode previous = null;</span>
+<span class="fc bfc" id="L563" title="All 2 branches covered.">      for (ResultNode current : list) {</span>
+<span class="fc bfc" id="L564" title="All 2 branches covered.">        if (previous != null) {</span>
+<span class="fc" id="L565">          result.append(&quot;,&quot;);</span>
+        }
+<span class="fc" id="L567">        result.append(current.toString());</span>
+<span class="fc" id="L568">        previous = current;</span>
+<span class="fc" id="L569">      }</span>
+<span class="fc" id="L570">      return result.toString();</span>
+    }
+
+    final class ResultNode {
+
+      private final Mode mode;
+      private final int fromPosition;
+      private final int charsetEncoderIndex;
+      private final int characterLength;
+
+<span class="fc" id="L580">      ResultNode(Mode mode, int fromPosition, int charsetEncoderIndex, int characterLength) {</span>
+<span class="fc" id="L581">        this.mode = mode;</span>
+<span class="fc" id="L582">        this.fromPosition = fromPosition;</span>
+<span class="fc" id="L583">        this.charsetEncoderIndex = charsetEncoderIndex;</span>
+<span class="fc" id="L584">        this.characterLength = characterLength;</span>
+<span class="fc" id="L585">      }</span>
+
+      /**
+       * returns the size in bits
+       */
+      private int getSize(Version version) {
+<span class="fc" id="L591">        int size = 4 + mode.getCharacterCountBits(version);</span>
+<span class="fc bfc" id="L592" title="All 6 branches covered.">        switch (mode) {</span>
+          case KANJI:
+<span class="fc" id="L594">            size += 13 * characterLength;</span>
+<span class="fc" id="L595">            break;</span>
+          case ALPHANUMERIC:
+<span class="fc" id="L597">            size += (characterLength / 2) * 11;</span>
+<span class="fc bfc" id="L598" title="All 2 branches covered.">            size += (characterLength % 2) == 1 ? 6 : 0;</span>
+<span class="fc" id="L599">            break;</span>
+          case NUMERIC:
+<span class="fc" id="L601">            size += (characterLength / 3) * 10;</span>
+<span class="fc" id="L602">            int rest = characterLength % 3;</span>
+<span class="fc bfc" id="L603" title="All 4 branches covered.">            size += rest == 1 ? 4 : rest == 2 ? 7 : 0;</span>
+<span class="fc" id="L604">            break;</span>
+          case BYTE:
+<span class="fc" id="L606">            size += 8 * getCharacterCountIndicator();</span>
+<span class="fc" id="L607">            break;</span>
+          case ECI:
+<span class="fc" id="L609">            size += 8; // the ECI assignment numbers for ISO-8859-x, UTF-8 and UTF-16 are all 8 bit long</span>
+        }
+<span class="fc" id="L611">        return size;</span>
+      }
+
+      /**
+       * returns the length in characters according to the specification (differs from getCharacterLength() in BYTE mode
+       * for multi byte encoded characters)
+       */
+      private int getCharacterCountIndicator() {
+<span class="pc bpc" id="L619" title="1 of 2 branches missed.">        return mode == Mode.BYTE ?</span>
+<span class="fc" id="L620">            encoders.encode(stringToEncode.substring(fromPosition, fromPosition + characterLength),</span>
+<span class="pc" id="L621">            charsetEncoderIndex).length : characterLength;</span>
+      }
+
+      /**
+       * appends the bits
+       */
+      private void getBits(BitArray bits) throws WriterException {
+<span class="nc" id="L628">        bits.appendBits(mode.getBits(), 4);</span>
+<span class="nc bnc" id="L629" title="All 2 branches missed.">        if (characterLength &gt; 0) {</span>
+<span class="nc" id="L630">          int length = getCharacterCountIndicator();</span>
+<span class="nc" id="L631">          bits.appendBits(length, mode.getCharacterCountBits(version));</span>
+        }
+<span class="nc bnc" id="L633" title="All 2 branches missed.">        if (mode == Mode.ECI) {</span>
+<span class="nc" id="L634">          bits.appendBits(encoders.getECIValue(charsetEncoderIndex), 8);</span>
+<span class="nc bnc" id="L635" title="All 2 branches missed.">        } else if (characterLength &gt; 0) {</span>
+          // append data
+<span class="nc" id="L637">          Encoder.appendBytes(stringToEncode.substring(fromPosition, fromPosition + characterLength), mode, bits,</span>
+<span class="nc" id="L638">              encoders.getCharset(charsetEncoderIndex));</span>
+        }
+<span class="nc" id="L640">      }</span>
+
+      public String toString() {
+<span class="fc" id="L643">        StringBuilder result = new StringBuilder();</span>
+<span class="fc" id="L644">        result.append(mode).append('(');</span>
+<span class="fc bfc" id="L645" title="All 2 branches covered.">        if (mode == Mode.ECI) {</span>
+<span class="fc" id="L646">          result.append(encoders.getCharset(charsetEncoderIndex).displayName());</span>
+        } else {
+<span class="fc" id="L648">          result.append(makePrintable(stringToEncode.substring(fromPosition, fromPosition + characterLength)));</span>
+        }
+<span class="fc" id="L650">        result.append(')');</span>
+<span class="fc" id="L651">        return result.toString();</span>
+      }
+
+      private String makePrintable(String s) {
+<span class="fc" id="L655">        StringBuilder result = new StringBuilder();</span>
+<span class="fc bfc" id="L656" title="All 2 branches covered.">        for (int i = 0; i &lt; s.length(); i++) {</span>
+<span class="pc bpc" id="L657" title="1 of 4 branches missed.">          if (s.charAt(i) &lt; 32 || s.charAt(i) &gt; 126) {</span>
+<span class="fc" id="L658">            result.append('.');</span>
+          } else {
+<span class="fc" id="L660">            result.append(s.charAt(i));</span>
+          }
+        }
+<span class="fc" id="L663">        return result.toString();</span>
+      }
+    }
+  }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.11.202310140853</span></div></body></html>

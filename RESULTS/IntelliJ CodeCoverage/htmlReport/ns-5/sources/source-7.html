@@ -1,0 +1,150 @@
+
+
+
+<!DOCTYPE html>
+<html id="htmlId">
+<head>
+  <meta http-equiv="Content-Type" content="text/html;charset=windows-1252"> 
+  <title>Coverage Report > Token</title>
+  <style type="text/css">
+    @import "../../css/coverage.css";
+    @import "../../css/idea.min.css";
+  </style>
+  <script type="text/javascript" src="../../js/highlight.min.js"></script>
+  <script type="text/javascript" src="../../js/highlightjs-line-numbers.min.js"></script>
+</head>
+
+<body>
+<div class="content">
+<div class="breadCrumbs">
+Current scope:     <a href="../../index.html">all classes</a>
+    <span class="separator">|</span>
+    <a href="../index.html">com.google.zxing.aztec.encoder</a>
+</div>
+
+<h1>Coverage Summary for Class: Token (com.google.zxing.aztec.encoder)</h1>
+
+<table class="coverageStats">
+<tr>
+  <th class="name">Class</th>
+<th class="coverageStat 
+">
+  Class, %
+</th>
+<th class="coverageStat 
+">
+  Method, %
+</th>
+<th class="coverageStat 
+">
+  Line, %
+</th>
+</tr>
+<tr>
+  <td class="name">Token</td>
+<td class="coverageStat">
+  <span class="percent">
+    100%
+  </span>
+  <span class="absValue">
+    (1/1)
+  </span>
+</td>
+<td class="coverageStat">
+  <span class="percent">
+    100%
+  </span>
+  <span class="absValue">
+    (5/5)
+  </span>
+</td>
+<td class="coverageStat">
+  <span class="percent">
+    100%
+  </span>
+  <span class="absValue">
+    (6/6)
+  </span>
+</td>
+</tr>
+
+</table>
+
+<br/>
+<br/>
+
+
+<pre>
+<code class="sourceCode" id="sourceCode">&nbsp;/*
+&nbsp; * Copyright 2013 ZXing authors
+&nbsp; *
+&nbsp; * Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
+&nbsp; * you may not use this file except in compliance with the License.
+&nbsp; * You may obtain a copy of the License at
+&nbsp; *
+&nbsp; *      http://www.apache.org/licenses/LICENSE-2.0
+&nbsp; *
+&nbsp; * Unless required by applicable law or agreed to in writing, software
+&nbsp; * distributed under the License is distributed on an &quot;AS IS&quot; BASIS,
+&nbsp; * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+&nbsp; * See the License for the specific language governing permissions and
+&nbsp; * limitations under the License.
+&nbsp; */
+&nbsp;
+&nbsp;package com.google.zxing.aztec.encoder;
+&nbsp;
+&nbsp;import com.google.zxing.common.BitArray;
+&nbsp;
+&nbsp;abstract class Token {
+&nbsp;
+<b class="fc">&nbsp;  static final Token EMPTY = new SimpleToken(null, 0, 0);</b>
+&nbsp;
+&nbsp;  private final Token previous;
+&nbsp;
+<b class="fc">&nbsp;  Token(Token previous) {</b>
+<b class="fc">&nbsp;    this.previous = previous;</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  final Token getPrevious() {
+<b class="fc">&nbsp;    return previous;</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  final Token add(int value, int bitCount) {
+<b class="fc">&nbsp;    return new SimpleToken(this, value, bitCount);</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  final Token addBinaryShift(int start, int byteCount) {
+&nbsp;    //int bitCount = (byteCount * 8) + (byteCount &lt;= 31 ? 10 : byteCount &lt;= 62 ? 20 : 21);
+<b class="fc">&nbsp;    return new BinaryShiftToken(this, start, byteCount);</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  abstract void appendTo(BitArray bitArray, byte[] text);
+&nbsp;
+&nbsp;}
+</code>
+</pre>
+</div>
+
+<script type="text/javascript">
+(function() {
+    var msie = false, msie9 = false;
+    /*@cc_on
+      msie = true;
+      @if (@_jscript_version >= 9)
+        msie9 = true;
+      @end
+    @*/
+
+    if (!msie || msie && msie9) {
+      hljs.highlightAll()
+      hljs.initLineNumbersOnLoad();
+    }
+})();
+</script>
+
+<div class="footer">
+    
+    <div style="float:right;">generated on 2023-11-12 23:26</div>
+</div>
+</body>
+</html>

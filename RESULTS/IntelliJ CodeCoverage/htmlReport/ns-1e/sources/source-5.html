@@ -1,0 +1,299 @@
+
+
+
+<!DOCTYPE html>
+<html id="htmlId">
+<head>
+  <meta http-equiv="Content-Type" content="text/html;charset=windows-1252"> 
+  <title>Coverage Report > Decoder</title>
+  <style type="text/css">
+    @import "../../css/coverage.css";
+    @import "../../css/idea.min.css";
+  </style>
+  <script type="text/javascript" src="../../js/highlight.min.js"></script>
+  <script type="text/javascript" src="../../js/highlightjs-line-numbers.min.js"></script>
+</head>
+
+<body>
+<div class="content">
+<div class="breadCrumbs">
+Current scope:     <a href="../../index.html">all classes</a>
+    <span class="separator">|</span>
+    <a href="../index.html">com.google.zxing.qrcode.decoder</a>
+</div>
+
+<h1>Coverage Summary for Class: Decoder (com.google.zxing.qrcode.decoder)</h1>
+
+<table class="coverageStats">
+<tr>
+  <th class="name">Class</th>
+<th class="coverageStat 
+">
+  Class, %
+</th>
+<th class="coverageStat 
+">
+  Method, %
+</th>
+<th class="coverageStat 
+">
+  Line, %
+</th>
+</tr>
+<tr>
+  <td class="name">Decoder</td>
+<td class="coverageStat">
+  <span class="percent">
+    100%
+  </span>
+  <span class="absValue">
+    (1/1)
+  </span>
+</td>
+<td class="coverageStat">
+  <span class="percent">
+    57.1%
+  </span>
+  <span class="absValue">
+    (4/7)
+  </span>
+</td>
+<td class="coverageStat">
+  <span class="percent">
+    91.2%
+  </span>
+  <span class="absValue">
+    (52/57)
+  </span>
+</td>
+</tr>
+
+</table>
+
+<br/>
+<br/>
+
+
+<pre>
+<code class="sourceCode" id="sourceCode">&nbsp;/*
+&nbsp; * Copyright 2007 ZXing authors
+&nbsp; *
+&nbsp; * Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
+&nbsp; * you may not use this file except in compliance with the License.
+&nbsp; * You may obtain a copy of the License at
+&nbsp; *
+&nbsp; *      http://www.apache.org/licenses/LICENSE-2.0
+&nbsp; *
+&nbsp; * Unless required by applicable law or agreed to in writing, software
+&nbsp; * distributed under the License is distributed on an &quot;AS IS&quot; BASIS,
+&nbsp; * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+&nbsp; * See the License for the specific language governing permissions and
+&nbsp; * limitations under the License.
+&nbsp; */
+&nbsp;
+&nbsp;package com.google.zxing.qrcode.decoder;
+&nbsp;
+&nbsp;import com.google.zxing.ChecksumException;
+&nbsp;import com.google.zxing.DecodeHintType;
+&nbsp;import com.google.zxing.FormatException;
+&nbsp;import com.google.zxing.common.BitMatrix;
+&nbsp;import com.google.zxing.common.DecoderResult;
+&nbsp;import com.google.zxing.common.reedsolomon.GenericGF;
+&nbsp;import com.google.zxing.common.reedsolomon.ReedSolomonDecoder;
+&nbsp;import com.google.zxing.common.reedsolomon.ReedSolomonException;
+&nbsp;
+&nbsp;import java.util.Map;
+&nbsp;
+&nbsp;/**
+&nbsp; * &lt;p&gt;The main class which implements QR Code decoding -- as opposed to locating and extracting
+&nbsp; * the QR Code from an image.&lt;/p&gt;
+&nbsp; *
+&nbsp; * @author Sean Owen
+&nbsp; */
+&nbsp;public final class Decoder {
+&nbsp;
+&nbsp;  private final ReedSolomonDecoder rsDecoder;
+&nbsp;
+<b class="fc">&nbsp;  public Decoder() {</b>
+<b class="fc">&nbsp;    rsDecoder = new ReedSolomonDecoder(GenericGF.QR_CODE_FIELD_256);</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  public DecoderResult decode(boolean[][] image) throws ChecksumException, FormatException {
+<b class="nc">&nbsp;    return decode(image, null);</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  /**
+&nbsp;   * &lt;p&gt;Convenience method that can decode a QR Code represented as a 2D array of booleans.
+&nbsp;   * &quot;true&quot; is taken to mean a black module.&lt;/p&gt;
+&nbsp;   *
+&nbsp;   * @param image booleans representing white/black QR Code modules
+&nbsp;   * @param hints decoding hints that should be used to influence decoding
+&nbsp;   * @return text and bytes encoded within the QR Code
+&nbsp;   * @throws FormatException if the QR Code cannot be decoded
+&nbsp;   * @throws ChecksumException if error correction fails
+&nbsp;   */
+&nbsp;  public DecoderResult decode(boolean[][] image, Map&lt;DecodeHintType,?&gt; hints)
+&nbsp;      throws ChecksumException, FormatException {
+<b class="nc">&nbsp;    return decode(BitMatrix.parse(image), hints);</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  public DecoderResult decode(BitMatrix bits) throws ChecksumException, FormatException {
+<b class="nc">&nbsp;    return decode(bits, null);</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  /**
+&nbsp;   * &lt;p&gt;Decodes a QR Code represented as a {@link BitMatrix}. A 1 or &quot;true&quot; is taken to mean a black module.&lt;/p&gt;
+&nbsp;   *
+&nbsp;   * @param bits booleans representing white/black QR Code modules
+&nbsp;   * @param hints decoding hints that should be used to influence decoding
+&nbsp;   * @return text and bytes encoded within the QR Code
+&nbsp;   * @throws FormatException if the QR Code cannot be decoded
+&nbsp;   * @throws ChecksumException if error correction fails
+&nbsp;   */
+&nbsp;  public DecoderResult decode(BitMatrix bits, Map&lt;DecodeHintType,?&gt; hints)
+&nbsp;      throws FormatException, ChecksumException {
+&nbsp;
+&nbsp;    // Construct a parser and read version, error-correction level
+<b class="fc">&nbsp;    BitMatrixParser parser = new BitMatrixParser(bits);</b>
+<b class="fc">&nbsp;    FormatException fe = null;</b>
+<b class="fc">&nbsp;    ChecksumException ce = null;</b>
+&nbsp;    try {
+<b class="fc">&nbsp;      return decode(parser, hints);</b>
+<b class="fc">&nbsp;    } catch (FormatException e) {</b>
+<b class="fc">&nbsp;      fe = e;</b>
+<b class="fc">&nbsp;    } catch (ChecksumException e) {</b>
+<b class="fc">&nbsp;      ce = e;</b>
+<b class="fc">&nbsp;    }</b>
+&nbsp;
+&nbsp;    try {
+&nbsp;
+&nbsp;      // Revert the bit matrix
+<b class="fc">&nbsp;      parser.remask();</b>
+&nbsp;
+&nbsp;      // Will be attempting a mirrored reading of the version and format info.
+<b class="fc">&nbsp;      parser.setMirror(true);</b>
+&nbsp;
+&nbsp;      // Preemptively read the version.
+<b class="fc">&nbsp;      parser.readVersion();</b>
+&nbsp;
+&nbsp;      // Preemptively read the format information.
+<b class="fc">&nbsp;      parser.readFormatInformation();</b>
+&nbsp;
+&nbsp;      /*
+&nbsp;       * Since we&#39;re here, this means we have successfully detected some kind
+&nbsp;       * of version and format information when mirrored. This is a good sign,
+&nbsp;       * that the QR code may be mirrored, and we should try once more with a
+&nbsp;       * mirrored content.
+&nbsp;       */
+&nbsp;      // Prepare for a mirrored reading.
+<b class="fc">&nbsp;      parser.mirror();</b>
+&nbsp;
+<b class="fc">&nbsp;      DecoderResult result = decode(parser, hints);</b>
+&nbsp;
+&nbsp;      // Success! Notify the caller that the code was mirrored.
+<b class="nc">&nbsp;      result.setOther(new QRCodeDecoderMetaData(true));</b>
+&nbsp;
+<b class="nc">&nbsp;      return result;</b>
+&nbsp;
+<b class="fc">&nbsp;    } catch (FormatException | ChecksumException e) {</b>
+&nbsp;      // Throw the exception from the original reading
+<b class="fc">&nbsp;      if (fe != null) {</b>
+<b class="fc">&nbsp;        throw fe;</b>
+&nbsp;      }
+<b class="fc">&nbsp;      throw ce; // If fe is null, this can&#39;t be</b>
+&nbsp;    }
+&nbsp;  }
+&nbsp;
+&nbsp;  private DecoderResult decode(BitMatrixParser parser, Map&lt;DecodeHintType,?&gt; hints)
+&nbsp;      throws FormatException, ChecksumException {
+<b class="fc">&nbsp;    Version version = parser.readVersion();</b>
+<b class="fc">&nbsp;    ErrorCorrectionLevel ecLevel = parser.readFormatInformation().getErrorCorrectionLevel();</b>
+&nbsp;
+&nbsp;    // Read codewords
+<b class="fc">&nbsp;    byte[] codewords = parser.readCodewords();</b>
+&nbsp;    // Separate into data blocks
+<b class="fc">&nbsp;    DataBlock[] dataBlocks = DataBlock.getDataBlocks(codewords, version, ecLevel);</b>
+&nbsp;
+&nbsp;    // Count total number of data bytes
+<b class="fc">&nbsp;    int totalBytes = 0;</b>
+<b class="fc">&nbsp;    for (DataBlock dataBlock : dataBlocks) {</b>
+<b class="fc">&nbsp;      totalBytes += dataBlock.getNumDataCodewords();</b>
+&nbsp;    }
+<b class="fc">&nbsp;    byte[] resultBytes = new byte[totalBytes];</b>
+<b class="fc">&nbsp;    int resultOffset = 0;</b>
+&nbsp;
+&nbsp;    // Error-correct and copy data blocks together into a stream of bytes
+<b class="fc">&nbsp;    int errorsCorrected = 0;</b>
+<b class="fc">&nbsp;    for (DataBlock dataBlock : dataBlocks) {</b>
+<b class="fc">&nbsp;      byte[] codewordBytes = dataBlock.getCodewords();</b>
+<b class="fc">&nbsp;      int numDataCodewords = dataBlock.getNumDataCodewords();</b>
+<b class="fc">&nbsp;      errorsCorrected += correctErrors(codewordBytes, numDataCodewords);</b>
+<b class="fc">&nbsp;      for (int i = 0; i &lt; numDataCodewords; i++) {</b>
+<b class="fc">&nbsp;        resultBytes[resultOffset++] = codewordBytes[i];</b>
+&nbsp;      }
+&nbsp;    }
+&nbsp;
+&nbsp;    // Decode the contents of that stream of bytes
+<b class="fc">&nbsp;    DecoderResult result = DecodedBitStreamParser.decode(resultBytes, version, ecLevel, hints);</b>
+<b class="fc">&nbsp;    result.setErrorsCorrected(errorsCorrected);</b>
+<b class="fc">&nbsp;    return result;</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  /**
+&nbsp;   * &lt;p&gt;Given data and error-correction codewords received, possibly corrupted by errors, attempts to
+&nbsp;   * correct the errors in-place using Reed-Solomon error correction.&lt;/p&gt;
+&nbsp;   *
+&nbsp;   * @param codewordBytes data and error correction codewords
+&nbsp;   * @param numDataCodewords number of codewords that are data bytes
+&nbsp;   * @return the number of errors corrected
+&nbsp;   * @throws ChecksumException if error correction fails
+&nbsp;   */
+&nbsp;  private int correctErrors(byte[] codewordBytes, int numDataCodewords) throws ChecksumException {
+<b class="fc">&nbsp;    int numCodewords = codewordBytes.length;</b>
+&nbsp;    // First read into an array of ints
+<b class="fc">&nbsp;    int[] codewordsInts = new int[numCodewords];</b>
+<b class="fc">&nbsp;    for (int i = 0; i &lt; numCodewords; i++) {</b>
+<b class="fc">&nbsp;      codewordsInts[i] = codewordBytes[i] &amp; 0xFF;</b>
+&nbsp;    }
+<b class="fc">&nbsp;    int errorsCorrected = 0;</b>
+&nbsp;    try {
+<b class="fc">&nbsp;      errorsCorrected = rsDecoder.decodeWithECCount(codewordsInts, codewordBytes.length - numDataCodewords);</b>
+<b class="fc">&nbsp;    } catch (ReedSolomonException ignored) {</b>
+<b class="fc">&nbsp;      throw ChecksumException.getChecksumInstance();</b>
+<b class="fc">&nbsp;    }</b>
+&nbsp;    // Copy back into array of bytes -- only need to worry about the bytes that were data
+&nbsp;    // We don&#39;t care about errors in the error-correction codewords
+<b class="fc">&nbsp;    for (int i = 0; i &lt; numDataCodewords; i++) {</b>
+<b class="fc">&nbsp;      codewordBytes[i] = (byte) codewordsInts[i];</b>
+&nbsp;    }
+<b class="fc">&nbsp;    return errorsCorrected;</b>
+&nbsp;  }
+&nbsp;
+&nbsp;}
+</code>
+</pre>
+</div>
+
+<script type="text/javascript">
+(function() {
+    var msie = false, msie9 = false;
+    /*@cc_on
+      msie = true;
+      @if (@_jscript_version >= 9)
+        msie9 = true;
+      @end
+    @*/
+
+    if (!msie || msie && msie9) {
+      hljs.highlightAll()
+      hljs.initLineNumbersOnLoad();
+    }
+})();
+</script>
+
+<div class="footer">
+    
+    <div style="float:right;">generated on 2023-11-12 23:26</div>
+</div>
+</body>
+</html>

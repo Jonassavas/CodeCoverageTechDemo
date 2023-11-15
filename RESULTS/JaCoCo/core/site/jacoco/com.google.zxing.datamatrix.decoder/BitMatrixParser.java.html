@@ -1,0 +1,444 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>BitMatrixParser.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">ZXing Core</a> &gt; <a href="index.source.html" class="el_package">com.google.zxing.datamatrix.decoder</a> &gt; <span class="el_source">BitMatrixParser.java</span></div><h1>BitMatrixParser.java</h1><pre class="source lang-java linenums">/*
+ * Copyright 2007 ZXing authors
+ *
+ * Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an &quot;AS IS&quot; BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+package com.google.zxing.datamatrix.decoder;
+
+import com.google.zxing.FormatException;
+import com.google.zxing.common.BitMatrix;
+
+/**
+ * @author bbrown@google.com (Brian Brown)
+ */
+final class BitMatrixParser {
+
+  private final BitMatrix mappingBitMatrix;
+  private final BitMatrix readMappingMatrix;
+  private final Version version;
+
+  /**
+   * @param bitMatrix {@link BitMatrix} to parse
+   * @throws FormatException if dimension is &lt; 8 or &gt; 144 or not 0 mod 2
+   */
+<span class="fc" id="L35">  BitMatrixParser(BitMatrix bitMatrix) throws FormatException {</span>
+<span class="fc" id="L36">    int dimension = bitMatrix.getHeight();</span>
+<span class="fc bfc" id="L37" title="All 6 branches covered.">    if (dimension &lt; 8 || dimension &gt; 144 || (dimension &amp; 0x01) != 0) {</span>
+<span class="fc" id="L38">      throw FormatException.getFormatInstance();</span>
+    }
+
+<span class="fc" id="L41">    version = readVersion(bitMatrix);</span>
+<span class="fc" id="L42">    this.mappingBitMatrix = extractDataRegion(bitMatrix);</span>
+<span class="fc" id="L43">    this.readMappingMatrix = new BitMatrix(this.mappingBitMatrix.getWidth(), this.mappingBitMatrix.getHeight());</span>
+<span class="fc" id="L44">  }</span>
+
+  Version getVersion() {
+<span class="fc" id="L47">    return version;</span>
+  }
+
+  /**
+   * &lt;p&gt;Creates the version object based on the dimension of the original bit matrix from
+   * the datamatrix code.&lt;/p&gt;
+   *
+   * &lt;p&gt;See ISO 16022:2006 Table 7 - ECC 200 symbol attributes&lt;/p&gt;
+   *
+   * @param bitMatrix Original {@link BitMatrix} including alignment patterns
+   * @return {@link Version} encapsulating the Data Matrix Code's &quot;version&quot;
+   * @throws FormatException if the dimensions of the mapping matrix are not valid
+   * Data Matrix dimensions.
+   */
+  private static Version readVersion(BitMatrix bitMatrix) throws FormatException {
+<span class="fc" id="L62">    int numRows = bitMatrix.getHeight();</span>
+<span class="fc" id="L63">    int numColumns = bitMatrix.getWidth();</span>
+<span class="fc" id="L64">    return Version.getVersionForDimensions(numRows, numColumns);</span>
+  }
+
+  /**
+   * &lt;p&gt;Reads the bits in the {@link BitMatrix} representing the mapping matrix (No alignment patterns)
+   * in the correct order in order to reconstitute the codewords bytes contained within the
+   * Data Matrix Code.&lt;/p&gt;
+   *
+   * @return bytes encoded within the Data Matrix Code
+   * @throws FormatException if the exact number of bytes expected is not read
+   */
+  byte[] readCodewords() throws FormatException {
+
+<span class="fc" id="L77">    byte[] result = new byte[version.getTotalCodewords()];</span>
+<span class="fc" id="L78">    int resultOffset = 0;</span>
+
+<span class="fc" id="L80">    int row = 4;</span>
+<span class="fc" id="L81">    int column = 0;</span>
+
+<span class="fc" id="L83">    int numRows = mappingBitMatrix.getHeight();</span>
+<span class="fc" id="L84">    int numColumns = mappingBitMatrix.getWidth();</span>
+
+<span class="fc" id="L86">    boolean corner1Read = false;</span>
+<span class="fc" id="L87">    boolean corner2Read = false;</span>
+<span class="fc" id="L88">    boolean corner3Read = false;</span>
+<span class="fc" id="L89">    boolean corner4Read = false;</span>
+
+    // Read all of the codewords
+    do {
+      // Check the four corner cases
+<span class="pc bpc" id="L94" title="2 of 6 branches missed.">      if ((row == numRows) &amp;&amp; (column == 0) &amp;&amp; !corner1Read) {</span>
+<span class="fc" id="L95">        result[resultOffset++] = (byte) readCorner1(numRows, numColumns);</span>
+<span class="fc" id="L96">        row -= 2;</span>
+<span class="fc" id="L97">        column += 2;</span>
+<span class="fc" id="L98">        corner1Read = true;</span>
+<span class="pc bpc" id="L99" title="1 of 8 branches missed.">      } else if ((row == numRows - 2) &amp;&amp; (column == 0) &amp;&amp; ((numColumns &amp; 0x03) != 0) &amp;&amp; !corner2Read) {</span>
+<span class="fc" id="L100">        result[resultOffset++] = (byte) readCorner2(numRows, numColumns);</span>
+<span class="fc" id="L101">        row -= 2;</span>
+<span class="fc" id="L102">        column += 2;</span>
+<span class="fc" id="L103">        corner2Read = true;</span>
+<span class="pc bpc" id="L104" title="1 of 8 branches missed.">      } else if ((row == numRows + 4) &amp;&amp; (column == 2) &amp;&amp; ((numColumns &amp; 0x07) == 0) &amp;&amp; !corner3Read) {</span>
+<span class="fc" id="L105">        result[resultOffset++] = (byte) readCorner3(numRows, numColumns);</span>
+<span class="fc" id="L106">        row -= 2;</span>
+<span class="fc" id="L107">        column += 2;</span>
+<span class="fc" id="L108">        corner3Read = true;</span>
+<span class="pc bpc" id="L109" title="1 of 8 branches missed.">      } else if ((row == numRows - 2) &amp;&amp; (column == 0) &amp;&amp; ((numColumns &amp; 0x07) == 4) &amp;&amp; !corner4Read) {</span>
+<span class="fc" id="L110">        result[resultOffset++] = (byte) readCorner4(numRows, numColumns);</span>
+<span class="fc" id="L111">        row -= 2;</span>
+<span class="fc" id="L112">        column += 2;</span>
+<span class="fc" id="L113">        corner4Read = true;</span>
+      } else {
+        // Sweep upward diagonally to the right
+        do {
+<span class="pc bpc" id="L117" title="1 of 6 branches missed.">          if ((row &lt; numRows) &amp;&amp; (column &gt;= 0) &amp;&amp; !readMappingMatrix.get(column, row)) {</span>
+<span class="fc" id="L118">            result[resultOffset++] = (byte) readUtah(row, column, numRows, numColumns);</span>
+          }
+<span class="fc" id="L120">          row -= 2;</span>
+<span class="fc" id="L121">          column += 2;</span>
+<span class="fc bfc" id="L122" title="All 4 branches covered.">        } while ((row &gt;= 0) &amp;&amp; (column &lt; numColumns));</span>
+<span class="fc" id="L123">        row += 1;</span>
+<span class="fc" id="L124">        column += 3;</span>
+
+        // Sweep downward diagonally to the left
+        do {
+<span class="fc bfc" id="L128" title="All 6 branches covered.">          if ((row &gt;= 0) &amp;&amp; (column &lt; numColumns) &amp;&amp; !readMappingMatrix.get(column, row)) {</span>
+<span class="fc" id="L129">            result[resultOffset++] = (byte) readUtah(row, column, numRows, numColumns);</span>
+          }
+<span class="fc" id="L131">          row += 2;</span>
+<span class="fc" id="L132">          column -= 2;</span>
+<span class="fc bfc" id="L133" title="All 4 branches covered.">        } while ((row &lt; numRows) &amp;&amp; (column &gt;= 0));</span>
+<span class="fc" id="L134">        row += 3;</span>
+<span class="fc" id="L135">        column += 1;</span>
+      }
+<span class="fc bfc" id="L137" title="All 4 branches covered.">    } while ((row &lt; numRows) || (column &lt; numColumns));</span>
+
+<span class="pc bpc" id="L139" title="1 of 2 branches missed.">    if (resultOffset != version.getTotalCodewords()) {</span>
+<span class="nc" id="L140">      throw FormatException.getFormatInstance();</span>
+    }
+<span class="fc" id="L142">    return result;</span>
+  }
+
+  /**
+   * &lt;p&gt;Reads a bit of the mapping matrix accounting for boundary wrapping.&lt;/p&gt;
+   *
+   * @param row Row to read in the mapping matrix
+   * @param column Column to read in the mapping matrix
+   * @param numRows Number of rows in the mapping matrix
+   * @param numColumns Number of columns in the mapping matrix
+   * @return value of the given bit in the mapping matrix
+   */
+  private boolean readModule(int row, int column, int numRows, int numColumns) {
+    // Adjust the row and column indices based on boundary wrapping
+<span class="fc bfc" id="L156" title="All 2 branches covered.">    if (row &lt; 0) {</span>
+<span class="fc" id="L157">      row += numRows;</span>
+<span class="fc" id="L158">      column += 4 - ((numRows + 4) &amp; 0x07);</span>
+    }
+<span class="fc bfc" id="L160" title="All 2 branches covered.">    if (column &lt; 0) {</span>
+<span class="fc" id="L161">      column += numColumns;</span>
+<span class="fc" id="L162">      row += 4 - ((numColumns + 4) &amp; 0x07);</span>
+    }
+<span class="fc bfc" id="L164" title="All 2 branches covered.">    if (row &gt;= numRows) {</span>
+<span class="fc" id="L165">      row -= numRows;</span>
+    }
+<span class="fc" id="L167">    readMappingMatrix.set(column, row);</span>
+<span class="fc" id="L168">    return mappingBitMatrix.get(column, row);</span>
+  }
+
+  /**
+   * &lt;p&gt;Reads the 8 bits of the standard Utah-shaped pattern.&lt;/p&gt;
+   *
+   * &lt;p&gt;See ISO 16022:2006, 5.8.1 Figure 6&lt;/p&gt;
+   *
+   * @param row Current row in the mapping matrix, anchored at the 8th bit (LSB) of the pattern
+   * @param column Current column in the mapping matrix, anchored at the 8th bit (LSB) of the pattern
+   * @param numRows Number of rows in the mapping matrix
+   * @param numColumns Number of columns in the mapping matrix
+   * @return byte from the utah shape
+   */
+  private int readUtah(int row, int column, int numRows, int numColumns) {
+<span class="fc" id="L183">    int currentByte = 0;</span>
+<span class="fc bfc" id="L184" title="All 2 branches covered.">    if (readModule(row - 2, column - 2, numRows, numColumns)) {</span>
+<span class="fc" id="L185">      currentByte |= 1;</span>
+    }
+<span class="fc" id="L187">    currentByte &lt;&lt;= 1;</span>
+<span class="fc bfc" id="L188" title="All 2 branches covered.">    if (readModule(row - 2, column - 1, numRows, numColumns)) {</span>
+<span class="fc" id="L189">      currentByte |= 1;</span>
+    }
+<span class="fc" id="L191">    currentByte &lt;&lt;= 1;</span>
+<span class="fc bfc" id="L192" title="All 2 branches covered.">    if (readModule(row - 1, column - 2, numRows, numColumns)) {</span>
+<span class="fc" id="L193">      currentByte |= 1;</span>
+    }
+<span class="fc" id="L195">    currentByte &lt;&lt;= 1;</span>
+<span class="fc bfc" id="L196" title="All 2 branches covered.">    if (readModule(row - 1, column - 1, numRows, numColumns)) {</span>
+<span class="fc" id="L197">      currentByte |= 1;</span>
+    }
+<span class="fc" id="L199">    currentByte &lt;&lt;= 1;</span>
+<span class="fc bfc" id="L200" title="All 2 branches covered.">    if (readModule(row - 1, column, numRows, numColumns)) {</span>
+<span class="fc" id="L201">      currentByte |= 1;</span>
+    }
+<span class="fc" id="L203">    currentByte &lt;&lt;= 1;</span>
+<span class="fc bfc" id="L204" title="All 2 branches covered.">    if (readModule(row, column - 2, numRows, numColumns)) {</span>
+<span class="fc" id="L205">      currentByte |= 1;</span>
+    }
+<span class="fc" id="L207">    currentByte &lt;&lt;= 1;</span>
+<span class="fc bfc" id="L208" title="All 2 branches covered.">    if (readModule(row, column - 1, numRows, numColumns)) {</span>
+<span class="fc" id="L209">      currentByte |= 1;</span>
+    }
+<span class="fc" id="L211">    currentByte &lt;&lt;= 1;</span>
+<span class="fc bfc" id="L212" title="All 2 branches covered.">    if (readModule(row, column, numRows, numColumns)) {</span>
+<span class="fc" id="L213">      currentByte |= 1;</span>
+    }
+<span class="fc" id="L215">    return currentByte;</span>
+  }
+
+  /**
+   * &lt;p&gt;Reads the 8 bits of the special corner condition 1.&lt;/p&gt;
+   *
+   * &lt;p&gt;See ISO 16022:2006, Figure F.3&lt;/p&gt;
+   *
+   * @param numRows Number of rows in the mapping matrix
+   * @param numColumns Number of columns in the mapping matrix
+   * @return byte from the Corner condition 1
+   */
+  private int readCorner1(int numRows, int numColumns) {
+<span class="fc" id="L228">    int currentByte = 0;</span>
+<span class="fc bfc" id="L229" title="All 2 branches covered.">    if (readModule(numRows - 1, 0, numRows, numColumns)) {</span>
+<span class="fc" id="L230">      currentByte |= 1;</span>
+    }
+<span class="fc" id="L232">    currentByte &lt;&lt;= 1;</span>
+<span class="fc bfc" id="L233" title="All 2 branches covered.">    if (readModule(numRows - 1, 1, numRows, numColumns)) {</span>
+<span class="fc" id="L234">      currentByte |= 1;</span>
+    }
+<span class="fc" id="L236">    currentByte &lt;&lt;= 1;</span>
+<span class="fc bfc" id="L237" title="All 2 branches covered.">    if (readModule(numRows - 1, 2, numRows, numColumns)) {</span>
+<span class="fc" id="L238">      currentByte |= 1;</span>
+    }
+<span class="fc" id="L240">    currentByte &lt;&lt;= 1;</span>
+<span class="fc bfc" id="L241" title="All 2 branches covered.">    if (readModule(0, numColumns - 2, numRows, numColumns)) {</span>
+<span class="fc" id="L242">      currentByte |= 1;</span>
+    }
+<span class="fc" id="L244">    currentByte &lt;&lt;= 1;</span>
+<span class="fc bfc" id="L245" title="All 2 branches covered.">    if (readModule(0, numColumns - 1, numRows, numColumns)) {</span>
+<span class="fc" id="L246">      currentByte |= 1;</span>
+    }
+<span class="fc" id="L248">    currentByte &lt;&lt;= 1;</span>
+<span class="fc bfc" id="L249" title="All 2 branches covered.">    if (readModule(1, numColumns - 1, numRows, numColumns)) {</span>
+<span class="fc" id="L250">      currentByte |= 1;</span>
+    }
+<span class="fc" id="L252">    currentByte &lt;&lt;= 1;</span>
+<span class="fc bfc" id="L253" title="All 2 branches covered.">    if (readModule(2, numColumns - 1, numRows, numColumns)) {</span>
+<span class="fc" id="L254">      currentByte |= 1;</span>
+    }
+<span class="fc" id="L256">    currentByte &lt;&lt;= 1;</span>
+<span class="fc bfc" id="L257" title="All 2 branches covered.">    if (readModule(3, numColumns - 1, numRows, numColumns)) {</span>
+<span class="fc" id="L258">      currentByte |= 1;</span>
+    }
+<span class="fc" id="L260">    return currentByte;</span>
+  }
+
+  /**
+   * &lt;p&gt;Reads the 8 bits of the special corner condition 2.&lt;/p&gt;
+   *
+   * &lt;p&gt;See ISO 16022:2006, Figure F.4&lt;/p&gt;
+   *
+   * @param numRows Number of rows in the mapping matrix
+   * @param numColumns Number of columns in the mapping matrix
+   * @return byte from the Corner condition 2
+   */
+  private int readCorner2(int numRows, int numColumns) {
+<span class="fc" id="L273">    int currentByte = 0;</span>
+<span class="fc bfc" id="L274" title="All 2 branches covered.">    if (readModule(numRows - 3, 0, numRows, numColumns)) {</span>
+<span class="fc" id="L275">      currentByte |= 1;</span>
+    }
+<span class="fc" id="L277">    currentByte &lt;&lt;= 1;</span>
+<span class="fc bfc" id="L278" title="All 2 branches covered.">    if (readModule(numRows - 2, 0, numRows, numColumns)) {</span>
+<span class="fc" id="L279">      currentByte |= 1;</span>
+    }
+<span class="fc" id="L281">    currentByte &lt;&lt;= 1;</span>
+<span class="pc bpc" id="L282" title="1 of 2 branches missed.">    if (readModule(numRows - 1, 0, numRows, numColumns)) {</span>
+<span class="fc" id="L283">      currentByte |= 1;</span>
+    }
+<span class="fc" id="L285">    currentByte &lt;&lt;= 1;</span>
+<span class="fc bfc" id="L286" title="All 2 branches covered.">    if (readModule(0, numColumns - 4, numRows, numColumns)) {</span>
+<span class="fc" id="L287">      currentByte |= 1;</span>
+    }
+<span class="fc" id="L289">    currentByte &lt;&lt;= 1;</span>
+<span class="fc bfc" id="L290" title="All 2 branches covered.">    if (readModule(0, numColumns - 3, numRows, numColumns)) {</span>
+<span class="fc" id="L291">      currentByte |= 1;</span>
+    }
+<span class="fc" id="L293">    currentByte &lt;&lt;= 1;</span>
+<span class="fc bfc" id="L294" title="All 2 branches covered.">    if (readModule(0, numColumns - 2, numRows, numColumns)) {</span>
+<span class="fc" id="L295">      currentByte |= 1;</span>
+    }
+<span class="fc" id="L297">    currentByte &lt;&lt;= 1;</span>
+<span class="fc bfc" id="L298" title="All 2 branches covered.">    if (readModule(0, numColumns - 1, numRows, numColumns)) {</span>
+<span class="fc" id="L299">      currentByte |= 1;</span>
+    }
+<span class="fc" id="L301">    currentByte &lt;&lt;= 1;</span>
+<span class="fc bfc" id="L302" title="All 2 branches covered.">    if (readModule(1, numColumns - 1, numRows, numColumns)) {</span>
+<span class="fc" id="L303">      currentByte |= 1;</span>
+    }
+<span class="fc" id="L305">    return currentByte;</span>
+  }
+
+  /**
+   * &lt;p&gt;Reads the 8 bits of the special corner condition 3.&lt;/p&gt;
+   *
+   * &lt;p&gt;See ISO 16022:2006, Figure F.5&lt;/p&gt;
+   *
+   * @param numRows Number of rows in the mapping matrix
+   * @param numColumns Number of columns in the mapping matrix
+   * @return byte from the Corner condition 3
+   */
+  private int readCorner3(int numRows, int numColumns) {
+<span class="fc" id="L318">    int currentByte = 0;</span>
+<span class="fc bfc" id="L319" title="All 2 branches covered.">    if (readModule(numRows - 1, 0, numRows, numColumns)) {</span>
+<span class="fc" id="L320">      currentByte |= 1;</span>
+    }
+<span class="fc" id="L322">    currentByte &lt;&lt;= 1;</span>
+<span class="fc bfc" id="L323" title="All 2 branches covered.">    if (readModule(numRows - 1, numColumns - 1, numRows, numColumns)) {</span>
+<span class="fc" id="L324">      currentByte |= 1;</span>
+    }
+<span class="fc" id="L326">    currentByte &lt;&lt;= 1;</span>
+<span class="fc bfc" id="L327" title="All 2 branches covered.">    if (readModule(0, numColumns - 3, numRows, numColumns)) {</span>
+<span class="fc" id="L328">      currentByte |= 1;</span>
+    }
+<span class="fc" id="L330">    currentByte &lt;&lt;= 1;</span>
+<span class="fc bfc" id="L331" title="All 2 branches covered.">    if (readModule(0, numColumns - 2, numRows, numColumns)) {</span>
+<span class="fc" id="L332">      currentByte |= 1;</span>
+    }
+<span class="fc" id="L334">    currentByte &lt;&lt;= 1;</span>
+<span class="fc bfc" id="L335" title="All 2 branches covered.">    if (readModule(0, numColumns - 1, numRows, numColumns)) {</span>
+<span class="fc" id="L336">      currentByte |= 1;</span>
+    }
+<span class="fc" id="L338">    currentByte &lt;&lt;= 1;</span>
+<span class="fc bfc" id="L339" title="All 2 branches covered.">    if (readModule(1, numColumns - 3, numRows, numColumns)) {</span>
+<span class="fc" id="L340">      currentByte |= 1;</span>
+    }
+<span class="fc" id="L342">    currentByte &lt;&lt;= 1;</span>
+<span class="fc bfc" id="L343" title="All 2 branches covered.">    if (readModule(1, numColumns - 2, numRows, numColumns)) {</span>
+<span class="fc" id="L344">      currentByte |= 1;</span>
+    }
+<span class="fc" id="L346">    currentByte &lt;&lt;= 1;</span>
+<span class="fc bfc" id="L347" title="All 2 branches covered.">    if (readModule(1, numColumns - 1, numRows, numColumns)) {</span>
+<span class="fc" id="L348">      currentByte |= 1;</span>
+    }
+<span class="fc" id="L350">    return currentByte;</span>
+  }
+
+  /**
+   * &lt;p&gt;Reads the 8 bits of the special corner condition 4.&lt;/p&gt;
+   *
+   * &lt;p&gt;See ISO 16022:2006, Figure F.6&lt;/p&gt;
+   *
+   * @param numRows Number of rows in the mapping matrix
+   * @param numColumns Number of columns in the mapping matrix
+   * @return byte from the Corner condition 4
+   */
+  private int readCorner4(int numRows, int numColumns) {
+<span class="fc" id="L363">    int currentByte = 0;</span>
+<span class="fc bfc" id="L364" title="All 2 branches covered.">    if (readModule(numRows - 3, 0, numRows, numColumns)) {</span>
+<span class="fc" id="L365">      currentByte |= 1;</span>
+    }
+<span class="fc" id="L367">    currentByte &lt;&lt;= 1;</span>
+<span class="fc bfc" id="L368" title="All 2 branches covered.">    if (readModule(numRows - 2, 0, numRows, numColumns)) {</span>
+<span class="fc" id="L369">      currentByte |= 1;</span>
+    }
+<span class="fc" id="L371">    currentByte &lt;&lt;= 1;</span>
+<span class="fc bfc" id="L372" title="All 2 branches covered.">    if (readModule(numRows - 1, 0, numRows, numColumns)) {</span>
+<span class="fc" id="L373">      currentByte |= 1;</span>
+    }
+<span class="fc" id="L375">    currentByte &lt;&lt;= 1;</span>
+<span class="fc bfc" id="L376" title="All 2 branches covered.">    if (readModule(0, numColumns - 2, numRows, numColumns)) {</span>
+<span class="fc" id="L377">      currentByte |= 1;</span>
+    }
+<span class="fc" id="L379">    currentByte &lt;&lt;= 1;</span>
+<span class="fc bfc" id="L380" title="All 2 branches covered.">    if (readModule(0, numColumns - 1, numRows, numColumns)) {</span>
+<span class="fc" id="L381">      currentByte |= 1;</span>
+    }
+<span class="fc" id="L383">    currentByte &lt;&lt;= 1;</span>
+<span class="fc bfc" id="L384" title="All 2 branches covered.">    if (readModule(1, numColumns - 1, numRows, numColumns)) {</span>
+<span class="fc" id="L385">      currentByte |= 1;</span>
+    }
+<span class="fc" id="L387">    currentByte &lt;&lt;= 1;</span>
+<span class="fc bfc" id="L388" title="All 2 branches covered.">    if (readModule(2, numColumns - 1, numRows, numColumns)) {</span>
+<span class="fc" id="L389">      currentByte |= 1;</span>
+    }
+<span class="fc" id="L391">    currentByte &lt;&lt;= 1;</span>
+<span class="fc bfc" id="L392" title="All 2 branches covered.">    if (readModule(3, numColumns - 1, numRows, numColumns)) {</span>
+<span class="fc" id="L393">      currentByte |= 1;</span>
+    }
+<span class="fc" id="L395">    return currentByte;</span>
+  }
+
+  /**
+   * &lt;p&gt;Extracts the data region from a {@link BitMatrix} that contains
+   * alignment patterns.&lt;/p&gt;
+   *
+   * @param bitMatrix Original {@link BitMatrix} with alignment patterns
+   * @return BitMatrix that has the alignment patterns removed
+   */
+  private BitMatrix extractDataRegion(BitMatrix bitMatrix) {
+<span class="fc" id="L406">    int symbolSizeRows = version.getSymbolSizeRows();</span>
+<span class="fc" id="L407">    int symbolSizeColumns = version.getSymbolSizeColumns();</span>
+
+<span class="pc bpc" id="L409" title="1 of 2 branches missed.">    if (bitMatrix.getHeight() != symbolSizeRows) {</span>
+<span class="nc" id="L410">      throw new IllegalArgumentException(&quot;Dimension of bitMatrix must match the version size&quot;);</span>
+    }
+
+<span class="fc" id="L413">    int dataRegionSizeRows = version.getDataRegionSizeRows();</span>
+<span class="fc" id="L414">    int dataRegionSizeColumns = version.getDataRegionSizeColumns();</span>
+
+<span class="fc" id="L416">    int numDataRegionsRow = symbolSizeRows / dataRegionSizeRows;</span>
+<span class="fc" id="L417">    int numDataRegionsColumn = symbolSizeColumns / dataRegionSizeColumns;</span>
+
+<span class="fc" id="L419">    int sizeDataRegionRow = numDataRegionsRow * dataRegionSizeRows;</span>
+<span class="fc" id="L420">    int sizeDataRegionColumn = numDataRegionsColumn * dataRegionSizeColumns;</span>
+
+<span class="fc" id="L422">    BitMatrix bitMatrixWithoutAlignment = new BitMatrix(sizeDataRegionColumn, sizeDataRegionRow);</span>
+<span class="fc bfc" id="L423" title="All 2 branches covered.">    for (int dataRegionRow = 0; dataRegionRow &lt; numDataRegionsRow; ++dataRegionRow) {</span>
+<span class="fc" id="L424">      int dataRegionRowOffset = dataRegionRow * dataRegionSizeRows;</span>
+<span class="fc bfc" id="L425" title="All 2 branches covered.">      for (int dataRegionColumn = 0; dataRegionColumn &lt; numDataRegionsColumn; ++dataRegionColumn) {</span>
+<span class="fc" id="L426">        int dataRegionColumnOffset = dataRegionColumn * dataRegionSizeColumns;</span>
+<span class="fc bfc" id="L427" title="All 2 branches covered.">        for (int i = 0; i &lt; dataRegionSizeRows; ++i) {</span>
+<span class="fc" id="L428">          int readRowOffset = dataRegionRow * (dataRegionSizeRows + 2) + 1 + i;</span>
+<span class="fc" id="L429">          int writeRowOffset = dataRegionRowOffset + i;</span>
+<span class="fc bfc" id="L430" title="All 2 branches covered.">          for (int j = 0; j &lt; dataRegionSizeColumns; ++j) {</span>
+<span class="fc" id="L431">            int readColumnOffset = dataRegionColumn * (dataRegionSizeColumns + 2) + 1 + j;</span>
+<span class="fc bfc" id="L432" title="All 2 branches covered.">            if (bitMatrix.get(readColumnOffset, readRowOffset)) {</span>
+<span class="fc" id="L433">              int writeColumnOffset = dataRegionColumnOffset + j;</span>
+<span class="fc" id="L434">              bitMatrixWithoutAlignment.set(writeColumnOffset, writeRowOffset);</span>
+            }
+          }
+        }
+      }
+    }
+<span class="fc" id="L440">    return bitMatrixWithoutAlignment;</span>
+  }
+
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.11.202310140853</span></div></body></html>

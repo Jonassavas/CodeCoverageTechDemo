@@ -1,0 +1,178 @@
+
+
+
+<!DOCTYPE html>
+<html id="htmlId">
+<head>
+  <meta http-equiv="Content-Type" content="text/html;charset=windows-1252"> 
+  <title>Coverage Report > ReedSolomonEncoder</title>
+  <style type="text/css">
+    @import "../../css/coverage.css";
+    @import "../../css/idea.min.css";
+  </style>
+  <script type="text/javascript" src="../../js/highlight.min.js"></script>
+  <script type="text/javascript" src="../../js/highlightjs-line-numbers.min.js"></script>
+</head>
+
+<body>
+<div class="content">
+<div class="breadCrumbs">
+Current scope:     <a href="../../index.html">all classes</a>
+    <span class="separator">|</span>
+    <a href="../index.html">com.google.zxing.common.reedsolomon</a>
+</div>
+
+<h1>Coverage Summary for Class: ReedSolomonEncoder (com.google.zxing.common.reedsolomon)</h1>
+
+<table class="coverageStats">
+<tr>
+  <th class="name">Class</th>
+<th class="coverageStat 
+">
+  Class, %
+</th>
+<th class="coverageStat 
+">
+  Method, %
+</th>
+<th class="coverageStat 
+">
+  Line, %
+</th>
+</tr>
+<tr>
+  <td class="name">ReedSolomonEncoder</td>
+<td class="coverageStat">
+  <span class="percent">
+    100%
+  </span>
+  <span class="absValue">
+    (1/1)
+  </span>
+</td>
+<td class="coverageStat">
+  <span class="percent">
+    100%
+  </span>
+  <span class="absValue">
+    (3/3)
+  </span>
+</td>
+<td class="coverageStat">
+  <span class="percent">
+    92.9%
+  </span>
+  <span class="absValue">
+    (26/28)
+  </span>
+</td>
+</tr>
+
+</table>
+
+<br/>
+<br/>
+
+
+<pre>
+<code class="sourceCode" id="sourceCode">&nbsp;/*
+&nbsp; * Copyright 2008 ZXing authors
+&nbsp; *
+&nbsp; * Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
+&nbsp; * you may not use this file except in compliance with the License.
+&nbsp; * You may obtain a copy of the License at
+&nbsp; *
+&nbsp; *      http://www.apache.org/licenses/LICENSE-2.0
+&nbsp; *
+&nbsp; * Unless required by applicable law or agreed to in writing, software
+&nbsp; * distributed under the License is distributed on an &quot;AS IS&quot; BASIS,
+&nbsp; * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+&nbsp; * See the License for the specific language governing permissions and
+&nbsp; * limitations under the License.
+&nbsp; */
+&nbsp;
+&nbsp;package com.google.zxing.common.reedsolomon;
+&nbsp;
+&nbsp;import java.util.ArrayList;
+&nbsp;import java.util.List;
+&nbsp;
+&nbsp;/**
+&nbsp; * &lt;p&gt;Implements Reed-Solomon encoding, as the name implies.&lt;/p&gt;
+&nbsp; *
+&nbsp; * @author Sean Owen
+&nbsp; * @author William Rucklidge
+&nbsp; */
+&nbsp;public final class ReedSolomonEncoder {
+&nbsp;
+&nbsp;  private final GenericGF field;
+&nbsp;  private final List&lt;GenericGFPoly&gt; cachedGenerators;
+&nbsp;
+<b class="fc">&nbsp;  public ReedSolomonEncoder(GenericGF field) {</b>
+<b class="fc">&nbsp;    this.field = field;</b>
+<b class="fc">&nbsp;    this.cachedGenerators = new ArrayList&lt;&gt;();</b>
+<b class="fc">&nbsp;    cachedGenerators.add(new GenericGFPoly(field, new int[]{1}));</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  private GenericGFPoly buildGenerator(int degree) {
+<b class="fc">&nbsp;    if (degree &gt;= cachedGenerators.size()) {</b>
+<b class="fc">&nbsp;      GenericGFPoly lastGenerator = cachedGenerators.get(cachedGenerators.size() - 1);</b>
+<b class="fc">&nbsp;      for (int d = cachedGenerators.size(); d &lt;= degree; d++) {</b>
+<b class="fc">&nbsp;        GenericGFPoly nextGenerator = lastGenerator.multiply(</b>
+<b class="fc">&nbsp;            new GenericGFPoly(field, new int[] { 1, field.exp(d - 1 + field.getGeneratorBase()) }));</b>
+<b class="fc">&nbsp;        cachedGenerators.add(nextGenerator);</b>
+<b class="fc">&nbsp;        lastGenerator = nextGenerator;</b>
+&nbsp;      }
+&nbsp;    }
+<b class="fc">&nbsp;    return cachedGenerators.get(degree);</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  public void encode(int[] toEncode, int ecBytes) {
+<b class="fc">&nbsp;    if (ecBytes == 0) {</b>
+<b class="nc">&nbsp;      throw new IllegalArgumentException(&quot;No error correction bytes&quot;);</b>
+&nbsp;    }
+<b class="fc">&nbsp;    int dataBytes = toEncode.length - ecBytes;</b>
+<b class="fc">&nbsp;    if (dataBytes &lt;= 0) {</b>
+<b class="nc">&nbsp;      throw new IllegalArgumentException(&quot;No data bytes provided&quot;);</b>
+&nbsp;    }
+<b class="fc">&nbsp;    GenericGFPoly generator = buildGenerator(ecBytes);</b>
+<b class="fc">&nbsp;    int[] infoCoefficients = new int[dataBytes];</b>
+<b class="fc">&nbsp;    System.arraycopy(toEncode, 0, infoCoefficients, 0, dataBytes);</b>
+<b class="fc">&nbsp;    GenericGFPoly info = new GenericGFPoly(field, infoCoefficients);</b>
+<b class="fc">&nbsp;    info = info.multiplyByMonomial(ecBytes, 1);</b>
+<b class="fc">&nbsp;    GenericGFPoly remainder = info.divide(generator)[1];</b>
+<b class="fc">&nbsp;    int[] coefficients = remainder.getCoefficients();</b>
+<b class="fc">&nbsp;    int numZeroCoefficients = ecBytes - coefficients.length;</b>
+<b class="fc">&nbsp;    for (int i = 0; i &lt; numZeroCoefficients; i++) {</b>
+<b class="fc">&nbsp;      toEncode[dataBytes + i] = 0;</b>
+&nbsp;    }
+<b class="fc">&nbsp;    System.arraycopy(coefficients, 0, toEncode, dataBytes + numZeroCoefficients, coefficients.length);</b>
+&nbsp;  }
+&nbsp;
+&nbsp;}
+</code>
+</pre>
+</div>
+
+<script type="text/javascript">
+(function() {
+    var msie = false, msie9 = false;
+    /*@cc_on
+      msie = true;
+      @if (@_jscript_version >= 9)
+        msie9 = true;
+      @end
+    @*/
+
+    if (!msie || msie && msie9) {
+      hljs.highlightAll()
+      hljs.initLineNumbersOnLoad();
+    }
+})();
+</script>
+
+<div class="footer">
+    
+    <div style="float:right;">generated on 2023-11-12 23:26</div>
+</div>
+</body>
+</html>

@@ -1,0 +1,1045 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>MinimalEncoder.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">ZXing Core</a> &gt; <a href="index.source.html" class="el_package">com.google.zxing.datamatrix.encoder</a> &gt; <span class="el_source">MinimalEncoder.java</span></div><h1>MinimalEncoder.java</h1><pre class="source lang-java linenums">/*
+ * Copyright 2021 ZXing authors
+ *
+ * Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an &quot;AS IS&quot; BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+package com.google.zxing.datamatrix.encoder;
+
+import java.nio.charset.Charset;
+import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
+import java.util.List;
+
+import com.google.zxing.common.MinimalECIInput;
+
+/**
+ * Encoder that encodes minimally
+ *
+ * Algorithm:
+ *
+ * Uses Dijkstra to produce mathematically minimal encodings that are in some cases smaller than the results produced
+ * by the algorithm described in annex S in the specification ISO/IEC 16022:200(E). The biggest improvment of this
+ * algorithm over that one is the case when the algorithm enters the most inefficient mode, the B256 mode. The
+ * algorithm from the specification algorithm will exit this mode only if it encounters digits so that arbitrarily
+ * inefficient results can be produced if the postfix contains no digits.
+ *
+ * Multi ECI support and ECI switching:
+ *
+ * For multi language content the algorithm selects the most compact representation using ECI modes. Note that unlike
+ * the compaction algorithm used for QR-Codes, this implementation operates in two stages and therfore is not
+ * mathematically optimal. In the first stage, the input string is encoded minimally as a stream of ECI character set
+ * selectors and bytes encoded in the selected encoding. In this stage the algorithm might for example decide to
+ * encode ocurrences of the characters &quot;\u0150\u015C&quot; (O-double-acute, S-circumflex) in UTF-8 by a single ECI or
+ * alternatively by multiple ECIs that switch between IS0-8859-2 and ISO-8859-3 (e.g. in the case that the input
+ * contains many * characters from ISO-8859-2 (Latin 2) and few from ISO-8859-3 (Latin 3)).
+ * In a second stage this stream of ECIs and bytes is minimally encoded using the various Data Matrix encoding modes.
+ * While both stages encode mathematically minimally it is not ensured that the result is mathematically minimal since
+ * the size growth for inserting an ECI in the first stage can only be approximated as the first stage does not know
+ * in which mode the ECI will occur in the second stage (may, or may not require an extra latch to ASCII depending on
+ * the current mode). The reason for this shortcoming are difficulties in implementing it in a straightforward and
+ * readable manner.
+ *
+ * GS1 support
+ *
+ * FNC1 delimiters can be encoded in the input string by using the FNC1 character specified in the encoding function.
+ * When a FNC1 character is specified then a leading FNC1 will be encoded and all ocurrences of delimiter characters
+ * while result in FNC1 codewords in the symbol.
+ *
+ * @author Alex Geller
+ */
+public final class MinimalEncoder {
+
+<span class="fc" id="L63">  enum Mode {</span>
+<span class="fc" id="L64">    ASCII,</span>
+<span class="fc" id="L65">    C40,</span>
+<span class="fc" id="L66">    TEXT,</span>
+<span class="fc" id="L67">    X12,</span>
+<span class="fc" id="L68">    EDF,</span>
+<span class="fc" id="L69">    B256</span>
+  }
+<span class="fc" id="L71">  static final char[] C40_SHIFT2_CHARS = {'!', '&quot;', '#', '$', '%', '&amp;', '\'', '(', ')', '*',  '+', ',', '-', '.', '/',</span>
+                                          ':', ';', '&lt;', '=', '&gt;', '?',  '@', '[', '\\', ']', '^', '_' };
+
+
+  private MinimalEncoder() {
+  }
+
+  static boolean isExtendedASCII(char ch, int fnc1) {
+<span class="pc bpc" id="L79" title="2 of 6 branches missed.">    return ch != fnc1 &amp;&amp; ch &gt;= 128 &amp;&amp; ch &lt;= 255;</span>
+  }
+
+  private static boolean isInC40Shift1Set(char ch) {
+<span class="pc bpc" id="L83" title="1 of 2 branches missed.">    return ch &lt;= 31;</span>
+  }
+
+  private static boolean isInC40Shift2Set(char ch, int fnc1) {
+<span class="fc bfc" id="L87" title="All 2 branches covered.">    for (char c40Shift2Char : C40_SHIFT2_CHARS) {</span>
+<span class="fc bfc" id="L88" title="All 2 branches covered.">      if (c40Shift2Char == ch) {</span>
+<span class="fc" id="L89">        return true;</span>
+      }
+    }
+<span class="pc bpc" id="L92" title="1 of 2 branches missed.">    return ch == fnc1;</span>
+  }
+
+  private static boolean isInTextShift1Set(char ch) {
+<span class="fc" id="L96">    return isInC40Shift1Set(ch);</span>
+  }
+
+  private static boolean isInTextShift2Set(char ch, int fnc1) {
+<span class="fc" id="L100">    return isInC40Shift2Set(ch, fnc1);</span>
+  }
+
+  /**
+   * Performs message encoding of a DataMatrix message
+   *
+   * @param msg the message
+   * @return the encoded message (the char values range from 0 to 255)
+   */
+  public static String encodeHighLevel(String msg) {
+<span class="fc" id="L110">    return encodeHighLevel(msg, null, -1, SymbolShapeHint.FORCE_NONE);</span>
+  }
+
+  /**
+   * Performs message encoding of a DataMatrix message
+   *
+   * @param msg the message
+   * @param priorityCharset The preferred {@link Charset}. When the value of the argument is null, the algorithm
+   *   chooses charsets that leads to a minimal representation. Otherwise the algorithm will use the priority
+   *   charset to encode any character in the input that can be encoded by it if the charset is among the
+   *   supported charsets.
+   * @param fnc1 denotes the character in the input that represents the FNC1 character or -1 if this is not a GS1
+   *   bar code. If the value is not -1 then a FNC1 is also prepended.
+   * @param shape requested shape.
+   * @return the encoded message (the char values range from 0 to 255)
+   */
+  public static String encodeHighLevel(String msg, Charset priorityCharset, int fnc1, SymbolShapeHint shape) {
+<span class="fc" id="L127">    int macroId = 0;</span>
+<span class="pc bpc" id="L128" title="1 of 4 branches missed.">    if (msg.startsWith(HighLevelEncoder.MACRO_05_HEADER) &amp;&amp; msg.endsWith(HighLevelEncoder.MACRO_TRAILER)) {</span>
+<span class="fc" id="L129">      macroId = 5;</span>
+<span class="fc" id="L130">      msg = msg.substring(HighLevelEncoder.MACRO_05_HEADER.length(), msg.length() - 2);</span>
+<span class="pc bpc" id="L131" title="3 of 4 branches missed.">    } else if (msg.startsWith(HighLevelEncoder.MACRO_06_HEADER) &amp;&amp; msg.endsWith(HighLevelEncoder.MACRO_TRAILER)) {</span>
+<span class="nc" id="L132">      macroId = 6;</span>
+<span class="nc" id="L133">      msg = msg.substring(HighLevelEncoder.MACRO_06_HEADER.length(), msg.length() - 2);</span>
+    }
+<span class="fc" id="L135">    return new String(encode(msg, priorityCharset, fnc1, shape, macroId), StandardCharsets.ISO_8859_1);</span>
+  }
+
+  /**
+   * Encodes input minimally and returns an array of the codewords
+   *
+   * @param input The string to encode
+   * @param priorityCharset The preferred {@link Charset}. When the value of the argument is null, the algorithm
+   *   chooses charsets that leads to a minimal representation. Otherwise the algorithm will use the priority
+   *   charset to encode any character in the input that can be encoded by it if the charset is among the
+   *   supported charsets.
+   * @param fnc1 denotes the character in the input that represents the FNC1 character or -1 if this is not a GS1
+   *   bar code. If the value is not -1 then a FNC1 is also prepended.
+   * @param shape requested shape.
+   * @param macroId Prepends the specified macro function in case that a value of 5 or 6 is specified.
+   * @return An array of bytes representing the codewords of a minimal encoding.
+   */
+  static byte[] encode(String input, Charset priorityCharset, int fnc1, SymbolShapeHint shape, int macroId) {
+<span class="fc" id="L153">    return encodeMinimally(new Input(input, priorityCharset, fnc1, shape, macroId)).getBytes();</span>
+  }
+
+  static void addEdge(Edge[][] edges, Edge edge) {
+<span class="fc" id="L157">    int vertexIndex = edge.fromPosition + edge.characterLength;</span>
+<span class="fc bfc" id="L158" title="All 2 branches covered.">    if (edges[vertexIndex][edge.getEndMode().ordinal()] == null ||</span>
+<span class="fc bfc" id="L159" title="All 2 branches covered.">        edges[vertexIndex][edge.getEndMode().ordinal()].cachedTotalSize &gt; edge.cachedTotalSize) {</span>
+<span class="fc" id="L160">      edges[vertexIndex][edge.getEndMode().ordinal()] = edge;</span>
+    }
+<span class="fc" id="L162">  }</span>
+
+  /** @return the number of words in which the string starting at from can be encoded in c40 or text mode.
+   *  The number of characters encoded is returned in characterLength.
+   *  The number of characters encoded is also minimal in the sense that the algorithm stops as soon
+   *  as a character encoding fills a C40 word competely (three C40 values). An exception is at the
+   *  end of the string where two C40 values are allowed (according to the spec the third c40 value
+   *  is filled  with 0 (Shift 1) in this case).
+   */
+  static int getNumberOfC40Words(Input input, int from, boolean c40,int[] characterLength) {
+<span class="fc" id="L172">    int thirdsCount = 0;</span>
+<span class="fc bfc" id="L173" title="All 2 branches covered.">    for (int i = from; i &lt; input.length(); i++) {</span>
+<span class="fc bfc" id="L174" title="All 2 branches covered.">      if (input.isECI(i)) {</span>
+<span class="fc" id="L175">        characterLength[0] = 0;</span>
+<span class="fc" id="L176">        return 0;</span>
+      }
+<span class="fc" id="L178">      char ci = input.charAt(i);</span>
+<span class="fc bfc" id="L179" title="All 8 branches covered.">      if (c40 &amp;&amp; HighLevelEncoder.isNativeC40(ci) || !c40 &amp;&amp; HighLevelEncoder.isNativeText(ci)) {</span>
+<span class="fc" id="L180">        thirdsCount++; //native</span>
+<span class="fc bfc" id="L181" title="All 2 branches covered.">      } else if (!isExtendedASCII(ci, input.getFNC1Character())) {</span>
+<span class="fc" id="L182">        thirdsCount += 2; //shift</span>
+      } else {
+<span class="fc" id="L184">        int asciiValue = ci &amp; 0xff;</span>
+<span class="pc bpc" id="L185" title="1 of 8 branches missed.">        if (asciiValue &gt;= 128 &amp;&amp; (c40 &amp;&amp; HighLevelEncoder.isNativeC40((char) (asciiValue - 128)) ||</span>
+<span class="fc bfc" id="L186" title="All 2 branches covered.">                                  !c40 &amp;&amp; HighLevelEncoder.isNativeText((char) (asciiValue - 128)))) {</span>
+<span class="fc" id="L187">          thirdsCount += 3; // shift, Upper shift</span>
+        } else {
+<span class="fc" id="L189">          thirdsCount += 4; // shift, Upper shift, shift</span>
+        }
+      }
+
+<span class="fc bfc" id="L193" title="All 6 branches covered.">      if (thirdsCount % 3 == 0 || ((thirdsCount - 2) % 3 == 0 &amp;&amp; i + 1 == input.length())) {</span>
+<span class="fc" id="L194">        characterLength[0] = i - from + 1;</span>
+<span class="fc" id="L195">        return (int) Math.ceil(((double) thirdsCount) / 3.0);</span>
+      }
+    }
+<span class="fc" id="L198">    characterLength[0] = 0;</span>
+<span class="fc" id="L199">    return 0;</span>
+  }
+
+  static void addEdges(Input input, Edge[][] edges, int from, Edge previous) {
+
+<span class="fc bfc" id="L204" title="All 2 branches covered.">    if (input.isECI(from)) {</span>
+<span class="fc" id="L205">      addEdge(edges, new Edge(input, Mode.ASCII, from, 1, previous));</span>
+<span class="fc" id="L206">      return;</span>
+    }
+
+<span class="fc" id="L209">    char ch = input.charAt(from);</span>
+<span class="fc bfc" id="L210" title="All 4 branches covered.">    if (previous == null || previous.getEndMode() != Mode.EDF) { //not possible to unlatch a full EDF edge to something</span>
+                                                                 //else
+<span class="fc bfc" id="L212" title="All 4 branches covered.">      if (HighLevelEncoder.isDigit(ch) &amp;&amp; input.haveNCharacters(from, 2) &amp;&amp;</span>
+<span class="fc bfc" id="L213" title="All 2 branches covered.">          HighLevelEncoder.isDigit(input.charAt(from + 1))) {</span>
+        // two digits ASCII encoded
+<span class="fc" id="L215">        addEdge(edges, new Edge(input, Mode.ASCII, from, 2, previous));</span>
+      } else {
+        // one ASCII encoded character or an extended character via Upper Shift
+<span class="fc" id="L218">        addEdge(edges, new Edge(input, Mode.ASCII, from, 1, previous));</span>
+      }
+
+<span class="fc" id="L221">      Mode[] modes = {Mode.C40, Mode.TEXT};</span>
+<span class="fc bfc" id="L222" title="All 2 branches covered.">      for (Mode mode : modes) {</span>
+<span class="fc" id="L223">        int[] characterLength = new int[1];</span>
+<span class="fc bfc" id="L224" title="All 4 branches covered.">        if (getNumberOfC40Words(input, from, mode == Mode.C40, characterLength) &gt; 0) {</span>
+<span class="fc" id="L225">          addEdge(edges, new Edge(input, mode, from, characterLength[0], previous));</span>
+        }
+      }
+
+<span class="fc bfc" id="L229" title="All 2 branches covered.">      if (input.haveNCharacters(from,3) &amp;&amp;</span>
+<span class="fc bfc" id="L230" title="All 2 branches covered.">          HighLevelEncoder.isNativeX12(input.charAt(from)) &amp;&amp;</span>
+<span class="fc bfc" id="L231" title="All 2 branches covered.">          HighLevelEncoder.isNativeX12(input.charAt(from + 1)) &amp;&amp;</span>
+<span class="fc bfc" id="L232" title="All 2 branches covered.">          HighLevelEncoder.isNativeX12(input.charAt(from + 2))) {</span>
+<span class="fc" id="L233">        addEdge(edges, new Edge(input, Mode.X12, from, 3, previous));</span>
+      }
+
+<span class="fc" id="L236">      addEdge(edges, new Edge(input, Mode.B256, from, 1, previous));</span>
+    }
+
+    //We create 4 EDF edges,  with 1, 2 3 or 4 characters length. The fourth normally doesn't have a latch to ASCII
+    //unless it is 2 characters away from the end of the input.
+    int i;
+<span class="fc bfc" id="L242" title="All 2 branches covered.">    for (i = 0; i &lt; 3; i++) {</span>
+<span class="fc" id="L243">      int pos = from + i;</span>
+<span class="fc bfc" id="L244" title="All 4 branches covered.">      if (input.haveNCharacters(pos,1) &amp;&amp; HighLevelEncoder.isNativeEDIFACT(input.charAt(pos))) {</span>
+<span class="fc" id="L245">        addEdge(edges, new Edge(input, Mode.EDF, from, i + 1, previous));</span>
+      } else {
+        break;
+      }
+    }
+<span class="fc bfc" id="L250" title="All 6 branches covered.">    if (i == 3 &amp;&amp; input.haveNCharacters(from, 4) &amp;&amp; HighLevelEncoder.isNativeEDIFACT(input.charAt(from + 3))) {</span>
+<span class="fc" id="L251">      addEdge(edges, new Edge(input, Mode.EDF, from, 4, previous));</span>
+    }
+<span class="fc" id="L253">  }</span>
+  static Result encodeMinimally(Input input) {
+
+    @SuppressWarnings(&quot;checkstyle:lineLength&quot;)
+    /* The minimal encoding is computed by Dijkstra. The acyclic graph is modeled as follows:
+     * A vertex represents a combination of a position in the input and an encoding mode where position 0
+     * denotes the position left of the first character, 1 the position left of the second character and so on.
+     * Likewise the end vertices are located after the last character at position input.length().
+     * For any position there might be up to six vertices, one for each of the encoding types ASCII, C40, TEXT, X12,
+     * EDF and B256.
+     *
+     * As an example consider the input string &quot;ABC123&quot; then at position 0 there is only one vertex with the default
+     * ASCII encodation. At position 3 there might be vertices for the types ASCII, C40, X12, EDF and B256.
+     *
+     * An edge leading to such a vertex encodes one or more of the characters left of the position that the vertex
+     * represents. It encodes the characters in the encoding mode of the vertex that it ends on. In other words,
+     * all edges leading to a particular vertex encode the same characters (the length of the suffix can vary) using the same
+     * encoding mode.
+     * As an example consider the input string &quot;ABC123&quot; and the vertex (4,EDF). Possible edges leading to this vertex
+     * are:
+     *   (0,ASCII)  --EDF(ABC1)--&gt; (4,EDF)
+     *   (1,ASCII)  --EDF(BC1)--&gt;  (4,EDF)
+     *   (1,B256)   --EDF(BC1)--&gt;  (4,EDF)
+     *   (1,EDF)    --EDF(BC1)--&gt;  (4,EDF)
+     *   (2,ASCII)  --EDF(C1)--&gt;   (4,EDF)
+     *   (2,B256)   --EDF(C1)--&gt;   (4,EDF)
+     *   (2,EDF)    --EDF(C1)--&gt;   (4,EDF)
+     *   (3,ASCII)  --EDF(1)--&gt;    (4,EDF)
+     *   (3,B256)   --EDF(1)--&gt;    (4,EDF)
+     *   (3,EDF)    --EDF(1)--&gt;    (4,EDF)
+     *   (3,C40)    --EDF(1)--&gt;    (4,EDF)
+     *   (3,X12)    --EDF(1)--&gt;    (4,EDF)
+     *
+     * The edges leading to a vertex are stored in such a way that there is a fast way to enumerate the edges ending
+     * on a particular vertex.
+     *
+     * The algorithm processes the vertices in order of their position thereby performing the following:
+     *
+     * For every vertex at position i the algorithm enumerates the edges ending on the vertex and removes all but the
+     * shortest from that list.
+     * Then it processes the vertices for the position i+1. If i+1 == input.length() then the algorithm ends
+     * and chooses the the edge with the smallest size from any of the edges leading to vertices at this position.
+     * Otherwise the algorithm computes all possible outgoing edges for the vertices at the position i+1
+     *
+     * Examples:
+     * The process is illustrated by showing the graph (edges) after each iteration from left to right over the input:
+     * An edge is drawn as follows &quot;(&quot; + fromVertex + &quot;) -- &quot; + encodingMode + &quot;(&quot; + encodedInput + &quot;) (&quot; +
+     * accumulatedSize + &quot;) --&gt; (&quot; + toVertex + &quot;)&quot;
+     *
+     * Example 1 encoding the string &quot;ABCDEFG&quot;:
+     *
+     *
+     * Situation after adding edges to the start vertex (0,ASCII)
+     * (0,ASCII) ASCII(A) (1) --&gt; (1,ASCII)
+     * (0,ASCII) B256(A) (3) --&gt; (1,B256)
+     * (0,ASCII) EDF(AB) (4) --&gt; (2,EDF)
+     * (0,ASCII) C40(ABC) (3) --&gt; (3,C40)
+     * (0,ASCII) TEXT(ABC) (5) --&gt; (3,TEXT)
+     * (0,ASCII) X12(ABC) (3) --&gt; (3,X12)
+     * (0,ASCII) EDF(ABC) (4) --&gt; (3,EDF)
+     * (0,ASCII) EDF(ABCD) (4) --&gt; (4,EDF)
+     *
+     * Situation after adding edges to vertices at position 1
+     * (0,ASCII) ASCII(A) (1) --&gt; (1,ASCII)
+     * (0,ASCII) B256(A) (3) --&gt; (1,B256)
+     * (0,ASCII) EDF(AB) (4) --&gt; (2,EDF)
+     * (0,ASCII) C40(ABC) (3) --&gt; (3,C40)
+     * (0,ASCII) TEXT(ABC) (5) --&gt; (3,TEXT)
+     * (0,ASCII) X12(ABC) (3) --&gt; (3,X12)
+     * (0,ASCII) EDF(ABC) (4) --&gt; (3,EDF)
+     * (0,ASCII) EDF(ABCD) (4) --&gt; (4,EDF)
+     * (0,ASCII) ASCII(A) (1) --&gt; (1,ASCII) ASCII(B) (2) --&gt; (2,ASCII)
+     * (0,ASCII) ASCII(A) (1) --&gt; (1,ASCII) B256(B) (4) --&gt; (2,B256)
+     * (0,ASCII) ASCII(A) (1) --&gt; (1,ASCII) EDF(BC) (5) --&gt; (3,EDF)
+     * (0,ASCII) ASCII(A) (1) --&gt; (1,ASCII) C40(BCD) (4) --&gt; (4,C40)
+     * (0,ASCII) ASCII(A) (1) --&gt; (1,ASCII) TEXT(BCD) (6) --&gt; (4,TEXT)
+     * (0,ASCII) ASCII(A) (1) --&gt; (1,ASCII) X12(BCD) (4) --&gt; (4,X12)
+     * (0,ASCII) ASCII(A) (1) --&gt; (1,ASCII) EDF(BCD) (5) --&gt; (4,EDF)
+     * (0,ASCII) ASCII(A) (1) --&gt; (1,ASCII) EDF(BCDE) (5) --&gt; (5,EDF)
+     * (0,ASCII) B256(A) (3) --&gt; (1,B256) ASCII(B) (4) --&gt; (2,ASCII)
+     * (0,ASCII) B256(A) (3) --&gt; (1,B256) B256(B) (3) --&gt; (2,B256)
+     * (0,ASCII) B256(A) (3) --&gt; (1,B256) EDF(BC) (6) --&gt; (3,EDF)
+     * (0,ASCII) B256(A) (3) --&gt; (1,B256) C40(BCD) (5) --&gt; (4,C40)
+     * (0,ASCII) B256(A) (3) --&gt; (1,B256) TEXT(BCD) (7) --&gt; (4,TEXT)
+     * (0,ASCII) B256(A) (3) --&gt; (1,B256) X12(BCD) (5) --&gt; (4,X12)
+     * (0,ASCII) B256(A) (3) --&gt; (1,B256) EDF(BCD) (6) --&gt; (4,EDF)
+     * (0,ASCII) B256(A) (3) --&gt; (1,B256) EDF(BCDE) (6) --&gt; (5,EDF)
+     *
+     * Edge &quot;(1,ASCII) ASCII(B) (2) --&gt; (2,ASCII)&quot; is minimal for the vertex (2,ASCII) so that edge &quot;(1,B256) ASCII(B) (4) --&gt; (2,ASCII)&quot; is removed.
+     * Edge &quot;(1,B256) B256(B) (3) --&gt; (2,B256)&quot; is minimal for the vertext (2,B256) so that the edge &quot;(1,ASCII) B256(B) (4) --&gt; (2,B256)&quot; is removed.
+     *
+     * Situation after adding edges to vertices at position 2
+     * (0,ASCII) ASCII(A) (1) --&gt; (1,ASCII)
+     * (0,ASCII) B256(A) (3) --&gt; (1,B256)
+     * (0,ASCII) EDF(AB) (4) --&gt; (2,EDF)
+     * (0,ASCII) C40(ABC) (3) --&gt; (3,C40)
+     * (0,ASCII) TEXT(ABC) (5) --&gt; (3,TEXT)
+     * (0,ASCII) X12(ABC) (3) --&gt; (3,X12)
+     * (0,ASCII) EDF(ABC) (4) --&gt; (3,EDF)
+     * (0,ASCII) EDF(ABCD) (4) --&gt; (4,EDF)
+     * (0,ASCII) ASCII(A) (1) --&gt; (1,ASCII) ASCII(B) (2) --&gt; (2,ASCII)
+     * (0,ASCII) ASCII(A) (1) --&gt; (1,ASCII) EDF(BC) (5) --&gt; (3,EDF)
+     * (0,ASCII) ASCII(A) (1) --&gt; (1,ASCII) C40(BCD) (4) --&gt; (4,C40)
+     * (0,ASCII) ASCII(A) (1) --&gt; (1,ASCII) TEXT(BCD) (6) --&gt; (4,TEXT)
+     * (0,ASCII) ASCII(A) (1) --&gt; (1,ASCII) X12(BCD) (4) --&gt; (4,X12)
+     * (0,ASCII) ASCII(A) (1) --&gt; (1,ASCII) EDF(BCD) (5) --&gt; (4,EDF)
+     * (0,ASCII) ASCII(A) (1) --&gt; (1,ASCII) EDF(BCDE) (5) --&gt; (5,EDF)
+     * (0,ASCII) B256(A) (3) --&gt; (1,B256) B256(B) (3) --&gt; (2,B256)
+     * (0,ASCII) B256(A) (3) --&gt; (1,B256) EDF(BC) (6) --&gt; (3,EDF)
+     * (0,ASCII) B256(A) (3) --&gt; (1,B256) C40(BCD) (5) --&gt; (4,C40)
+     * (0,ASCII) B256(A) (3) --&gt; (1,B256) TEXT(BCD) (7) --&gt; (4,TEXT)
+     * (0,ASCII) B256(A) (3) --&gt; (1,B256) X12(BCD) (5) --&gt; (4,X12)
+     * (0,ASCII) B256(A) (3) --&gt; (1,B256) EDF(BCD) (6) --&gt; (4,EDF)
+     * (0,ASCII) B256(A) (3) --&gt; (1,B256) EDF(BCDE) (6) --&gt; (5,EDF)
+     * (0,ASCII) EDF(AB) (4) --&gt; (2,EDF) ASCII(C) (5) --&gt; (3,ASCII)
+     * (0,ASCII) EDF(AB) (4) --&gt; (2,EDF) B256(C) (6) --&gt; (3,B256)
+     * (0,ASCII) EDF(AB) (4) --&gt; (2,EDF) EDF(CD) (7) --&gt; (4,EDF)
+     * (0,ASCII) EDF(AB) (4) --&gt; (2,EDF) C40(CDE) (6) --&gt; (5,C40)
+     * (0,ASCII) EDF(AB) (4) --&gt; (2,EDF) TEXT(CDE) (8) --&gt; (5,TEXT)
+     * (0,ASCII) EDF(AB) (4) --&gt; (2,EDF) X12(CDE) (6) --&gt; (5,X12)
+     * (0,ASCII) EDF(AB) (4) --&gt; (2,EDF) EDF(CDE) (7) --&gt; (5,EDF)
+     * (0,ASCII) EDF(AB) (4) --&gt; (2,EDF) EDF(CDEF) (7) --&gt; (6,EDF)
+     * (0,ASCII) ASCII(A) (1) --&gt; (1,ASCII) ASCII(B) (2) --&gt; (2,ASCII) ASCII(C) (3) --&gt; (3,ASCII)
+     * (0,ASCII) ASCII(A) (1) --&gt; (1,ASCII) ASCII(B) (2) --&gt; (2,ASCII) B256(C) (5) --&gt; (3,B256)
+     * (0,ASCII) ASCII(A) (1) --&gt; (1,ASCII) ASCII(B) (2) --&gt; (2,ASCII) EDF(CD) (6) --&gt; (4,EDF)
+     * (0,ASCII) ASCII(A) (1) --&gt; (1,ASCII) ASCII(B) (2) --&gt; (2,ASCII) C40(CDE) (5) --&gt; (5,C40)
+     * (0,ASCII) ASCII(A) (1) --&gt; (1,ASCII) ASCII(B) (2) --&gt; (2,ASCII) TEXT(CDE) (7) --&gt; (5,TEXT)
+     * (0,ASCII) ASCII(A) (1) --&gt; (1,ASCII) ASCII(B) (2) --&gt; (2,ASCII) X12(CDE) (5) --&gt; (5,X12)
+     * (0,ASCII) ASCII(A) (1) --&gt; (1,ASCII) ASCII(B) (2) --&gt; (2,ASCII) EDF(CDE) (6) --&gt; (5,EDF)
+     * (0,ASCII) ASCII(A) (1) --&gt; (1,ASCII) ASCII(B) (2) --&gt; (2,ASCII) EDF(CDEF) (6) --&gt; (6,EDF)
+     * (0,ASCII) B256(A) (3) --&gt; (1,B256) B256(B) (3) --&gt; (2,B256) ASCII(C) (4) --&gt; (3,ASCII)
+     * (0,ASCII) B256(A) (3) --&gt; (1,B256) B256(B) (3) --&gt; (2,B256) B256(C) (4) --&gt; (3,B256)
+     * (0,ASCII) B256(A) (3) --&gt; (1,B256) B256(B) (3) --&gt; (2,B256) EDF(CD) (6) --&gt; (4,EDF)
+     * (0,ASCII) B256(A) (3) --&gt; (1,B256) B256(B) (3) --&gt; (2,B256) C40(CDE) (5) --&gt; (5,C40)
+     * (0,ASCII) B256(A) (3) --&gt; (1,B256) B256(B) (3) --&gt; (2,B256) TEXT(CDE) (7) --&gt; (5,TEXT)
+     * (0,ASCII) B256(A) (3) --&gt; (1,B256) B256(B) (3) --&gt; (2,B256) X12(CDE) (5) --&gt; (5,X12)
+     * (0,ASCII) B256(A) (3) --&gt; (1,B256) B256(B) (3) --&gt; (2,B256) EDF(CDE) (6) --&gt; (5,EDF)
+     * (0,ASCII) B256(A) (3) --&gt; (1,B256) B256(B) (3) --&gt; (2,B256) EDF(CDEF) (6) --&gt; (6,EDF)
+     *
+     * Edge &quot;(2,ASCII) ASCII(C) (3) --&gt; (3,ASCII)&quot; is minimal for the vertex (3,ASCII) so that edges &quot;(2,EDF) ASCII(C) (5) --&gt; (3,ASCII)&quot;
+     * and &quot;(2,B256) ASCII(C) (4) --&gt; (3,ASCII)&quot; can be removed.
+     * Edge &quot;(0,ASCII) EDF(ABC) (4) --&gt; (3,EDF)&quot; is minimal for the vertex (3,EDF) so that edges &quot;(1,ASCII) EDF(BC) (5) --&gt; (3,EDF)&quot;
+     * and &quot;(1,B256) EDF(BC) (6) --&gt; (3,EDF)&quot; can be removed.
+     * Edge &quot;(2,B256) B256(C) (4) --&gt; (3,B256)&quot; is minimal for the vertex (3,B256) so that edges &quot;(2,ASCII) B256(C) (5) --&gt; (3,B256)&quot;
+     * and &quot;(2,EDF) B256(C) (6) --&gt; (3,B256)&quot; can be removed.
+     *
+     * This continues for vertices 3 thru 7
+     *
+     * Situation after adding edges to vertices at position 7
+     * (0,ASCII) ASCII(A) (1) --&gt; (1,ASCII)
+     * (0,ASCII) B256(A) (3) --&gt; (1,B256)
+     * (0,ASCII) EDF(AB) (4) --&gt; (2,EDF)
+     * (0,ASCII) C40(ABC) (3) --&gt; (3,C40)
+     * (0,ASCII) TEXT(ABC) (5) --&gt; (3,TEXT)
+     * (0,ASCII) X12(ABC) (3) --&gt; (3,X12)
+     * (0,ASCII) EDF(ABC) (4) --&gt; (3,EDF)
+     * (0,ASCII) EDF(ABCD) (4) --&gt; (4,EDF)
+     * (0,ASCII) ASCII(A) (1) --&gt; (1,ASCII) ASCII(B) (2) --&gt; (2,ASCII)
+     * (0,ASCII) ASCII(A) (1) --&gt; (1,ASCII) C40(BCD) (4) --&gt; (4,C40)
+     * (0,ASCII) ASCII(A) (1) --&gt; (1,ASCII) TEXT(BCD) (6) --&gt; (4,TEXT)
+     * (0,ASCII) ASCII(A) (1) --&gt; (1,ASCII) X12(BCD) (4) --&gt; (4,X12)
+     * (0,ASCII) ASCII(A) (1) --&gt; (1,ASCII) EDF(BCDE) (5) --&gt; (5,EDF)
+     * (0,ASCII) B256(A) (3) --&gt; (1,B256) B256(B) (3) --&gt; (2,B256)
+     * (0,ASCII) C40(ABC) (3) --&gt; (3,C40) C40(DEF) (5) --&gt; (6,C40)
+     * (0,ASCII) X12(ABC) (3) --&gt; (3,X12) X12(DEF) (5) --&gt; (6,X12)
+     * (0,ASCII) ASCII(A) (1) --&gt; (1,ASCII) ASCII(B) (2) --&gt; (2,ASCII) ASCII(C) (3) --&gt; (3,ASCII)
+     * (0,ASCII) ASCII(A) (1) --&gt; (1,ASCII) ASCII(B) (2) --&gt; (2,ASCII) C40(CDE) (5) --&gt; (5,C40)
+     * (0,ASCII) ASCII(A) (1) --&gt; (1,ASCII) ASCII(B) (2) --&gt; (2,ASCII) TEXT(CDE) (7) --&gt; (5,TEXT)
+     * (0,ASCII) ASCII(A) (1) --&gt; (1,ASCII) ASCII(B) (2) --&gt; (2,ASCII) X12(CDE) (5) --&gt; (5,X12)
+     * (0,ASCII) ASCII(A) (1) --&gt; (1,ASCII) ASCII(B) (2) --&gt; (2,ASCII) EDF(CDEF) (6) --&gt; (6,EDF)
+     * (0,ASCII) ASCII(A) (1) --&gt; (1,ASCII) C40(BCD) (4) --&gt; (4,C40) C40(EFG) (6) --&gt; (7,C40)    //Solution 1
+     * (0,ASCII) ASCII(A) (1) --&gt; (1,ASCII) X12(BCD) (4) --&gt; (4,X12) X12(EFG) (6) --&gt; (7,X12)    //Solution 2
+     * (0,ASCII) B256(A) (3) --&gt; (1,B256) B256(B) (3) --&gt; (2,B256) B256(C) (4) --&gt; (3,B256)
+     * (0,ASCII) ASCII(A) (1) --&gt; (1,ASCII) ASCII(B) (2) --&gt; (2,ASCII) ASCII(C) (3) --&gt; (3,ASCII) ASCII(D) (4) --&gt; (4,ASCII)
+     * (0,ASCII) ASCII(A) (1) --&gt; (1,ASCII) ASCII(B) (2) --&gt; (2,ASCII) ASCII(C) (3) --&gt; (3,ASCII) TEXT(DEF) (8) --&gt; (6,TEXT)
+     * (0,ASCII) ASCII(A) (1) --&gt; (1,ASCII) ASCII(B) (2) --&gt; (2,ASCII) ASCII(C) (3) --&gt; (3,ASCII) EDF(DEFG) (7) --&gt; (7,EDF)
+     * (0,ASCII) B256(A) (3) --&gt; (1,B256) B256(B) (3) --&gt; (2,B256) B256(C) (4) --&gt; (3,B256) B256(D) (5) --&gt; (4,B256)
+     * (0,ASCII) ASCII(A) (1) --&gt; (1,ASCII) ASCII(B) (2) --&gt; (2,ASCII) ASCII(C) (3) --&gt; (3,ASCII) ASCII(D) (4) --&gt; (4,ASCII) ASCII(E) (5) --&gt; (5,ASCII)
+     * (0,ASCII) ASCII(A) (1) --&gt; (1,ASCII) ASCII(B) (2) --&gt; (2,ASCII) ASCII(C) (3) --&gt; (3,ASCII) ASCII(D) (4) --&gt; (4,ASCII) TEXT(EFG) (9) --&gt; (7,TEXT)
+     * (0,ASCII) B256(A) (3) --&gt; (1,B256) B256(B) (3) --&gt; (2,B256) B256(C) (4) --&gt; (3,B256) B256(D) (5) --&gt; (4,B256) B256(E) (6) --&gt; (5,B256)
+     * (0,ASCII) ASCII(A) (1) --&gt; (1,ASCII) ASCII(B) (2) --&gt; (2,ASCII) ASCII(C) (3) --&gt; (3,ASCII) ASCII(D) (4) --&gt; (4,ASCII) ASCII(E) (5) --&gt; (5,ASCII) ASCII(F) (6) --&gt; (6,ASCII)
+     * (0,ASCII) B256(A) (3) --&gt; (1,B256) B256(B) (3) --&gt; (2,B256) B256(C) (4) --&gt; (3,B256) B256(D) (5) --&gt; (4,B256) B256(E) (6) --&gt; (5,B256) B256(F) (7) --&gt; (6,B256)
+     * (0,ASCII) ASCII(A) (1) --&gt; (1,ASCII) ASCII(B) (2) --&gt; (2,ASCII) ASCII(C) (3) --&gt; (3,ASCII) ASCII(D) (4) --&gt; (4,ASCII) ASCII(E) (5) --&gt; (5,ASCII) ASCII(F) (6) --&gt; (6,ASCII) ASCII(G) (7) --&gt; (7,ASCII)
+     * (0,ASCII) B256(A) (3) --&gt; (1,B256) B256(B) (3) --&gt; (2,B256) B256(C) (4) --&gt; (3,B256) B256(D) (5) --&gt; (4,B256) B256(E) (6) --&gt; (5,B256) B256(F) (7) --&gt; (6,B256) B256(G) (8) --&gt; (7,B256)
+     *
+     * Hence a minimal encoding of &quot;ABCDEFG&quot; is either ASCII(A),C40(BCDEFG) or ASCII(A), X12(BCDEFG) with a size of 5 bytes.
+     */
+
+<span class="fc" id="L441">    int inputLength = input.length();</span>
+
+    // Array that represents vertices. There is a vertex for every character and mode.
+    // The last dimension in the array below encodes the 6 modes ASCII, C40, TEXT, X12, EDF and B256
+<span class="fc" id="L445">    Edge[][] edges = new Edge[inputLength + 1][6];</span>
+<span class="fc" id="L446">    addEdges(input, edges, 0, null);</span>
+
+<span class="fc bfc" id="L448" title="All 2 branches covered.">    for (int i = 1; i &lt;= inputLength; i++) {</span>
+<span class="fc bfc" id="L449" title="All 2 branches covered.">      for (int j = 0; j &lt; 6; j++) {</span>
+<span class="fc bfc" id="L450" title="All 4 branches covered.">        if (edges[i][j] != null &amp;&amp; i &lt; inputLength) {</span>
+<span class="fc" id="L451">          addEdges(input, edges, i, edges[i][j]);</span>
+        }
+      }
+      //optimize memory by removing edges that have been passed.
+<span class="fc bfc" id="L455" title="All 2 branches covered.">      for (int j = 0; j &lt; 6; j++) {</span>
+<span class="fc" id="L456">        edges[i - 1][j] = null;</span>
+      }
+    }
+
+<span class="fc" id="L460">    int minimalJ = -1;</span>
+<span class="fc" id="L461">    int minimalSize = Integer.MAX_VALUE;</span>
+<span class="fc bfc" id="L462" title="All 2 branches covered.">    for (int j = 0; j &lt; 6; j++) {</span>
+<span class="fc bfc" id="L463" title="All 2 branches covered.">      if (edges[inputLength][j] != null) {</span>
+<span class="fc" id="L464">        Edge edge = edges[inputLength][j];</span>
+<span class="fc bfc" id="L465" title="All 4 branches covered.">        int size = j &gt;= 1 &amp;&amp; j &lt;= 3 ? edge.cachedTotalSize + 1 : edge.cachedTotalSize; //C40, TEXT and X12 need an</span>
+                                                                                       // extra unlatch at the end
+<span class="fc bfc" id="L467" title="All 2 branches covered.">        if (size &lt; minimalSize) {</span>
+<span class="fc" id="L468">          minimalSize = size;</span>
+<span class="fc" id="L469">          minimalJ = j;</span>
+        }
+      }
+    }
+
+<span class="pc bpc" id="L474" title="1 of 2 branches missed.">    if (minimalJ &lt; 0) {</span>
+<span class="nc" id="L475">      throw new IllegalStateException(&quot;Failed to encode \&quot;&quot; + input + &quot;\&quot;&quot;);</span>
+    }
+<span class="fc" id="L477">    return new Result(edges[inputLength][minimalJ]);</span>
+  }
+
+  private static final class Edge {
+<span class="fc" id="L481">    private static final int[] allCodewordCapacities = {3, 5, 8, 10, 12, 16, 18, 22, 30, 32, 36, 44, 49, 62, 86, 114,</span>
+                                                        144, 174, 204, 280, 368, 456, 576, 696, 816, 1050, 1304, 1558};
+<span class="fc" id="L483">    private static final int[] squareCodewordCapacities = {3, 5, 8, 12, 18, 22, 30, 36, 44, 62, 86, 114, 144, 174, 204,</span>
+                                                           280, 368, 456, 576, 696, 816, 1050, 1304, 1558};
+<span class="fc" id="L485">    private static final int[] rectangularCodewordCapacities = {5, 10, 16, 33, 32, 49};</span>
+    private final Input input;
+    private final Mode mode; //the mode at the start of this edge.
+    private final int fromPosition;
+    private final int characterLength;
+    private final Edge previous;
+    private final int cachedTotalSize;
+
+<span class="fc" id="L493">    private Edge(Input input, Mode mode, int fromPosition, int characterLength, Edge previous) {</span>
+<span class="fc" id="L494">      this.input = input;</span>
+<span class="fc" id="L495">      this.mode = mode;</span>
+<span class="fc" id="L496">      this.fromPosition = fromPosition;</span>
+<span class="fc" id="L497">      this.characterLength = characterLength;</span>
+<span class="fc" id="L498">      this.previous = previous;</span>
+<span class="pc bpc" id="L499" title="1 of 2 branches missed.">      assert fromPosition + characterLength &lt;= input.length();</span>
+
+<span class="fc bfc" id="L501" title="All 2 branches covered.">      int size = previous != null ? previous.cachedTotalSize : 0;</span>
+
+<span class="fc" id="L503">      Mode previousMode = getPreviousMode();</span>
+
+     /*
+      * Switching modes
+      * ASCII -&gt; C40: latch 230
+      * ASCII -&gt; TEXT: latch 239
+      * ASCII -&gt; X12: latch 238
+      * ASCII -&gt; EDF: latch 240
+      * ASCII -&gt; B256: latch 231
+      * C40 -&gt; ASCII: word(c1,c2,c3), 254
+      * TEXT -&gt; ASCII: word(c1,c2,c3), 254
+      * X12 -&gt; ASCII: word(c1,c2,c3), 254
+      * EDIFACT -&gt; ASCII: Unlatch character,0,0,0 or c1,Unlatch character,0,0 or c1,c2,Unlatch character,0 or
+      * c1,c2,c3,Unlatch character
+      * B256 -&gt; ASCII: without latch after n bytes
+      */
+<span class="pc bpc" id="L519" title="1 of 5 branches missed.">      switch (mode) {</span>
+        case ASCII:
+<span class="fc" id="L521">          size++;</span>
+<span class="fc bfc" id="L522" title="All 4 branches covered.">          if (input.isECI(fromPosition) || isExtendedASCII(input.charAt(fromPosition), input.getFNC1Character())) {</span>
+<span class="fc" id="L523">            size++;</span>
+          }
+<span class="fc bfc" id="L525" title="All 6 branches covered.">          if (previousMode == Mode.C40 ||</span>
+              previousMode == Mode.TEXT ||
+              previousMode == Mode.X12) {
+<span class="fc" id="L528">            size++; // unlatch 254 to ASCII</span>
+          }
+          break;
+        case B256:
+<span class="fc" id="L532">          size++;</span>
+<span class="fc bfc" id="L533" title="All 2 branches covered.">          if (previousMode != Mode.B256) {</span>
+<span class="fc" id="L534">            size++; //byte count</span>
+<span class="fc bfc" id="L535" title="All 2 branches covered.">          } else if (getB256Size() == 250) {</span>
+<span class="fc" id="L536">            size++; //extra byte count</span>
+          }
+<span class="fc bfc" id="L538" title="All 2 branches covered.">          if (previousMode == Mode.ASCII) {</span>
+<span class="fc" id="L539">            size++; //latch to B256</span>
+<span class="fc bfc" id="L540" title="All 6 branches covered.">          } else if (previousMode == Mode.C40 ||</span>
+                     previousMode == Mode.TEXT ||
+                     previousMode == Mode.X12) {
+<span class="fc" id="L543">            size += 2; //unlatch to ASCII, latch to B256</span>
+          }
+          break;
+        case C40:
+        case TEXT:
+        case X12:
+<span class="fc bfc" id="L549" title="All 2 branches covered.">          if (mode == Mode.X12) {</span>
+<span class="fc" id="L550">            size += 2;</span>
+          } else {
+<span class="fc" id="L552">            int[] charLen = new int[1];</span>
+<span class="fc bfc" id="L553" title="All 2 branches covered.">            size += getNumberOfC40Words(input, fromPosition, mode == Mode.C40, charLen) * 2;</span>
+          }
+
+<span class="fc bfc" id="L556" title="All 4 branches covered.">          if (previousMode == Mode.ASCII || previousMode == Mode.B256) {</span>
+<span class="fc" id="L557">            size++; //additional byte for latch from ASCII to this mode</span>
+<span class="pc bpc" id="L558" title="1 of 8 branches missed.">          } else if (previousMode != mode &amp;&amp; (previousMode == Mode.C40 ||</span>
+                                             previousMode == Mode.TEXT ||
+                                             previousMode == Mode.X12)) {
+<span class="fc" id="L561">            size += 2; //unlatch 254 to ASCII followed by latch to this mode</span>
+          }
+          break;
+        case EDF:
+<span class="fc" id="L565">          size += 3;</span>
+<span class="fc bfc" id="L566" title="All 4 branches covered.">          if (previousMode == Mode.ASCII || previousMode == Mode.B256) {</span>
+<span class="fc" id="L567">            size++; //additional byte for latch from ASCII to this mode</span>
+<span class="fc bfc" id="L568" title="All 6 branches covered.">          } else if (previousMode == Mode.C40 ||</span>
+                    previousMode == Mode.TEXT ||
+                    previousMode == Mode.X12) {
+<span class="fc" id="L571">            size += 2; //unlatch 254 to ASCII followed by latch to this mode</span>
+          }
+          break;
+      }
+<span class="fc" id="L575">      cachedTotalSize = size;</span>
+<span class="fc" id="L576">    }</span>
+
+    // does not count beyond 250
+    int getB256Size() {
+<span class="fc" id="L580">      int cnt = 0;</span>
+<span class="fc" id="L581">      Edge current = this;</span>
+<span class="fc bfc" id="L582" title="All 6 branches covered.">      while (current != null &amp;&amp; current.mode == Mode.B256 &amp;&amp; cnt &lt;= 250) {</span>
+<span class="fc" id="L583">        cnt++;</span>
+<span class="fc" id="L584">        current = current.previous;</span>
+      }
+<span class="fc" id="L586">      return cnt;</span>
+    }
+
+    Mode getPreviousStartMode() {
+<span class="pc bpc" id="L590" title="1 of 2 branches missed.">      return  previous == null ? Mode.ASCII : previous.mode;</span>
+    }
+
+    Mode getPreviousMode() {
+<span class="fc bfc" id="L594" title="All 2 branches covered.">      return  previous == null ? Mode.ASCII : previous.getEndMode();</span>
+    }
+
+    /** Returns Mode.ASCII in case that:
+     *  - Mode is EDIFACT and characterLength is less than 4 or the remaining characters can be encoded in at most 2
+     *    ASCII bytes.
+     *  - Mode is C40, TEXT or X12 and the remaining characters can be encoded in at most 1 ASCII byte.
+     *  Returns mode in all other cases.
+     * */
+    Mode getEndMode() {
+<span class="fc bfc" id="L604" title="All 2 branches covered.">      if (mode == Mode.EDF) {</span>
+<span class="fc bfc" id="L605" title="All 2 branches covered.">        if (characterLength &lt; 4) {</span>
+<span class="fc" id="L606">          return Mode.ASCII;</span>
+        }
+<span class="fc" id="L608">        int lastASCII = getLastASCII(); // see 5.2.8.2 EDIFACT encodation Rules</span>
+<span class="fc bfc" id="L609" title="All 4 branches covered.">        if (lastASCII &gt; 0 &amp;&amp; getCodewordsRemaining(cachedTotalSize + lastASCII) &lt;= 2 - lastASCII) {</span>
+<span class="fc" id="L610">          return Mode.ASCII;</span>
+        }
+      }
+<span class="fc bfc" id="L613" title="All 6 branches covered.">      if (mode == Mode.C40 ||</span>
+          mode == Mode.TEXT ||
+          mode == Mode.X12) {
+
+        // see 5.2.5.2 C40 encodation rules and 5.2.7.2 ANSI X12 encodation rules
+<span class="fc bfc" id="L618" title="All 4 branches covered.">        if (fromPosition + characterLength &gt;= input.length() &amp;&amp; getCodewordsRemaining(cachedTotalSize) == 0) {</span>
+<span class="fc" id="L619">          return Mode.ASCII;</span>
+        }
+<span class="fc" id="L621">        int lastASCII = getLastASCII();</span>
+<span class="fc bfc" id="L622" title="All 4 branches covered.">        if (lastASCII == 1 &amp;&amp; getCodewordsRemaining(cachedTotalSize + 1) == 0) {</span>
+<span class="fc" id="L623">          return Mode.ASCII;</span>
+        }
+      }
+<span class="fc" id="L626">      return mode;</span>
+    }
+
+    Mode getMode() {
+<span class="fc" id="L630">      return mode;</span>
+    }
+
+    /** Peeks ahead and returns 1 if the postfix consists of exactly two digits, 2 if the postfix consists of exactly
+     *  two consecutive digits and a non extended character or of 4 digits.
+     *  Returns 0 in any other case
+     **/
+    int getLastASCII() {
+<span class="fc" id="L638">      int length = input.length();</span>
+<span class="fc" id="L639">      int from = fromPosition + characterLength;</span>
+<span class="fc bfc" id="L640" title="All 4 branches covered.">      if (length - from &gt; 4 || from &gt;= length) {</span>
+<span class="fc" id="L641">        return 0;</span>
+      }
+<span class="fc bfc" id="L643" title="All 2 branches covered.">      if (length - from == 1) {</span>
+<span class="fc bfc" id="L644" title="All 2 branches covered.">        if (isExtendedASCII(input.charAt(from), input.getFNC1Character())) {</span>
+<span class="fc" id="L645">          return 0;</span>
+        }
+<span class="fc" id="L647">        return 1;</span>
+      }
+<span class="fc bfc" id="L649" title="All 2 branches covered.">      if (length - from == 2) {</span>
+<span class="fc bfc" id="L650" title="All 4 branches covered.">        if (isExtendedASCII(input.charAt(from), input.getFNC1Character()) || isExtendedASCII(input.charAt(from + 1),</span>
+<span class="fc" id="L651">            input.getFNC1Character())) {</span>
+<span class="fc" id="L652">          return 0;</span>
+        }
+<span class="fc bfc" id="L654" title="All 4 branches covered.">        if (HighLevelEncoder.isDigit(input.charAt(from)) &amp;&amp; HighLevelEncoder.isDigit(input.charAt(from + 1))) {</span>
+<span class="fc" id="L655">          return 1;</span>
+        }
+<span class="fc" id="L657">        return 2;</span>
+      }
+<span class="fc bfc" id="L659" title="All 2 branches covered.">      if (length - from == 3) {</span>
+<span class="fc bfc" id="L660" title="All 4 branches covered.">        if (HighLevelEncoder.isDigit(input.charAt(from)) &amp;&amp; HighLevelEncoder.isDigit(input.charAt(from + 1))</span>
+<span class="fc bfc" id="L661" title="All 2 branches covered.">            &amp;&amp; !isExtendedASCII(input.charAt(from + 2), input.getFNC1Character())) {</span>
+<span class="fc" id="L662">          return 2;</span>
+        }
+<span class="fc bfc" id="L664" title="All 4 branches covered.">        if (HighLevelEncoder.isDigit(input.charAt(from + 1)) &amp;&amp; HighLevelEncoder.isDigit(input.charAt(from + 2))</span>
+<span class="pc bpc" id="L665" title="1 of 2 branches missed.">            &amp;&amp; !isExtendedASCII(input.charAt(from), input.getFNC1Character())) {</span>
+<span class="fc" id="L666">          return 2;</span>
+        }
+<span class="fc" id="L668">        return 0;</span>
+      }
+<span class="fc bfc" id="L670" title="All 4 branches covered.">      if (HighLevelEncoder.isDigit(input.charAt(from)) &amp;&amp; HighLevelEncoder.isDigit(input.charAt(from + 1))</span>
+<span class="pc bpc" id="L671" title="1 of 4 branches missed.">          &amp;&amp; HighLevelEncoder.isDigit(input.charAt(from + 2)) &amp;&amp; HighLevelEncoder.isDigit(input.charAt(from + 3))) {</span>
+<span class="fc" id="L672">        return 2;</span>
+      }
+<span class="fc" id="L674">      return 0;</span>
+    }
+
+    /** Returns the capacity in codewords of the smallest symbol that has enough capacity to fit the given minimal
+     * number of codewords.
+     **/
+    int getMinSymbolSize(int minimum) {
+<span class="pc bpc" id="L681" title="2 of 3 branches missed.">      switch (input.getShapeHint()) {</span>
+        case FORCE_SQUARE:
+<span class="nc bnc" id="L683" title="All 2 branches missed.">          for (int capacity : squareCodewordCapacities) {</span>
+<span class="nc bnc" id="L684" title="All 2 branches missed.">            if (capacity &gt;= minimum) {</span>
+<span class="nc" id="L685">              return capacity;</span>
+            }
+          }
+<span class="nc" id="L688">          break;</span>
+        case FORCE_RECTANGLE:
+<span class="nc bnc" id="L690" title="All 2 branches missed.">          for (int capacity : rectangularCodewordCapacities) {</span>
+<span class="nc bnc" id="L691" title="All 2 branches missed.">            if (capacity &gt;= minimum) {</span>
+<span class="nc" id="L692">              return capacity;</span>
+            }
+          }
+          break;
+      }
+<span class="pc bpc" id="L697" title="1 of 2 branches missed.">      for (int capacity : allCodewordCapacities) {</span>
+<span class="fc bfc" id="L698" title="All 2 branches covered.">        if (capacity &gt;= minimum) {</span>
+<span class="fc" id="L699">          return capacity;</span>
+        }
+      }
+<span class="nc" id="L702">      return allCodewordCapacities[allCodewordCapacities.length - 1];</span>
+    }
+
+    /** Returns the remaining capacity in codewords of the smallest symbol that has enough capacity to fit the given
+     * minimal number of codewords.
+     **/
+    int getCodewordsRemaining(int minimum) {
+<span class="fc" id="L709">      return getMinSymbolSize(minimum) - minimum;</span>
+    }
+
+    static byte[] getBytes(int c) {
+<span class="fc" id="L713">      byte[] result = new byte[1];</span>
+<span class="fc" id="L714">      result[0] = (byte) c;</span>
+<span class="fc" id="L715">      return result;</span>
+    }
+
+    static byte[] getBytes(int c1,int c2) {
+<span class="fc" id="L719">      byte[] result = new byte[2];</span>
+<span class="fc" id="L720">      result[0] = (byte) c1;</span>
+<span class="fc" id="L721">      result[1] = (byte) c2;</span>
+<span class="fc" id="L722">      return result;</span>
+    }
+
+    static void setC40Word(byte[] bytes, int offset, int c1, int c2, int c3) {
+<span class="fc" id="L726">      int val16 = (1600 * (c1 &amp; 0xff)) + (40 * (c2 &amp; 0xff)) + (c3 &amp; 0xff) + 1;</span>
+<span class="fc" id="L727">      bytes[offset] = (byte) (val16 / 256);</span>
+<span class="fc" id="L728">      bytes[offset + 1] = (byte) (val16 % 256);</span>
+<span class="fc" id="L729">    }</span>
+
+    private static int getX12Value(char c) {
+<span class="pc bpc" id="L732" title="1 of 2 branches missed.">      return c == 13 ? 0 :</span>
+<span class="fc bfc" id="L733" title="All 2 branches covered.">             c == 42 ? 1 :</span>
+<span class="fc bfc" id="L734" title="All 2 branches covered.">             c == 62 ? 2 :</span>
+<span class="pc bpc" id="L735" title="1 of 2 branches missed.">             c == 32 ? 3 :</span>
+<span class="pc bpc" id="L736" title="1 of 4 branches missed.">             c &gt;= 48 &amp;&amp; c &lt;= 57 ? c - 44 :</span>
+<span class="pc bpc" id="L737" title="2 of 4 branches missed.">             c &gt;= 65 &amp;&amp; c &lt;= 90 ? c - 51 : c;</span>
+    }
+
+    byte[] getX12Words() {
+<span class="pc bpc" id="L741" title="1 of 2 branches missed.">      assert characterLength % 3 == 0;</span>
+<span class="fc" id="L742">      byte[] result = new byte[characterLength / 3 * 2];</span>
+<span class="fc bfc" id="L743" title="All 2 branches covered.">      for (int i = 0; i &lt; result.length; i += 2) {</span>
+<span class="fc" id="L744">        setC40Word(result,i,getX12Value(input.charAt(fromPosition + i / 2 * 3)),</span>
+<span class="fc" id="L745">                              getX12Value(input.charAt(fromPosition + i / 2 * 3 + 1)),</span>
+<span class="fc" id="L746">                              getX12Value(input.charAt(fromPosition + i / 2 * 3 + 2)));</span>
+      }
+<span class="fc" id="L748">      return result;</span>
+    }
+
+    static int getShiftValue(char c, boolean c40, int fnc1) {
+<span class="pc bpc" id="L752" title="1 of 6 branches missed.">      return (c40 &amp;&amp; isInC40Shift1Set(c) ||</span>
+<span class="pc bpc" id="L753" title="1 of 2 branches missed.">             !c40 &amp;&amp; isInTextShift1Set(c)) ? 0 :</span>
+<span class="fc bfc" id="L754" title="All 6 branches covered.">             (c40 &amp;&amp; isInC40Shift2Set(c, fnc1) ||</span>
+<span class="fc bfc" id="L755" title="All 2 branches covered.">             !c40 &amp;&amp; isInTextShift2Set(c, fnc1)) ? 1 : 2;</span>
+    }
+
+    private static int getC40Value(boolean c40, int setIndex, char c, int fnc1) {
+<span class="pc bpc" id="L759" title="1 of 2 branches missed.">      if (c == fnc1) {</span>
+<span class="nc bnc" id="L760" title="All 2 branches missed.">        assert setIndex ==  2;</span>
+<span class="nc" id="L761">        return  27;</span>
+      }
+<span class="fc bfc" id="L763" title="All 2 branches covered.">      if (c40) {</span>
+<span class="pc bpc" id="L764" title="1 of 2 branches missed.">        return c &lt;= 31 ? c :</span>
+<span class="pc bpc" id="L765" title="1 of 2 branches missed.">               c == 32 ? 3 :</span>
+<span class="fc bfc" id="L766" title="All 2 branches covered.">               c &lt;= 47 ? c - 33 :</span>
+<span class="fc bfc" id="L767" title="All 2 branches covered.">               c &lt;= 57 ? c - 44 :</span>
+<span class="fc bfc" id="L768" title="All 2 branches covered.">               c &lt;= 64 ? c - 43 :</span>
+<span class="fc bfc" id="L769" title="All 2 branches covered.">               c &lt;= 90 ? c - 51 :</span>
+<span class="pc bpc" id="L770" title="1 of 2 branches missed.">               c &lt;= 95 ? c - 69 :</span>
+<span class="pc bpc" id="L771" title="1 of 2 branches missed.">               c &lt;= 127 ? c - 96 : c;</span>
+      } else {
+<span class="pc bpc" id="L773" title="1 of 2 branches missed.">        return c == 0 ? 0 :</span>
+<span class="pc bpc" id="L774" title="1 of 4 branches missed.">               setIndex == 0 &amp;&amp; c &lt;= 3 ? c - 1 : //is this a bug in the spec?</span>
+<span class="pc bpc" id="L775" title="1 of 4 branches missed.">               setIndex == 1 &amp;&amp; c &lt;= 31 ? c :</span>
+<span class="fc bfc" id="L776" title="All 2 branches covered.">               c == 32 ? 3 :</span>
+<span class="pc bpc" id="L777" title="1 of 4 branches missed.">               c &gt;= 33 &amp;&amp; c &lt;= 47 ? c - 33 :</span>
+<span class="pc bpc" id="L778" title="2 of 4 branches missed.">               c &gt;= 48 &amp;&amp; c &lt;= 57 ? c - 44 :</span>
+<span class="pc bpc" id="L779" title="2 of 4 branches missed.">               c &gt;= 58 &amp;&amp; c &lt;= 64 ? c - 43 :</span>
+<span class="pc bpc" id="L780" title="1 of 4 branches missed.">               c &gt;= 65 &amp;&amp; c &lt;= 90 ? c - 64 :</span>
+<span class="pc bpc" id="L781" title="2 of 4 branches missed.">               c &gt;= 91 &amp;&amp; c &lt;= 95 ? c - 69 :</span>
+<span class="pc bpc" id="L782" title="1 of 2 branches missed.">               c == 96 ? 0 :</span>
+<span class="pc bpc" id="L783" title="2 of 4 branches missed.">               c &gt;= 97 &amp;&amp; c &lt;= 122 ? c - 83 :</span>
+<span class="nc bnc" id="L784" title="All 4 branches missed.">               c &gt;= 123 &amp;&amp; c &lt;= 127 ? c - 96 : c;</span>
+      }
+    }
+
+    byte[] getC40Words(boolean c40, int fnc1) {
+<span class="fc" id="L789">      List&lt;Byte&gt; c40Values = new ArrayList&lt;&gt;();</span>
+<span class="fc bfc" id="L790" title="All 2 branches covered.">      for (int i = 0; i &lt; characterLength; i++) {</span>
+<span class="fc" id="L791">        char ci = input.charAt(fromPosition + i);</span>
+<span class="fc bfc" id="L792" title="All 8 branches covered.">        if (c40 &amp;&amp; HighLevelEncoder.isNativeC40(ci) || !c40 &amp;&amp; HighLevelEncoder.isNativeText(ci)) {</span>
+<span class="fc" id="L793">          c40Values.add((byte) getC40Value(c40, 0, ci, fnc1));</span>
+<span class="fc bfc" id="L794" title="All 2 branches covered.">        } else if (!isExtendedASCII(ci, fnc1)) {</span>
+<span class="fc" id="L795">          int shiftValue = getShiftValue(ci, c40, fnc1);</span>
+<span class="fc" id="L796">          c40Values.add((byte) shiftValue); //Shift[123]</span>
+<span class="fc" id="L797">          c40Values.add((byte) getC40Value(c40, shiftValue, ci, fnc1));</span>
+<span class="fc" id="L798">        } else {</span>
+<span class="fc" id="L799">          char asciiValue = (char) ((ci &amp; 0xff) - 128);</span>
+<span class="pc bpc" id="L800" title="2 of 6 branches missed.">          if (c40 &amp;&amp; HighLevelEncoder.isNativeC40(asciiValue) ||</span>
+<span class="nc bnc" id="L801" title="All 2 branches missed.">              !c40 &amp;&amp; HighLevelEncoder.isNativeText(asciiValue)) {</span>
+<span class="fc" id="L802">            c40Values.add((byte) 1); //Shift 2</span>
+<span class="fc" id="L803">            c40Values.add((byte) 30); //Upper Shift</span>
+<span class="fc" id="L804">            c40Values.add((byte) getC40Value(c40, 0, asciiValue, fnc1));</span>
+          } else {
+<span class="fc" id="L806">            c40Values.add((byte) 1); //Shift 2</span>
+<span class="fc" id="L807">            c40Values.add((byte) 30); //Upper Shift</span>
+<span class="fc" id="L808">            int shiftValue = getShiftValue(asciiValue, c40, fnc1);</span>
+<span class="fc" id="L809">            c40Values.add((byte) shiftValue); // Shift[123]</span>
+<span class="fc" id="L810">            c40Values.add((byte) getC40Value(c40, shiftValue, asciiValue, fnc1));</span>
+          }
+        }
+      }
+
+<span class="fc bfc" id="L815" title="All 2 branches covered.">      if ((c40Values.size() % 3) != 0) {</span>
+<span class="pc bpc" id="L816" title="2 of 4 branches missed.">        assert (c40Values.size() - 2) % 3 == 0 &amp;&amp; fromPosition + characterLength == input.length();</span>
+<span class="fc" id="L817">        c40Values.add((byte) 0); // pad with 0 (Shift 1)</span>
+      }
+
+<span class="fc" id="L820">      byte[] result = new byte[c40Values.size() / 3 * 2];</span>
+<span class="fc" id="L821">      int byteIndex = 0;</span>
+<span class="fc bfc" id="L822" title="All 2 branches covered.">      for (int i = 0; i &lt; c40Values.size(); i += 3) {</span>
+<span class="fc" id="L823">        setC40Word(result,byteIndex, c40Values.get(i) &amp; 0xff, c40Values.get(i + 1) &amp; 0xff, c40Values.get(i + 2) &amp; 0xff);</span>
+<span class="fc" id="L824">        byteIndex += 2;</span>
+      }
+<span class="fc" id="L826">      return result;</span>
+    }
+
+    byte[] getEDFBytes() {
+<span class="fc" id="L830">      int numberOfThirds = (int) Math.ceil(characterLength / 4.0);</span>
+<span class="fc" id="L831">      byte[] result = new byte[numberOfThirds * 3];</span>
+<span class="fc" id="L832">      int pos = fromPosition;</span>
+<span class="fc" id="L833">      int endPos = Math.min(fromPosition + characterLength - 1 , input.length() - 1);</span>
+<span class="fc bfc" id="L834" title="All 2 branches covered.">      for (int i = 0; i &lt; numberOfThirds; i += 3) {</span>
+<span class="fc" id="L835">        int[] edfValues = new int[4];</span>
+<span class="fc bfc" id="L836" title="All 2 branches covered.">        for (int j = 0; j &lt; 4; j++) {</span>
+<span class="fc bfc" id="L837" title="All 2 branches covered.">          if (pos &lt;= endPos) {</span>
+<span class="fc" id="L838">            edfValues[j] = input.charAt(pos++) &amp; 0x3f;</span>
+          } else {
+<span class="pc bpc" id="L840" title="1 of 2 branches missed.">            edfValues[j] = pos == endPos + 1 ? 0x1f : 0;</span>
+          }
+        }
+<span class="fc" id="L843">        int val24 = edfValues[0] &lt;&lt; 18;</span>
+<span class="fc" id="L844">        val24 |= edfValues[1] &lt;&lt; 12;</span>
+<span class="fc" id="L845">        val24 |= edfValues[2] &lt;&lt; 6;</span>
+<span class="fc" id="L846">        val24 |= edfValues[3];</span>
+<span class="fc" id="L847">        result[i] = (byte) ((val24 &gt;&gt; 16) &amp; 0xff);</span>
+<span class="fc" id="L848">        result[i + 1] = (byte) ((val24 &gt;&gt; 8) &amp; 0xff);</span>
+<span class="fc" id="L849">        result[i + 2] = (byte) (val24 &amp; 0xff);</span>
+      }
+<span class="fc" id="L851">      return result;</span>
+    }
+
+    byte[] getLatchBytes() {
+<span class="pc bpc" id="L855" title="2 of 4 branches missed.">      switch (getPreviousMode()) {</span>
+        case ASCII:
+        case B256: //after B256 ends (via length) we are back to ASCII
+<span class="fc bfc" id="L858" title="All 6 branches covered.">          switch (mode) {</span>
+            case B256:
+<span class="fc" id="L860">              return getBytes(231);</span>
+            case C40:
+<span class="fc" id="L862">              return getBytes(230);</span>
+            case TEXT:
+<span class="fc" id="L864">              return getBytes(239);</span>
+            case X12:
+<span class="fc" id="L866">              return getBytes(238);</span>
+            case EDF:
+<span class="fc" id="L868">              return getBytes(240);</span>
+          }
+<span class="fc" id="L870">          break;</span>
+        case C40:
+        case TEXT:
+        case X12:
+<span class="pc bpc" id="L874" title="1 of 2 branches missed.">          if (mode != getPreviousMode()) {</span>
+<span class="pc bpc" id="L875" title="5 of 7 branches missed.">            switch (mode) {</span>
+              case ASCII:
+<span class="fc" id="L877">                return getBytes(254);</span>
+              case B256:
+<span class="fc" id="L879">                return getBytes(254, 231);</span>
+              case C40:
+<span class="nc" id="L881">                return getBytes(254, 230);</span>
+              case TEXT:
+<span class="nc" id="L883">                return getBytes(254, 239);</span>
+              case X12:
+<span class="nc" id="L885">                return getBytes(254, 238);</span>
+              case EDF:
+<span class="nc" id="L887">                return getBytes(254, 240);</span>
+            }
+          }
+          break;
+        case EDF:
+<span class="nc bnc" id="L892" title="All 2 branches missed.">          assert mode == Mode.EDF; //The rightmost EDIFACT edge always contains an unlatch character</span>
+          break;
+      }
+<span class="fc" id="L895">      return new byte[0];</span>
+    }
+
+    // Important: The function does not return the length bytes (one or two) in case of B256 encoding
+    byte[] getDataBytes() {
+<span class="pc bpc" id="L900" title="1 of 7 branches missed.">      switch (mode) {</span>
+        case ASCII:
+<span class="fc bfc" id="L902" title="All 2 branches covered.">          if (input.isECI(fromPosition)) {</span>
+<span class="fc" id="L903">            return getBytes(241,input.getECIValue(fromPosition) + 1);</span>
+<span class="fc bfc" id="L904" title="All 2 branches covered.">          } else if (isExtendedASCII(input.charAt(fromPosition), input.getFNC1Character())) {</span>
+<span class="fc" id="L905">            return getBytes(235,input.charAt(fromPosition) - 127);</span>
+<span class="fc bfc" id="L906" title="All 2 branches covered.">          } else if (characterLength == 2) {</span>
+<span class="fc" id="L907">            return getBytes((input.charAt(fromPosition) - '0') * 10 + input.charAt(fromPosition + 1) - '0' + 130);</span>
+<span class="pc bpc" id="L908" title="1 of 2 branches missed.">          } else if (input.isFNC1(fromPosition)) {</span>
+<span class="nc" id="L909">            return getBytes(232);</span>
+          } else {
+<span class="fc" id="L911">            return getBytes(input.charAt(fromPosition) + 1);</span>
+          }
+        case B256:
+<span class="fc" id="L914">          return getBytes(input.charAt(fromPosition));</span>
+        case C40:
+<span class="fc" id="L916">          return getC40Words(true, input.getFNC1Character());</span>
+        case TEXT:
+<span class="fc" id="L918">          return getC40Words(false, input.getFNC1Character());</span>
+        case X12:
+<span class="fc" id="L920">          return getX12Words();</span>
+        case EDF:
+<span class="fc" id="L922">          return getEDFBytes();</span>
+      }
+<span class="nc" id="L924">      assert false;</span>
+<span class="nc" id="L925">      return new byte[0];</span>
+    }
+  }
+
+  private static final class Result {
+
+    private final byte[] bytes;
+
+<span class="fc" id="L933">    Result(Edge solution) {</span>
+<span class="fc" id="L934">      Input input = solution.input;</span>
+<span class="fc" id="L935">      int size = 0;</span>
+<span class="fc" id="L936">      List&lt;Byte&gt; bytesAL = new ArrayList&lt;&gt;();</span>
+<span class="fc" id="L937">      List&lt;Integer&gt; randomizePostfixLength = new ArrayList&lt;&gt;();</span>
+<span class="fc" id="L938">      List&lt;Integer&gt; randomizeLengths = new ArrayList&lt;&gt;();</span>
+<span class="fc bfc" id="L939" title="All 2 branches covered.">      if ((solution.mode == Mode.C40 ||</span>
+<span class="fc bfc" id="L940" title="All 2 branches covered.">           solution.mode == Mode.TEXT ||</span>
+<span class="fc bfc" id="L941" title="All 2 branches covered.">           solution.mode == Mode.X12) &amp;&amp;</span>
+<span class="fc bfc" id="L942" title="All 2 branches covered.">           solution.getEndMode() != Mode.ASCII) {</span>
+<span class="fc" id="L943">        size += prepend(MinimalEncoder.Edge.getBytes(254),bytesAL);</span>
+      }
+<span class="fc" id="L945">      Edge current = solution;</span>
+<span class="fc bfc" id="L946" title="All 2 branches covered.">      while (current != null) {</span>
+<span class="fc" id="L947">        size += prepend(current.getDataBytes(),bytesAL);</span>
+
+<span class="fc bfc" id="L949" title="All 4 branches covered.">        if (current.previous == null || current.getPreviousStartMode() != current.getMode()) {</span>
+<span class="fc bfc" id="L950" title="All 2 branches covered.">          if (current.getMode() == Mode.B256) {</span>
+<span class="fc bfc" id="L951" title="All 2 branches covered.">            if (size &lt;= 249) {</span>
+<span class="fc" id="L952">              bytesAL.add(0, (byte) size);</span>
+<span class="fc" id="L953">              size++;</span>
+            } else {
+<span class="fc" id="L955">              bytesAL.add(0, (byte) (size % 250));</span>
+<span class="fc" id="L956">              bytesAL.add(0, (byte) (size / 250 + 249));</span>
+<span class="fc" id="L957">              size += 2;</span>
+            }
+<span class="fc" id="L959">            randomizePostfixLength.add(bytesAL.size());</span>
+<span class="fc" id="L960">            randomizeLengths.add(size);</span>
+          }
+<span class="fc" id="L962">          prepend(current.getLatchBytes(), bytesAL);</span>
+<span class="fc" id="L963">          size = 0;</span>
+        }
+
+<span class="fc" id="L966">        current = current.previous;</span>
+      }
+<span class="fc bfc" id="L968" title="All 2 branches covered.">      if (input.getMacroId() == 5) {</span>
+<span class="fc" id="L969">        size += prepend(MinimalEncoder.Edge.getBytes(236), bytesAL);</span>
+<span class="pc bpc" id="L970" title="1 of 2 branches missed.">      } else if (input.getMacroId() == 6) {</span>
+<span class="nc" id="L971">        size += prepend(MinimalEncoder.Edge.getBytes(237), bytesAL);</span>
+      }
+
+<span class="pc bpc" id="L974" title="1 of 2 branches missed.">      if (input.getFNC1Character() &gt; 0) {</span>
+<span class="nc" id="L975">        size += prepend(MinimalEncoder.Edge.getBytes(232), bytesAL);</span>
+      }
+<span class="fc bfc" id="L977" title="All 2 branches covered.">      for (int i = 0; i &lt; randomizePostfixLength.size(); i++) {</span>
+<span class="fc" id="L978">        applyRandomPattern(bytesAL,bytesAL.size() - randomizePostfixLength.get(i), randomizeLengths.get(i));</span>
+      }
+      //add padding
+<span class="fc" id="L981">      int capacity = solution.getMinSymbolSize(bytesAL.size());</span>
+<span class="fc bfc" id="L982" title="All 2 branches covered.">      if (bytesAL.size() &lt; capacity) {</span>
+<span class="fc" id="L983">        bytesAL.add((byte) 129);</span>
+      }
+<span class="fc bfc" id="L985" title="All 2 branches covered.">      while (bytesAL.size() &lt; capacity) {</span>
+<span class="fc" id="L986">        bytesAL.add((byte) randomize253State(bytesAL.size() + 1));</span>
+      }
+
+<span class="fc" id="L989">      bytes = new byte[bytesAL.size()];</span>
+<span class="fc bfc" id="L990" title="All 2 branches covered.">      for (int i = 0; i &lt; bytes.length; i++) {</span>
+<span class="fc" id="L991">        bytes[i] = bytesAL.get(i);</span>
+      }
+<span class="fc" id="L993">    }</span>
+
+    static int prepend(byte[] bytes, List&lt;Byte&gt; into) {
+<span class="fc bfc" id="L996" title="All 2 branches covered.">      for (int i = bytes.length - 1; i &gt;= 0; i--) {</span>
+<span class="fc" id="L997">        into.add(0, bytes[i]);</span>
+      }
+<span class="fc" id="L999">      return bytes.length;</span>
+    }
+
+    private static int randomize253State(int codewordPosition) {
+<span class="fc" id="L1003">      int pseudoRandom = ((149 * codewordPosition) % 253) + 1;</span>
+<span class="fc" id="L1004">      int tempVariable = 129 + pseudoRandom;</span>
+<span class="fc bfc" id="L1005" title="All 2 branches covered.">      return tempVariable &lt;= 254 ? tempVariable : tempVariable - 254;</span>
+    }
+
+    static void applyRandomPattern(List&lt;Byte&gt; bytesAL,int startPosition, int length) {
+<span class="fc bfc" id="L1009" title="All 2 branches covered.">      for (int i = 0; i &lt; length; i++) {</span>
+        //See &quot;B.1 253-state algorithm
+<span class="fc" id="L1011">        int Pad_codeword_position = startPosition + i;</span>
+<span class="fc" id="L1012">        int Pad_codeword_value = bytesAL.get(Pad_codeword_position) &amp; 0xff;</span>
+<span class="fc" id="L1013">        int pseudo_random_number = ((149 * (Pad_codeword_position + 1)) % 255) + 1;</span>
+<span class="fc" id="L1014">        int temp_variable = Pad_codeword_value + pseudo_random_number;</span>
+<span class="fc bfc" id="L1015" title="All 2 branches covered.">        bytesAL.set(Pad_codeword_position, (byte) (temp_variable &lt;= 255 ? temp_variable : temp_variable - 256));</span>
+      }
+<span class="fc" id="L1017">    }</span>
+
+    public byte[] getBytes() {
+<span class="fc" id="L1020">      return bytes;</span>
+    }
+
+  }
+
+  private static final class Input extends MinimalECIInput {
+
+    private final SymbolShapeHint shape;
+    private final int macroId;
+
+    private Input(String stringToEncode, Charset priorityCharset, int fnc1, SymbolShapeHint shape, int macroId) {
+<span class="fc" id="L1031">      super(stringToEncode, priorityCharset, fnc1);</span>
+<span class="fc" id="L1032">      this.shape = shape;</span>
+<span class="fc" id="L1033">      this.macroId = macroId;</span>
+<span class="fc" id="L1034">    }</span>
+
+    private int getMacroId() {
+<span class="fc" id="L1037">      return macroId;</span>
+    }
+
+    private SymbolShapeHint getShapeHint() {
+<span class="fc" id="L1041">      return shape;</span>
+    }
+  }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.11.202310140853</span></div></body></html>

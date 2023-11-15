@@ -1,0 +1,282 @@
+
+
+
+<!DOCTYPE html>
+<html id="htmlId">
+<head>
+  <meta http-equiv="Content-Type" content="text/html;charset=windows-1252"> 
+  <title>Coverage Report > Code93Writer</title>
+  <style type="text/css">
+    @import "../../css/coverage.css";
+    @import "../../css/idea.min.css";
+  </style>
+  <script type="text/javascript" src="../../js/highlight.min.js"></script>
+  <script type="text/javascript" src="../../js/highlightjs-line-numbers.min.js"></script>
+</head>
+
+<body>
+<div class="content">
+<div class="breadCrumbs">
+Current scope:     <a href="../../index.html">all classes</a>
+    <span class="separator">|</span>
+    <a href="../index.html">com.google.zxing.oned</a>
+</div>
+
+<h1>Coverage Summary for Class: Code93Writer (com.google.zxing.oned)</h1>
+
+<table class="coverageStats">
+<tr>
+  <th class="name">Class</th>
+<th class="coverageStat 
+">
+  Class, %
+</th>
+<th class="coverageStat 
+">
+  Method, %
+</th>
+<th class="coverageStat 
+">
+  Line, %
+</th>
+</tr>
+<tr>
+  <td class="name">Code93Writer</td>
+<td class="coverageStat">
+  <span class="percent">
+    100%
+  </span>
+  <span class="absValue">
+    (1/1)
+  </span>
+</td>
+<td class="coverageStat">
+  <span class="percent">
+    85.7%
+  </span>
+  <span class="absValue">
+    (6/7)
+  </span>
+</td>
+<td class="coverageStat">
+  <span class="percent">
+    93.4%
+  </span>
+  <span class="absValue">
+    (71/76)
+  </span>
+</td>
+</tr>
+
+</table>
+
+<br/>
+<br/>
+
+
+<pre>
+<code class="sourceCode" id="sourceCode">&nbsp;/*
+&nbsp; * Copyright 2015 ZXing authors
+&nbsp; *
+&nbsp; * Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
+&nbsp; * you may not use this file except in compliance with the License.
+&nbsp; * You may obtain a copy of the License at
+&nbsp; *
+&nbsp; *      http://www.apache.org/licenses/LICENSE-2.0
+&nbsp; *
+&nbsp; * Unless required by applicable law or agreed to in writing, software
+&nbsp; * distributed under the License is distributed on an &quot;AS IS&quot; BASIS,
+&nbsp; * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+&nbsp; * See the License for the specific language governing permissions and
+&nbsp; * limitations under the License.
+&nbsp; */
+&nbsp;package com.google.zxing.oned;
+&nbsp;
+&nbsp;import com.google.zxing.BarcodeFormat;
+&nbsp;
+&nbsp;import java.util.Collection;
+&nbsp;import java.util.Collections;
+&nbsp;
+&nbsp;/**
+&nbsp; * This object renders a CODE93 code as a BitMatrix
+&nbsp; */
+<b class="fc">&nbsp;public class Code93Writer extends OneDimensionalCodeWriter {</b>
+&nbsp;
+&nbsp;  @Override
+&nbsp;  protected Collection&lt;BarcodeFormat&gt; getSupportedWriteFormats() {
+<b class="fc">&nbsp;    return Collections.singleton(BarcodeFormat.CODE_93);</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  /**
+&nbsp;   * @param contents barcode contents to encode. It should not be encoded for extended characters.
+&nbsp;   * @return a {@code boolean[]} of horizontal pixels (false = white, true = black)
+&nbsp;   */
+&nbsp;  @Override
+&nbsp;  public boolean[] encode(String contents) {
+<b class="fc">&nbsp;    contents = convertToExtended(contents);</b>
+<b class="fc">&nbsp;    int length = contents.length();</b>
+<b class="fc">&nbsp;    if (length &gt; 80) {</b>
+<b class="nc">&nbsp;      throw new IllegalArgumentException(&quot;Requested contents should be less than 80 digits long after &quot; +</b>
+&nbsp;          &quot;converting to extended encoding, but got &quot; + length);
+&nbsp;    }
+&nbsp;
+&nbsp;    //length of code + 2 start/stop characters + 2 checksums, each of 9 bits, plus a termination bar
+<b class="fc">&nbsp;    int codeWidth = (contents.length() + 2 + 2) * 9 + 1;</b>
+&nbsp;
+<b class="fc">&nbsp;    boolean[] result = new boolean[codeWidth];</b>
+&nbsp;
+&nbsp;    //start character (*)
+<b class="fc">&nbsp;    int pos = appendPattern(result, 0, Code93Reader.ASTERISK_ENCODING);</b>
+&nbsp;
+<b class="fc">&nbsp;    for (int i = 0; i &lt; length; i++) {</b>
+<b class="fc">&nbsp;      int indexInString = Code93Reader.ALPHABET_STRING.indexOf(contents.charAt(i));</b>
+<b class="fc">&nbsp;      pos += appendPattern(result, pos, Code93Reader.CHARACTER_ENCODINGS[indexInString]);</b>
+&nbsp;    }
+&nbsp;
+&nbsp;    //add two checksums
+<b class="fc">&nbsp;    int check1 = computeChecksumIndex(contents, 20);</b>
+<b class="fc">&nbsp;    pos += appendPattern(result, pos, Code93Reader.CHARACTER_ENCODINGS[check1]);</b>
+&nbsp;
+&nbsp;    //append the contents to reflect the first checksum added
+<b class="fc">&nbsp;    contents += Code93Reader.ALPHABET_STRING.charAt(check1);</b>
+&nbsp;
+<b class="fc">&nbsp;    int check2 = computeChecksumIndex(contents, 15);</b>
+<b class="fc">&nbsp;    pos += appendPattern(result, pos, Code93Reader.CHARACTER_ENCODINGS[check2]);</b>
+&nbsp;
+&nbsp;    //end character (*)
+<b class="fc">&nbsp;    pos += appendPattern(result, pos, Code93Reader.ASTERISK_ENCODING);</b>
+&nbsp;
+&nbsp;    //termination bar (single black bar)
+<b class="fc">&nbsp;    result[pos] = true;</b>
+&nbsp;
+<b class="fc">&nbsp;    return result;</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  /**
+&nbsp;   * @param target output to append to
+&nbsp;   * @param pos start position
+&nbsp;   * @param pattern pattern to append
+&nbsp;   * @param startColor unused
+&nbsp;   * @return 9
+&nbsp;   * @deprecated without replacement; intended as an internal-only method
+&nbsp;   */
+&nbsp;  @Deprecated
+&nbsp;  protected static int appendPattern(boolean[] target, int pos, int[] pattern, boolean startColor) {
+<b class="nc">&nbsp;    for (int bit : pattern) {</b>
+<b class="nc">&nbsp;      target[pos++] = bit != 0;</b>
+&nbsp;    }
+<b class="nc">&nbsp;    return 9;</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  private static int appendPattern(boolean[] target, int pos, int a) {
+<b class="fc">&nbsp;    for (int i = 0; i &lt; 9; i++) {</b>
+<b class="fc">&nbsp;      int temp = a &amp; (1 &lt;&lt; (8 - i));</b>
+<b class="fc">&nbsp;      target[pos + i] = temp != 0;</b>
+&nbsp;    }
+<b class="fc">&nbsp;    return 9;</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  private static int computeChecksumIndex(String contents, int maxWeight) {
+<b class="fc">&nbsp;    int weight = 1;</b>
+<b class="fc">&nbsp;    int total = 0;</b>
+&nbsp;
+<b class="fc">&nbsp;    for (int i = contents.length() - 1; i &gt;= 0; i--) {</b>
+<b class="fc">&nbsp;      int indexInString = Code93Reader.ALPHABET_STRING.indexOf(contents.charAt(i));</b>
+<b class="fc">&nbsp;      total += indexInString * weight;</b>
+<b class="fc">&nbsp;      if (++weight &gt; maxWeight) {</b>
+<b class="fc">&nbsp;        weight = 1;</b>
+&nbsp;      }
+&nbsp;    }
+<b class="fc">&nbsp;    return total % 47;</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  static String convertToExtended(String contents) {
+<b class="fc">&nbsp;    int length = contents.length();</b>
+<b class="fc">&nbsp;    StringBuilder extendedContent = new StringBuilder(length * 2);</b>
+<b class="fc">&nbsp;    for (int i = 0; i &lt; length; i++) {</b>
+<b class="fc">&nbsp;      char character = contents.charAt(i);</b>
+&nbsp;      // ($)=a, (%)=b, (/)=c, (+)=d. see Code93Reader.ALPHABET_STRING
+<b class="fc">&nbsp;      if (character == 0) {</b>
+&nbsp;        // NUL: (%)U
+<b class="fc">&nbsp;        extendedContent.append(&quot;bU&quot;);</b>
+<b class="fc">&nbsp;      } else if (character &lt;= 26) {</b>
+&nbsp;        // SOH - SUB: ($)A - ($)Z
+<b class="fc">&nbsp;        extendedContent.append(&#39;a&#39;);</b>
+<b class="fc">&nbsp;        extendedContent.append((char) (&#39;A&#39; + character - 1));</b>
+<b class="fc">&nbsp;      } else if (character &lt;= 31) {</b>
+&nbsp;        // ESC - US: (%)A - (%)E
+<b class="fc">&nbsp;        extendedContent.append(&#39;b&#39;);</b>
+<b class="fc">&nbsp;        extendedContent.append((char) (&#39;A&#39; + character - 27));</b>
+<b class="fc">&nbsp;      } else if (character == &#39; &#39; || character == &#39;$&#39; || character == &#39;%&#39; || character == &#39;+&#39;) {</b>
+&nbsp;        // space $ % +
+<b class="fc">&nbsp;        extendedContent.append(character);</b>
+<b class="fc">&nbsp;      } else if (character &lt;= &#39;,&#39;) {</b>
+&nbsp;        // ! &quot; # &amp; &#39; ( ) * ,: (/)A - (/)L
+<b class="fc">&nbsp;        extendedContent.append(&#39;c&#39;);</b>
+<b class="fc">&nbsp;        extendedContent.append((char) (&#39;A&#39; + character - &#39;!&#39;));</b>
+<b class="fc">&nbsp;      } else if (character &lt;= &#39;9&#39;) {</b>
+<b class="fc">&nbsp;        extendedContent.append(character);</b>
+<b class="fc">&nbsp;      } else if (character == &#39;:&#39;) {</b>
+&nbsp;        // :: (/)Z
+<b class="fc">&nbsp;        extendedContent.append(&quot;cZ&quot;);</b>
+<b class="fc">&nbsp;      } else if (character &lt;= &#39;?&#39;) {</b>
+&nbsp;        // ; - ?: (%)F - (%)J
+<b class="fc">&nbsp;        extendedContent.append(&#39;b&#39;);</b>
+<b class="fc">&nbsp;        extendedContent.append((char) (&#39;F&#39; + character - &#39;;&#39;));</b>
+<b class="fc">&nbsp;      } else if (character == &#39;@&#39;) {</b>
+&nbsp;        // @: (%)V
+<b class="fc">&nbsp;        extendedContent.append(&quot;bV&quot;);</b>
+<b class="fc">&nbsp;      } else if (character &lt;= &#39;Z&#39;) {</b>
+&nbsp;        // A - Z
+<b class="fc">&nbsp;        extendedContent.append(character);</b>
+<b class="fc">&nbsp;      } else if (character &lt;= &#39;_&#39;) {</b>
+&nbsp;        // [ - _: (%)K - (%)O
+<b class="fc">&nbsp;        extendedContent.append(&#39;b&#39;);</b>
+<b class="fc">&nbsp;        extendedContent.append((char) (&#39;K&#39; + character - &#39;[&#39;));</b>
+<b class="fc">&nbsp;      } else if (character == &#39;`&#39;) {</b>
+&nbsp;        // `: (%)W
+<b class="fc">&nbsp;        extendedContent.append(&quot;bW&quot;);</b>
+<b class="fc">&nbsp;      } else if (character &lt;= &#39;z&#39;) {</b>
+&nbsp;        // a - z: (*)A - (*)Z
+<b class="fc">&nbsp;        extendedContent.append(&#39;d&#39;);</b>
+<b class="fc">&nbsp;        extendedContent.append((char) (&#39;A&#39; + character - &#39;a&#39;));</b>
+<b class="fc">&nbsp;      } else if (character &lt;= 127) {</b>
+&nbsp;        // { - DEL: (%)P - (%)T
+<b class="fc">&nbsp;        extendedContent.append(&#39;b&#39;);</b>
+<b class="fc">&nbsp;        extendedContent.append((char) (&#39;P&#39; + character - &#39;{&#39;));</b>
+&nbsp;      } else {
+<b class="nc">&nbsp;        throw new IllegalArgumentException(</b>
+&nbsp;          &quot;Requested content contains a non-encodable character: &#39;&quot; + character + &quot;&#39;&quot;);
+&nbsp;      }
+&nbsp;    }
+<b class="fc">&nbsp;    return extendedContent.toString();</b>
+&nbsp;  }
+&nbsp;
+&nbsp;}
+</code>
+</pre>
+</div>
+
+<script type="text/javascript">
+(function() {
+    var msie = false, msie9 = false;
+    /*@cc_on
+      msie = true;
+      @if (@_jscript_version >= 9)
+        msie9 = true;
+      @end
+    @*/
+
+    if (!msie || msie && msie9) {
+      hljs.highlightAll()
+      hljs.initLineNumbersOnLoad();
+    }
+})();
+</script>
+
+<div class="footer">
+    
+    <div style="float:right;">generated on 2023-11-12 23:26</div>
+</div>
+</body>
+</html>

@@ -1,0 +1,240 @@
+
+
+
+<!DOCTYPE html>
+<html id="htmlId">
+<head>
+  <meta http-equiv="Content-Type" content="text/html;charset=windows-1252"> 
+  <title>Coverage Report > CharacterSetECI</title>
+  <style type="text/css">
+    @import "../../css/coverage.css";
+    @import "../../css/idea.min.css";
+  </style>
+  <script type="text/javascript" src="../../js/highlight.min.js"></script>
+  <script type="text/javascript" src="../../js/highlightjs-line-numbers.min.js"></script>
+</head>
+
+<body>
+<div class="content">
+<div class="breadCrumbs">
+Current scope:     <a href="../../index.html">all classes</a>
+    <span class="separator">|</span>
+    <a href="../index.html">com.google.zxing.common</a>
+</div>
+
+<h1>Coverage Summary for Class: CharacterSetECI (com.google.zxing.common)</h1>
+
+<table class="coverageStats">
+<tr>
+  <th class="name">Class</th>
+<th class="coverageStat 
+">
+  Class, %
+</th>
+<th class="coverageStat 
+">
+  Method, %
+</th>
+<th class="coverageStat 
+">
+  Line, %
+</th>
+</tr>
+<tr>
+  <td class="name">CharacterSetECI</td>
+<td class="coverageStat">
+  <span class="percent">
+    100%
+  </span>
+  <span class="absValue">
+    (1/1)
+  </span>
+</td>
+<td class="coverageStat">
+  <span class="percent">
+    100%
+  </span>
+  <span class="absValue">
+    (10/10)
+  </span>
+</td>
+<td class="coverageStat">
+  <span class="percent">
+    98%
+  </span>
+  <span class="absValue">
+    (50/51)
+  </span>
+</td>
+</tr>
+
+</table>
+
+<br/>
+<br/>
+
+
+<pre>
+<code class="sourceCode" id="sourceCode">&nbsp;/*
+&nbsp; * Copyright 2008 ZXing authors
+&nbsp; *
+&nbsp; * Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
+&nbsp; * you may not use this file except in compliance with the License.
+&nbsp; * You may obtain a copy of the License at
+&nbsp; *
+&nbsp; *      http://www.apache.org/licenses/LICENSE-2.0
+&nbsp; *
+&nbsp; * Unless required by applicable law or agreed to in writing, software
+&nbsp; * distributed under the License is distributed on an &quot;AS IS&quot; BASIS,
+&nbsp; * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+&nbsp; * See the License for the specific language governing permissions and
+&nbsp; * limitations under the License.
+&nbsp; */
+&nbsp;
+&nbsp;package com.google.zxing.common;
+&nbsp;
+&nbsp;import com.google.zxing.FormatException;
+&nbsp;
+&nbsp;import java.nio.charset.Charset;
+&nbsp;
+&nbsp;import java.util.HashMap;
+&nbsp;import java.util.Map;
+&nbsp;
+&nbsp;/**
+&nbsp; * Encapsulates a Character Set ECI, according to &quot;Extended Channel Interpretations&quot; 5.3.1.1
+&nbsp; * of ISO 18004.
+&nbsp; *
+&nbsp; * @author Sean Owen
+&nbsp; */
+<b class="fc">&nbsp;public enum CharacterSetECI {</b>
+&nbsp;
+&nbsp;  // Enum name is a Java encoding valid for java.lang and java.io
+<b class="fc">&nbsp;  Cp437(new int[]{0,2}),</b>
+<b class="fc">&nbsp;  ISO8859_1(new int[]{1,3}, &quot;ISO-8859-1&quot;),</b>
+<b class="fc">&nbsp;  ISO8859_2(4, &quot;ISO-8859-2&quot;),</b>
+<b class="fc">&nbsp;  ISO8859_3(5, &quot;ISO-8859-3&quot;),</b>
+<b class="fc">&nbsp;  ISO8859_4(6, &quot;ISO-8859-4&quot;),</b>
+<b class="fc">&nbsp;  ISO8859_5(7, &quot;ISO-8859-5&quot;),</b>
+<b class="fc">&nbsp;  ISO8859_6(8, &quot;ISO-8859-6&quot;),</b>
+<b class="fc">&nbsp;  ISO8859_7(9, &quot;ISO-8859-7&quot;),</b>
+<b class="fc">&nbsp;  ISO8859_8(10, &quot;ISO-8859-8&quot;),</b>
+<b class="fc">&nbsp;  ISO8859_9(11, &quot;ISO-8859-9&quot;),</b>
+<b class="fc">&nbsp;  ISO8859_10(12, &quot;ISO-8859-10&quot;),</b>
+<b class="fc">&nbsp;  ISO8859_11(13, &quot;ISO-8859-11&quot;),</b>
+<b class="fc">&nbsp;  ISO8859_13(15, &quot;ISO-8859-13&quot;),</b>
+<b class="fc">&nbsp;  ISO8859_14(16, &quot;ISO-8859-14&quot;),</b>
+<b class="fc">&nbsp;  ISO8859_15(17, &quot;ISO-8859-15&quot;),</b>
+<b class="fc">&nbsp;  ISO8859_16(18, &quot;ISO-8859-16&quot;),</b>
+<b class="fc">&nbsp;  SJIS(20, &quot;Shift_JIS&quot;),</b>
+<b class="fc">&nbsp;  Cp1250(21, &quot;windows-1250&quot;),</b>
+<b class="fc">&nbsp;  Cp1251(22, &quot;windows-1251&quot;),</b>
+<b class="fc">&nbsp;  Cp1252(23, &quot;windows-1252&quot;),</b>
+<b class="fc">&nbsp;  Cp1256(24, &quot;windows-1256&quot;),</b>
+<b class="fc">&nbsp;  UnicodeBigUnmarked(25, &quot;UTF-16BE&quot;, &quot;UnicodeBig&quot;),</b>
+<b class="fc">&nbsp;  UTF8(26, &quot;UTF-8&quot;),</b>
+<b class="fc">&nbsp;  ASCII(new int[] {27, 170}, &quot;US-ASCII&quot;),</b>
+<b class="fc">&nbsp;  Big5(28),</b>
+<b class="fc">&nbsp;  GB18030(29, &quot;GB2312&quot;, &quot;EUC_CN&quot;, &quot;GBK&quot;),</b>
+<b class="fc">&nbsp;  EUC_KR(30, &quot;EUC-KR&quot;);</b>
+&nbsp;
+&nbsp;  // only character sets supported by the current JVM are registered here
+<b class="fc">&nbsp;  private static final Map&lt;Integer,CharacterSetECI&gt; VALUE_TO_ECI = new HashMap&lt;&gt;();</b>
+<b class="fc">&nbsp;  private static final Map&lt;String,CharacterSetECI&gt; NAME_TO_ECI = new HashMap&lt;&gt;();</b>
+&nbsp;  static {
+<b class="fc">&nbsp;    for (CharacterSetECI eci : values()) {</b>
+<b class="fc">&nbsp;      if (Charset.isSupported(eci.name())) {</b>
+<b class="fc">&nbsp;        for (int value : eci.values) {</b>
+<b class="fc">&nbsp;          VALUE_TO_ECI.put(value, eci);</b>
+&nbsp;        }
+<b class="fc">&nbsp;        NAME_TO_ECI.put(eci.name(), eci);</b>
+<b class="fc">&nbsp;        for (String name : eci.otherEncodingNames) {</b>
+<b class="fc">&nbsp;          NAME_TO_ECI.put(name, eci);</b>
+&nbsp;        }
+&nbsp;      }
+&nbsp;    }
+&nbsp;  }
+&nbsp;
+&nbsp;  private final int[] values;
+&nbsp;  private final String[] otherEncodingNames;
+&nbsp;
+&nbsp;  CharacterSetECI(int value) {
+<b class="fc">&nbsp;    this(new int[] {value});</b>
+&nbsp;  }
+&nbsp;
+<b class="fc">&nbsp;  CharacterSetECI(int value, String... otherEncodingNames) {</b>
+<b class="fc">&nbsp;    this.values = new int[] {value};</b>
+<b class="fc">&nbsp;    this.otherEncodingNames = otherEncodingNames;</b>
+&nbsp;  }
+&nbsp;
+<b class="fc">&nbsp;  CharacterSetECI(int[] values, String... otherEncodingNames) {</b>
+<b class="fc">&nbsp;    this.values = values;</b>
+<b class="fc">&nbsp;    this.otherEncodingNames = otherEncodingNames;</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  public int getValue() {
+<b class="fc">&nbsp;    return values[0];</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  public Charset getCharset() {
+<b class="fc">&nbsp;    return Charset.forName(name());</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  /**
+&nbsp;   * @param charset Java character set object
+&nbsp;   * @return CharacterSetECI representing ECI for character encoding, or null if it is legal
+&nbsp;   *   but unsupported
+&nbsp;   */
+&nbsp;  public static CharacterSetECI getCharacterSetECI(Charset charset) {
+<b class="fc">&nbsp;    return NAME_TO_ECI.get(charset.name());</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  /**
+&nbsp;   * @param value character set ECI value
+&nbsp;   * @return {@code CharacterSetECI} representing ECI of given value, or null if it is legal but
+&nbsp;   *   unsupported
+&nbsp;   * @throws FormatException if ECI value is invalid
+&nbsp;   */
+&nbsp;  public static CharacterSetECI getCharacterSetECIByValue(int value) throws FormatException {
+<b class="fc">&nbsp;    if (value &lt; 0 || value &gt;= 900) {</b>
+<b class="nc">&nbsp;      throw FormatException.getFormatInstance();</b>
+&nbsp;    }
+<b class="fc">&nbsp;    return VALUE_TO_ECI.get(value);</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  /**
+&nbsp;   * @param name character set ECI encoding name
+&nbsp;   * @return CharacterSetECI representing ECI for character encoding, or null if it is legal
+&nbsp;   *   but unsupported
+&nbsp;   */
+&nbsp;  public static CharacterSetECI getCharacterSetECIByName(String name) {
+<b class="fc">&nbsp;    return NAME_TO_ECI.get(name);</b>
+&nbsp;  }
+&nbsp;
+&nbsp;}
+</code>
+</pre>
+</div>
+
+<script type="text/javascript">
+(function() {
+    var msie = false, msie9 = false;
+    /*@cc_on
+      msie = true;
+      @if (@_jscript_version >= 9)
+        msie9 = true;
+      @end
+    @*/
+
+    if (!msie || msie && msie9) {
+      hljs.highlightAll()
+      hljs.initLineNumbersOnLoad();
+    }
+})();
+</script>
+
+<div class="footer">
+    
+    <div style="float:right;">generated on 2023-11-12 23:26</div>
+</div>
+</body>
+</html>

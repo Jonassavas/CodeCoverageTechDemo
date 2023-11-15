@@ -1,0 +1,189 @@
+
+
+
+<!DOCTYPE html>
+<html id="htmlId">
+<head>
+  <meta http-equiv="Content-Type" content="text/html;charset=windows-1252"> 
+  <title>Coverage Report > EmailAddressResultParser</title>
+  <style type="text/css">
+    @import "../../css/coverage.css";
+    @import "../../css/idea.min.css";
+  </style>
+  <script type="text/javascript" src="../../js/highlight.min.js"></script>
+  <script type="text/javascript" src="../../js/highlightjs-line-numbers.min.js"></script>
+</head>
+
+<body>
+<div class="content">
+<div class="breadCrumbs">
+Current scope:     <a href="../../index.html">all classes</a>
+    <span class="separator">|</span>
+    <a href="../index.html">com.google.zxing.client.result</a>
+</div>
+
+<h1>Coverage Summary for Class: EmailAddressResultParser (com.google.zxing.client.result)</h1>
+
+<table class="coverageStats">
+<tr>
+  <th class="name">Class</th>
+<th class="coverageStat 
+">
+  Class, %
+</th>
+<th class="coverageStat 
+">
+  Method, %
+</th>
+<th class="coverageStat 
+">
+  Line, %
+</th>
+</tr>
+<tr>
+  <td class="name">EmailAddressResultParser</td>
+<td class="coverageStat">
+  <span class="percent">
+    100%
+  </span>
+  <span class="absValue">
+    (1/1)
+  </span>
+</td>
+<td class="coverageStat">
+  <span class="percent">
+    100%
+  </span>
+  <span class="absValue">
+    (3/3)
+  </span>
+</td>
+<td class="coverageStat">
+  <span class="percent">
+    94.6%
+  </span>
+  <span class="absValue">
+    (35/37)
+  </span>
+</td>
+</tr>
+
+</table>
+
+<br/>
+<br/>
+
+
+<pre>
+<code class="sourceCode" id="sourceCode">&nbsp;/*
+&nbsp; * Copyright 2007 ZXing authors
+&nbsp; *
+&nbsp; * Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
+&nbsp; * you may not use this file except in compliance with the License.
+&nbsp; * You may obtain a copy of the License at
+&nbsp; *
+&nbsp; *      http://www.apache.org/licenses/LICENSE-2.0
+&nbsp; *
+&nbsp; * Unless required by applicable law or agreed to in writing, software
+&nbsp; * distributed under the License is distributed on an &quot;AS IS&quot; BASIS,
+&nbsp; * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+&nbsp; * See the License for the specific language governing permissions and
+&nbsp; * limitations under the License.
+&nbsp; */
+&nbsp;
+&nbsp;package com.google.zxing.client.result;
+&nbsp;
+&nbsp;import com.google.zxing.Result;
+&nbsp;
+&nbsp;import java.util.Map;
+&nbsp;import java.util.regex.Pattern;
+&nbsp;
+&nbsp;/**
+&nbsp; * Represents a result that encodes an e-mail address, either as a plain address
+&nbsp; * like &quot;joe@example.org&quot; or a mailto: URL like &quot;mailto:joe@example.org&quot;.
+&nbsp; *
+&nbsp; * @author Sean Owen
+&nbsp; */
+<b class="fc">&nbsp;public final class EmailAddressResultParser extends ResultParser {</b>
+&nbsp;
+<b class="fc">&nbsp;  private static final Pattern COMMA = Pattern.compile(&quot;,&quot;);</b>
+&nbsp;
+&nbsp;  @Override
+&nbsp;  public EmailAddressParsedResult parse(Result result) {
+<b class="fc">&nbsp;    String rawText = getMassagedText(result);</b>
+<b class="fc">&nbsp;    if (rawText.startsWith(&quot;mailto:&quot;) || rawText.startsWith(&quot;MAILTO:&quot;)) {</b>
+&nbsp;      // If it starts with mailto:, assume it is definitely trying to be an email address
+<b class="fc">&nbsp;      String hostEmail = rawText.substring(7);</b>
+<b class="fc">&nbsp;      int queryStart = hostEmail.indexOf(&#39;?&#39;);</b>
+<b class="fc">&nbsp;      if (queryStart &gt;= 0) {</b>
+<b class="fc">&nbsp;        hostEmail = hostEmail.substring(0, queryStart);</b>
+&nbsp;      }
+&nbsp;      try {
+<b class="fc">&nbsp;        hostEmail = urlDecode(hostEmail);</b>
+<b class="nc">&nbsp;      } catch (IllegalArgumentException iae) {</b>
+<b class="nc">&nbsp;        return null;</b>
+<b class="fc">&nbsp;      }</b>
+<b class="fc">&nbsp;      String[] tos = null;</b>
+<b class="fc">&nbsp;      if (!hostEmail.isEmpty()) {</b>
+<b class="fc">&nbsp;        tos = COMMA.split(hostEmail);</b>
+&nbsp;      }
+<b class="fc">&nbsp;      Map&lt;String,String&gt; nameValues = parseNameValuePairs(rawText);</b>
+<b class="fc">&nbsp;      String[] ccs = null;</b>
+<b class="fc">&nbsp;      String[] bccs = null;</b>
+<b class="fc">&nbsp;      String subject = null;</b>
+<b class="fc">&nbsp;      String body = null;</b>
+<b class="fc">&nbsp;      if (nameValues != null) {</b>
+<b class="fc">&nbsp;        if (tos == null) {</b>
+<b class="fc">&nbsp;          String tosString = nameValues.get(&quot;to&quot;);</b>
+<b class="fc">&nbsp;          if (tosString != null) {</b>
+<b class="fc">&nbsp;            tos = COMMA.split(tosString);</b>
+&nbsp;          }
+&nbsp;        }
+<b class="fc">&nbsp;        String ccString = nameValues.get(&quot;cc&quot;);</b>
+<b class="fc">&nbsp;        if (ccString != null) {</b>
+<b class="fc">&nbsp;          ccs = COMMA.split(ccString);</b>
+&nbsp;        }
+<b class="fc">&nbsp;        String bccString = nameValues.get(&quot;bcc&quot;);</b>
+<b class="fc">&nbsp;        if (bccString != null) {</b>
+<b class="fc">&nbsp;          bccs = COMMA.split(bccString);</b>
+&nbsp;        }
+<b class="fc">&nbsp;        subject = nameValues.get(&quot;subject&quot;);</b>
+<b class="fc">&nbsp;        body = nameValues.get(&quot;body&quot;);</b>
+&nbsp;      }
+<b class="fc">&nbsp;      return new EmailAddressParsedResult(tos, ccs, bccs, subject, body);</b>
+&nbsp;    } else {
+<b class="fc">&nbsp;      if (!EmailDoCoMoResultParser.isBasicallyValidEmailAddress(rawText)) {</b>
+<b class="fc">&nbsp;        return null;</b>
+&nbsp;      }
+<b class="fc">&nbsp;      return new EmailAddressParsedResult(rawText);</b>
+&nbsp;    }
+&nbsp;  }
+&nbsp;
+&nbsp;}
+</code>
+</pre>
+</div>
+
+<script type="text/javascript">
+(function() {
+    var msie = false, msie9 = false;
+    /*@cc_on
+      msie = true;
+      @if (@_jscript_version >= 9)
+        msie9 = true;
+      @end
+    @*/
+
+    if (!msie || msie && msie9) {
+      hljs.highlightAll()
+      hljs.initLineNumbersOnLoad();
+    }
+})();
+</script>
+
+<div class="footer">
+    
+    <div style="float:right;">generated on 2023-11-12 23:26</div>
+</div>
+</body>
+</html>

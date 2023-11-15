@@ -1,0 +1,261 @@
+
+
+
+<!DOCTYPE html>
+<html id="htmlId">
+<head>
+  <meta http-equiv="Content-Type" content="text/html;charset=windows-1252"> 
+  <title>Coverage Report > BoundingBox</title>
+  <style type="text/css">
+    @import "../../css/coverage.css";
+    @import "../../css/idea.min.css";
+  </style>
+  <script type="text/javascript" src="../../js/highlight.min.js"></script>
+  <script type="text/javascript" src="../../js/highlightjs-line-numbers.min.js"></script>
+</head>
+
+<body>
+<div class="content">
+<div class="breadCrumbs">
+Current scope:     <a href="../../index.html">all classes</a>
+    <span class="separator">|</span>
+    <a href="../index.html">com.google.zxing.pdf417.decoder</a>
+</div>
+
+<h1>Coverage Summary for Class: BoundingBox (com.google.zxing.pdf417.decoder)</h1>
+
+<table class="coverageStats">
+<tr>
+  <th class="name">Class</th>
+<th class="coverageStat 
+">
+  Class, %
+</th>
+<th class="coverageStat 
+">
+  Method, %
+</th>
+<th class="coverageStat 
+">
+  Line, %
+</th>
+</tr>
+<tr>
+  <td class="name">BoundingBox</td>
+<td class="coverageStat">
+  <span class="percent">
+    100%
+  </span>
+  <span class="absValue">
+    (1/1)
+  </span>
+</td>
+<td class="coverageStat">
+  <span class="percent">
+    100%
+  </span>
+  <span class="absValue">
+    (12/12)
+  </span>
+</td>
+<td class="coverageStat">
+  <span class="percent">
+    97%
+  </span>
+  <span class="absValue">
+    (64/66)
+  </span>
+</td>
+</tr>
+
+</table>
+
+<br/>
+<br/>
+
+
+<pre>
+<code class="sourceCode" id="sourceCode">&nbsp;/*
+&nbsp; * Copyright 2013 ZXing authors
+&nbsp; *
+&nbsp; * Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
+&nbsp; * you may not use this file except in compliance with the License.
+&nbsp; * You may obtain a copy of the License at
+&nbsp; *
+&nbsp; *      http://www.apache.org/licenses/LICENSE-2.0
+&nbsp; *
+&nbsp; * Unless required by applicable law or agreed to in writing, software
+&nbsp; * distributed under the License is distributed on an &quot;AS IS&quot; BASIS,
+&nbsp; * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+&nbsp; * See the License for the specific language governing permissions and
+&nbsp; * limitations under the License.
+&nbsp; */
+&nbsp;
+&nbsp;package com.google.zxing.pdf417.decoder;
+&nbsp;
+&nbsp;import com.google.zxing.NotFoundException;
+&nbsp;import com.google.zxing.ResultPoint;
+&nbsp;import com.google.zxing.common.BitMatrix;
+&nbsp;
+&nbsp;/**
+&nbsp; * @author Guenther Grau
+&nbsp; */
+&nbsp;final class BoundingBox {
+&nbsp;
+&nbsp;  private final BitMatrix image;
+&nbsp;  private final ResultPoint topLeft;
+&nbsp;  private final ResultPoint bottomLeft;
+&nbsp;  private final ResultPoint topRight;
+&nbsp;  private final ResultPoint bottomRight;
+&nbsp;  private final int minX;
+&nbsp;  private final int maxX;
+&nbsp;  private final int minY;
+&nbsp;  private final int maxY;
+&nbsp;
+&nbsp;  BoundingBox(BitMatrix image,
+&nbsp;              ResultPoint topLeft,
+&nbsp;              ResultPoint bottomLeft,
+&nbsp;              ResultPoint topRight,
+<b class="fc">&nbsp;              ResultPoint bottomRight) throws NotFoundException {</b>
+<b class="fc">&nbsp;    boolean leftUnspecified = topLeft == null || bottomLeft == null;</b>
+<b class="fc">&nbsp;    boolean rightUnspecified = topRight == null || bottomRight == null;</b>
+<b class="fc">&nbsp;    if (leftUnspecified &amp;&amp; rightUnspecified) {</b>
+<b class="nc">&nbsp;      throw NotFoundException.getNotFoundInstance();</b>
+&nbsp;    }
+<b class="fc">&nbsp;    if (leftUnspecified) {</b>
+<b class="fc">&nbsp;      topLeft = new ResultPoint(0, topRight.getY());</b>
+<b class="fc">&nbsp;      bottomLeft = new ResultPoint(0, bottomRight.getY());</b>
+<b class="fc">&nbsp;    } else if (rightUnspecified) {</b>
+<b class="fc">&nbsp;      topRight = new ResultPoint(image.getWidth() - 1, topLeft.getY());</b>
+<b class="fc">&nbsp;      bottomRight = new ResultPoint(image.getWidth() - 1, bottomLeft.getY());</b>
+&nbsp;    }
+<b class="fc">&nbsp;    this.image = image;</b>
+<b class="fc">&nbsp;    this.topLeft = topLeft;</b>
+<b class="fc">&nbsp;    this.bottomLeft = bottomLeft;</b>
+<b class="fc">&nbsp;    this.topRight = topRight;</b>
+<b class="fc">&nbsp;    this.bottomRight = bottomRight;</b>
+<b class="fc">&nbsp;    this.minX = (int) Math.min(topLeft.getX(), bottomLeft.getX());</b>
+<b class="fc">&nbsp;    this.maxX = (int) Math.max(topRight.getX(), bottomRight.getX());</b>
+<b class="fc">&nbsp;    this.minY = (int) Math.min(topLeft.getY(), topRight.getY());</b>
+<b class="fc">&nbsp;    this.maxY = (int) Math.max(bottomLeft.getY(), bottomRight.getY());</b>
+&nbsp;  }
+&nbsp;
+<b class="fc">&nbsp;  BoundingBox(BoundingBox boundingBox) {</b>
+<b class="fc">&nbsp;    this.image = boundingBox.image;</b>
+<b class="fc">&nbsp;    this.topLeft = boundingBox.topLeft;</b>
+<b class="fc">&nbsp;    this.bottomLeft = boundingBox.bottomLeft;</b>
+<b class="fc">&nbsp;    this.topRight = boundingBox.topRight;</b>
+<b class="fc">&nbsp;    this.bottomRight = boundingBox.bottomRight;</b>
+<b class="fc">&nbsp;    this.minX = boundingBox.minX;</b>
+<b class="fc">&nbsp;    this.maxX = boundingBox.maxX;</b>
+<b class="fc">&nbsp;    this.minY = boundingBox.minY;</b>
+<b class="fc">&nbsp;    this.maxY = boundingBox.maxY;</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  static BoundingBox merge(BoundingBox leftBox, BoundingBox rightBox) throws NotFoundException {
+<b class="fc">&nbsp;    if (leftBox == null) {</b>
+<b class="fc">&nbsp;      return rightBox;</b>
+&nbsp;    }
+<b class="fc">&nbsp;    if (rightBox == null) {</b>
+<b class="fc">&nbsp;      return leftBox;</b>
+&nbsp;    }
+<b class="fc">&nbsp;    return new BoundingBox(leftBox.image, leftBox.topLeft, leftBox.bottomLeft, rightBox.topRight, rightBox.bottomRight);</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  BoundingBox addMissingRows(int missingStartRows, int missingEndRows, boolean isLeft) throws NotFoundException {
+<b class="fc">&nbsp;    ResultPoint newTopLeft = topLeft;</b>
+<b class="fc">&nbsp;    ResultPoint newBottomLeft = bottomLeft;</b>
+<b class="fc">&nbsp;    ResultPoint newTopRight = topRight;</b>
+<b class="fc">&nbsp;    ResultPoint newBottomRight = bottomRight;</b>
+&nbsp;
+<b class="fc">&nbsp;    if (missingStartRows &gt; 0) {</b>
+<b class="fc">&nbsp;      ResultPoint top = isLeft ? topLeft : topRight;</b>
+<b class="fc">&nbsp;      int newMinY = (int) top.getY() - missingStartRows;</b>
+<b class="fc">&nbsp;      if (newMinY &lt; 0) {</b>
+<b class="fc">&nbsp;        newMinY = 0;</b>
+&nbsp;      }
+<b class="fc">&nbsp;      ResultPoint newTop = new ResultPoint(top.getX(), newMinY);</b>
+<b class="fc">&nbsp;      if (isLeft) {</b>
+<b class="fc">&nbsp;        newTopLeft = newTop;</b>
+&nbsp;      } else {
+<b class="fc">&nbsp;        newTopRight = newTop;</b>
+&nbsp;      }
+&nbsp;    }
+&nbsp;
+<b class="fc">&nbsp;    if (missingEndRows &gt; 0) {</b>
+<b class="fc">&nbsp;      ResultPoint bottom = isLeft ? bottomLeft : bottomRight;</b>
+<b class="fc">&nbsp;      int newMaxY = (int) bottom.getY() + missingEndRows;</b>
+<b class="fc">&nbsp;      if (newMaxY &gt;= image.getHeight()) {</b>
+<b class="nc">&nbsp;        newMaxY = image.getHeight() - 1;</b>
+&nbsp;      }
+<b class="fc">&nbsp;      ResultPoint newBottom = new ResultPoint(bottom.getX(), newMaxY);</b>
+<b class="fc">&nbsp;      if (isLeft) {</b>
+<b class="fc">&nbsp;        newBottomLeft = newBottom;</b>
+&nbsp;      } else {
+<b class="fc">&nbsp;        newBottomRight = newBottom;</b>
+&nbsp;      }
+&nbsp;    }
+&nbsp;
+<b class="fc">&nbsp;    return new BoundingBox(image, newTopLeft, newBottomLeft, newTopRight, newBottomRight);</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  int getMinX() {
+<b class="fc">&nbsp;    return minX;</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  int getMaxX() {
+<b class="fc">&nbsp;    return maxX;</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  int getMinY() {
+<b class="fc">&nbsp;    return minY;</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  int getMaxY() {
+<b class="fc">&nbsp;    return maxY;</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  ResultPoint getTopLeft() {
+<b class="fc">&nbsp;    return topLeft;</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  ResultPoint getTopRight() {
+<b class="fc">&nbsp;    return topRight;</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  ResultPoint getBottomLeft() {
+<b class="fc">&nbsp;    return bottomLeft;</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  ResultPoint getBottomRight() {
+<b class="fc">&nbsp;    return bottomRight;</b>
+&nbsp;  }
+&nbsp;
+&nbsp;}
+</code>
+</pre>
+</div>
+
+<script type="text/javascript">
+(function() {
+    var msie = false, msie9 = false;
+    /*@cc_on
+      msie = true;
+      @if (@_jscript_version >= 9)
+        msie9 = true;
+      @end
+    @*/
+
+    if (!msie || msie && msie9) {
+      hljs.highlightAll()
+      hljs.initLineNumbersOnLoad();
+    }
+})();
+</script>
+
+<div class="footer">
+    
+    <div style="float:right;">generated on 2023-11-12 23:26</div>
+</div>
+</body>
+</html>

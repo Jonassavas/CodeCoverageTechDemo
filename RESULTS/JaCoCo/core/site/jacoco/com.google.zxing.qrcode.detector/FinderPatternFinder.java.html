@@ -1,0 +1,727 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>FinderPatternFinder.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">ZXing Core</a> &gt; <a href="index.source.html" class="el_package">com.google.zxing.qrcode.detector</a> &gt; <span class="el_source">FinderPatternFinder.java</span></div><h1>FinderPatternFinder.java</h1><pre class="source lang-java linenums">/*
+ * Copyright 2007 ZXing authors
+ *
+ * Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an &quot;AS IS&quot; BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+package com.google.zxing.qrcode.detector;
+
+import com.google.zxing.DecodeHintType;
+import com.google.zxing.NotFoundException;
+import com.google.zxing.ResultPoint;
+import com.google.zxing.ResultPointCallback;
+import com.google.zxing.common.BitMatrix;
+
+import java.io.Serializable;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.Comparator;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Map;
+
+/**
+ * &lt;p&gt;This class attempts to find finder patterns in a QR Code. Finder patterns are the square
+ * markers at three corners of a QR Code.&lt;/p&gt;
+ *
+ * &lt;p&gt;This class is thread-safe but not reentrant. Each thread must allocate its own object.
+ *
+ * @author Sean Owen
+ */
+public class FinderPatternFinder {
+
+  private static final int CENTER_QUORUM = 2;
+<span class="fc" id="L45">  private static final EstimatedModuleComparator moduleComparator = new EstimatedModuleComparator();</span>
+  protected static final int MIN_SKIP = 3; // 1 pixel/module times 3 modules/center
+  protected static final int MAX_MODULES = 97; // support up to version 20 for mobile clients
+
+  private final BitMatrix image;
+  private final List&lt;FinderPattern&gt; possibleCenters;
+  private boolean hasSkipped;
+  private final int[] crossCheckStateCount;
+  private final ResultPointCallback resultPointCallback;
+
+  /**
+   * &lt;p&gt;Creates a finder that will search the image for three finder patterns.&lt;/p&gt;
+   *
+   * @param image image to search
+   */
+  public FinderPatternFinder(BitMatrix image) {
+<span class="nc" id="L61">    this(image, null);</span>
+<span class="nc" id="L62">  }</span>
+
+<span class="fc" id="L64">  public FinderPatternFinder(BitMatrix image, ResultPointCallback resultPointCallback) {</span>
+<span class="fc" id="L65">    this.image = image;</span>
+<span class="fc" id="L66">    this.possibleCenters = new ArrayList&lt;&gt;();</span>
+<span class="fc" id="L67">    this.crossCheckStateCount = new int[5];</span>
+<span class="fc" id="L68">    this.resultPointCallback = resultPointCallback;</span>
+<span class="fc" id="L69">  }</span>
+
+  protected final BitMatrix getImage() {
+<span class="fc" id="L72">    return image;</span>
+  }
+
+  protected final List&lt;FinderPattern&gt; getPossibleCenters() {
+<span class="fc" id="L76">    return possibleCenters;</span>
+  }
+
+  final FinderPatternInfo find(Map&lt;DecodeHintType,?&gt; hints) throws NotFoundException {
+<span class="fc bfc" id="L80" title="All 4 branches covered.">    boolean tryHarder = hints != null &amp;&amp; hints.containsKey(DecodeHintType.TRY_HARDER);</span>
+<span class="fc" id="L81">    int maxI = image.getHeight();</span>
+<span class="fc" id="L82">    int maxJ = image.getWidth();</span>
+    // We are looking for black/white/black/white/black modules in
+    // 1:1:3:1:1 ratio; this tracks the number of such modules seen so far
+
+    // Let's assume that the maximum version QR Code we support takes up 1/4 the height of the
+    // image, and then account for the center being 3 modules in size. This gives the smallest
+    // number of pixels the center could be, so skip this often. When trying harder, look for all
+    // QR versions regardless of how dense they are.
+<span class="fc" id="L90">    int iSkip = (3 * maxI) / (4 * MAX_MODULES);</span>
+<span class="fc bfc" id="L91" title="All 4 branches covered.">    if (iSkip &lt; MIN_SKIP || tryHarder) {</span>
+<span class="fc" id="L92">      iSkip = MIN_SKIP;</span>
+    }
+
+<span class="fc" id="L95">    boolean done = false;</span>
+<span class="fc" id="L96">    int[] stateCount = new int[5];</span>
+<span class="fc bfc" id="L97" title="All 4 branches covered.">    for (int i = iSkip - 1; i &lt; maxI &amp;&amp; !done; i += iSkip) {</span>
+      // Get a row of black/white values
+<span class="fc" id="L99">      doClearCounts(stateCount);</span>
+<span class="fc" id="L100">      int currentState = 0;</span>
+<span class="fc bfc" id="L101" title="All 2 branches covered.">      for (int j = 0; j &lt; maxJ; j++) {</span>
+<span class="fc bfc" id="L102" title="All 2 branches covered.">        if (image.get(j, i)) {</span>
+          // Black pixel
+<span class="fc bfc" id="L104" title="All 2 branches covered.">          if ((currentState &amp; 1) == 1) { // Counting white pixels</span>
+<span class="fc" id="L105">            currentState++;</span>
+          }
+<span class="fc" id="L107">          stateCount[currentState]++;</span>
+        } else { // White pixel
+<span class="fc bfc" id="L109" title="All 2 branches covered.">          if ((currentState &amp; 1) == 0) { // Counting black pixels</span>
+<span class="fc bfc" id="L110" title="All 2 branches covered.">            if (currentState == 4) { // A winner?</span>
+<span class="fc bfc" id="L111" title="All 2 branches covered.">              if (foundPatternCross(stateCount)) { // Yes</span>
+<span class="fc" id="L112">                boolean confirmed = handlePossibleCenter(stateCount, i, j);</span>
+<span class="fc bfc" id="L113" title="All 2 branches covered.">                if (confirmed) {</span>
+                  // Start examining every other line. Checking each line turned out to be too
+                  // expensive and didn't improve performance.
+<span class="fc" id="L116">                  iSkip = 2;</span>
+<span class="fc bfc" id="L117" title="All 2 branches covered.">                  if (hasSkipped) {</span>
+<span class="fc" id="L118">                    done = haveMultiplyConfirmedCenters();</span>
+                  } else {
+<span class="fc" id="L120">                    int rowSkip = findRowSkip();</span>
+<span class="fc bfc" id="L121" title="All 2 branches covered.">                    if (rowSkip &gt; stateCount[2]) {</span>
+                      // Skip rows between row of lower confirmed center
+                      // and top of presumed third confirmed center
+                      // but back up a bit to get a full chance of detecting
+                      // it, entire width of center of finder pattern
+
+                      // Skip by rowSkip, but back off by stateCount[2] (size of last center
+                      // of pattern we saw) to be conservative, and also back off by iSkip which
+                      // is about to be re-added
+<span class="fc" id="L130">                      i += rowSkip - stateCount[2] - iSkip;</span>
+<span class="fc" id="L131">                      j = maxJ - 1;</span>
+                    }
+<span class="fc" id="L133">                  }</span>
+                } else {
+<span class="fc" id="L135">                  doShiftCounts2(stateCount);</span>
+<span class="fc" id="L136">                  currentState = 3;</span>
+<span class="fc" id="L137">                  continue;</span>
+                }
+                // Clear state to start looking again
+<span class="fc" id="L140">                currentState = 0;</span>
+<span class="fc" id="L141">                doClearCounts(stateCount);</span>
+<span class="fc" id="L142">              } else { // No, shift counts back by two</span>
+<span class="fc" id="L143">                doShiftCounts2(stateCount);</span>
+<span class="fc" id="L144">                currentState = 3;</span>
+              }
+            } else {
+<span class="fc" id="L147">              stateCount[++currentState]++;</span>
+            }
+          } else { // Counting white pixels
+<span class="fc" id="L150">            stateCount[currentState]++;</span>
+          }
+        }
+      }
+<span class="fc bfc" id="L154" title="All 2 branches covered.">      if (foundPatternCross(stateCount)) {</span>
+<span class="fc" id="L155">        boolean confirmed = handlePossibleCenter(stateCount, i, maxJ);</span>
+<span class="fc bfc" id="L156" title="All 2 branches covered.">        if (confirmed) {</span>
+<span class="fc" id="L157">          iSkip = stateCount[0];</span>
+<span class="fc bfc" id="L158" title="All 2 branches covered.">          if (hasSkipped) {</span>
+            // Found a third one
+<span class="fc" id="L160">            done = haveMultiplyConfirmedCenters();</span>
+          }
+        }
+      }
+    }
+
+<span class="fc" id="L166">    FinderPattern[] patternInfo = selectBestPatterns();</span>
+<span class="fc" id="L167">    ResultPoint.orderBestPatterns(patternInfo);</span>
+
+<span class="fc" id="L169">    return new FinderPatternInfo(patternInfo);</span>
+  }
+
+  /**
+   * Given a count of black/white/black/white/black pixels just seen and an end position,
+   * figures the location of the center of this run.
+   */
+  private static float centerFromEnd(int[] stateCount, int end) {
+<span class="fc" id="L177">    return (end - stateCount[4] - stateCount[3]) - stateCount[2] / 2.0f;</span>
+  }
+
+  /**
+   * @param stateCount count of black/white/black/white/black pixels just read
+   * @return true iff the proportions of the counts is close enough to the 1/1/3/1/1 ratios
+   *         used by finder patterns to be considered a match
+   */
+  protected static boolean foundPatternCross(int[] stateCount) {
+<span class="fc" id="L186">    int totalModuleSize = 0;</span>
+<span class="fc bfc" id="L187" title="All 2 branches covered.">    for (int i = 0; i &lt; 5; i++) {</span>
+<span class="fc" id="L188">      int count = stateCount[i];</span>
+<span class="fc bfc" id="L189" title="All 2 branches covered.">      if (count == 0) {</span>
+<span class="fc" id="L190">        return false;</span>
+      }
+<span class="fc" id="L192">      totalModuleSize += count;</span>
+    }
+<span class="fc bfc" id="L194" title="All 2 branches covered.">    if (totalModuleSize &lt; 7) {</span>
+<span class="fc" id="L195">      return false;</span>
+    }
+<span class="fc" id="L197">    float moduleSize = totalModuleSize / 7.0f;</span>
+<span class="fc" id="L198">    float maxVariance = moduleSize / 2.0f;</span>
+    // Allow less than 50% variance from 1-1-3-1-1 proportions
+<span class="fc" id="L200">    return</span>
+<span class="fc bfc" id="L201" title="All 2 branches covered.">        Math.abs(moduleSize - stateCount[0]) &lt; maxVariance &amp;&amp;</span>
+<span class="fc bfc" id="L202" title="All 2 branches covered.">        Math.abs(moduleSize - stateCount[1]) &lt; maxVariance &amp;&amp;</span>
+<span class="fc bfc" id="L203" title="All 2 branches covered.">        Math.abs(3.0f * moduleSize - stateCount[2]) &lt; 3 * maxVariance &amp;&amp;</span>
+<span class="fc bfc" id="L204" title="All 2 branches covered.">        Math.abs(moduleSize - stateCount[3]) &lt; maxVariance &amp;&amp;</span>
+<span class="fc bfc" id="L205" title="All 2 branches covered.">        Math.abs(moduleSize - stateCount[4]) &lt; maxVariance;</span>
+  }
+
+  /**
+   * @param stateCount count of black/white/black/white/black pixels just read
+   * @return true iff the proportions of the counts is close enough to the 1/1/3/1/1 ratios
+   *         used by finder patterns to be considered a match
+   */
+  protected static boolean foundPatternDiagonal(int[] stateCount) {
+<span class="fc" id="L214">    int totalModuleSize = 0;</span>
+<span class="fc bfc" id="L215" title="All 2 branches covered.">    for (int i = 0; i &lt; 5; i++) {</span>
+<span class="fc" id="L216">      int count = stateCount[i];</span>
+<span class="pc bpc" id="L217" title="1 of 2 branches missed.">      if (count == 0) {</span>
+<span class="nc" id="L218">        return false;</span>
+      }
+<span class="fc" id="L220">      totalModuleSize += count;</span>
+    }
+<span class="fc bfc" id="L222" title="All 2 branches covered.">    if (totalModuleSize &lt; 7) {</span>
+<span class="fc" id="L223">      return false;</span>
+    }
+<span class="fc" id="L225">    float moduleSize = totalModuleSize / 7.0f;</span>
+<span class="fc" id="L226">    float maxVariance = moduleSize / 1.333f;</span>
+    // Allow less than 75% variance from 1-1-3-1-1 proportions
+<span class="fc" id="L228">    return</span>
+<span class="fc bfc" id="L229" title="All 2 branches covered.">            Math.abs(moduleSize - stateCount[0]) &lt; maxVariance &amp;&amp;</span>
+<span class="fc bfc" id="L230" title="All 2 branches covered.">                    Math.abs(moduleSize - stateCount[1]) &lt; maxVariance &amp;&amp;</span>
+<span class="fc bfc" id="L231" title="All 2 branches covered.">                    Math.abs(3.0f * moduleSize - stateCount[2]) &lt; 3 * maxVariance &amp;&amp;</span>
+<span class="fc bfc" id="L232" title="All 2 branches covered.">                    Math.abs(moduleSize - stateCount[3]) &lt; maxVariance &amp;&amp;</span>
+<span class="fc bfc" id="L233" title="All 2 branches covered.">                    Math.abs(moduleSize - stateCount[4]) &lt; maxVariance;</span>
+  }
+
+  private int[] getCrossCheckStateCount() {
+<span class="fc" id="L237">    doClearCounts(crossCheckStateCount);</span>
+<span class="fc" id="L238">    return crossCheckStateCount;</span>
+  }
+
+  @Deprecated
+  protected final void clearCounts(int[] counts) {
+<span class="nc" id="L243">    doClearCounts(counts);</span>
+<span class="nc" id="L244">  }</span>
+
+  @Deprecated
+  protected final void shiftCounts2(int[] stateCount) {
+<span class="nc" id="L248">    doShiftCounts2(stateCount);</span>
+<span class="nc" id="L249">  }</span>
+
+  protected static void doClearCounts(int[] counts) {
+<span class="fc" id="L252">    Arrays.fill(counts, 0);</span>
+<span class="fc" id="L253">  }</span>
+
+  protected static void doShiftCounts2(int[] stateCount) {
+<span class="fc" id="L256">    stateCount[0] = stateCount[2];</span>
+<span class="fc" id="L257">    stateCount[1] = stateCount[3];</span>
+<span class="fc" id="L258">    stateCount[2] = stateCount[4];</span>
+<span class="fc" id="L259">    stateCount[3] = 1;</span>
+<span class="fc" id="L260">    stateCount[4] = 0;</span>
+<span class="fc" id="L261">  }</span>
+
+  /**
+   * After a vertical and horizontal scan finds a potential finder pattern, this method
+   * &quot;cross-cross-cross-checks&quot; by scanning down diagonally through the center of the possible
+   * finder pattern to see if the same proportion is detected.
+   *
+   * @param centerI row where a finder pattern was detected
+   * @param centerJ center of the section that appears to cross a finder pattern
+   * @return true if proportions are withing expected limits
+   */
+  private boolean crossCheckDiagonal(int centerI, int centerJ) {
+<span class="fc" id="L273">    int[] stateCount = getCrossCheckStateCount();</span>
+
+    // Start counting up, left from center finding black center mass
+<span class="fc" id="L276">    int i = 0;</span>
+<span class="pc bpc" id="L277" title="2 of 6 branches missed.">    while (centerI &gt;= i &amp;&amp; centerJ &gt;= i &amp;&amp; image.get(centerJ - i, centerI - i)) {</span>
+<span class="fc" id="L278">      stateCount[2]++;</span>
+<span class="fc" id="L279">      i++;</span>
+    }
+<span class="pc bpc" id="L281" title="1 of 2 branches missed.">    if (stateCount[2] == 0) {</span>
+<span class="nc" id="L282">      return false;</span>
+    }
+
+    // Continue up, left finding white space
+<span class="fc bfc" id="L286" title="All 6 branches covered.">    while (centerI &gt;= i &amp;&amp; centerJ &gt;= i &amp;&amp; !image.get(centerJ - i, centerI - i)) {</span>
+<span class="fc" id="L287">      stateCount[1]++;</span>
+<span class="fc" id="L288">      i++;</span>
+    }
+<span class="pc bpc" id="L290" title="1 of 2 branches missed.">    if (stateCount[1] == 0) {</span>
+<span class="nc" id="L291">      return false;</span>
+    }
+
+    // Continue up, left finding black border
+<span class="fc bfc" id="L295" title="All 6 branches covered.">    while (centerI &gt;= i &amp;&amp; centerJ &gt;= i &amp;&amp; image.get(centerJ - i, centerI - i)) {</span>
+<span class="fc" id="L296">      stateCount[0]++;</span>
+<span class="fc" id="L297">      i++;</span>
+    }
+<span class="fc bfc" id="L299" title="All 2 branches covered.">    if (stateCount[0] == 0) {</span>
+<span class="fc" id="L300">      return false;</span>
+    }
+
+<span class="fc" id="L303">    int maxI = image.getHeight();</span>
+<span class="fc" id="L304">    int maxJ = image.getWidth();</span>
+
+    // Now also count down, right from center
+<span class="fc" id="L307">    i = 1;</span>
+<span class="pc bpc" id="L308" title="2 of 6 branches missed.">    while (centerI + i &lt; maxI &amp;&amp; centerJ + i &lt; maxJ &amp;&amp; image.get(centerJ + i, centerI + i)) {</span>
+<span class="fc" id="L309">      stateCount[2]++;</span>
+<span class="fc" id="L310">      i++;</span>
+    }
+
+<span class="fc bfc" id="L313" title="All 6 branches covered.">    while (centerI + i &lt; maxI &amp;&amp; centerJ + i &lt; maxJ &amp;&amp; !image.get(centerJ + i, centerI + i)) {</span>
+<span class="fc" id="L314">      stateCount[3]++;</span>
+<span class="fc" id="L315">      i++;</span>
+    }
+<span class="pc bpc" id="L317" title="1 of 2 branches missed.">    if (stateCount[3] == 0) {</span>
+<span class="nc" id="L318">      return false;</span>
+    }
+
+<span class="fc bfc" id="L321" title="All 6 branches covered.">    while (centerI + i &lt; maxI &amp;&amp; centerJ + i &lt; maxJ &amp;&amp; image.get(centerJ + i, centerI + i)) {</span>
+<span class="fc" id="L322">      stateCount[4]++;</span>
+<span class="fc" id="L323">      i++;</span>
+    }
+<span class="fc bfc" id="L325" title="All 2 branches covered.">    if (stateCount[4] == 0) {</span>
+<span class="fc" id="L326">      return false;</span>
+    }
+
+<span class="fc" id="L329">    return foundPatternDiagonal(stateCount);</span>
+  }
+
+  /**
+   * &lt;p&gt;After a horizontal scan finds a potential finder pattern, this method
+   * &quot;cross-checks&quot; by scanning down vertically through the center of the possible
+   * finder pattern to see if the same proportion is detected.&lt;/p&gt;
+   *
+   * @param startI row where a finder pattern was detected
+   * @param centerJ center of the section that appears to cross a finder pattern
+   * @param maxCount maximum reasonable number of modules that should be
+   * observed in any reading state, based on the results of the horizontal scan
+   * @return vertical center of finder pattern, or {@link Float#NaN} if not found
+   */
+  private float crossCheckVertical(int startI, int centerJ, int maxCount,
+      int originalStateCountTotal) {
+<span class="fc" id="L345">    BitMatrix image = this.image;</span>
+
+<span class="fc" id="L347">    int maxI = image.getHeight();</span>
+<span class="fc" id="L348">    int[] stateCount = getCrossCheckStateCount();</span>
+
+    // Start counting up from center
+<span class="fc" id="L351">    int i = startI;</span>
+<span class="fc bfc" id="L352" title="All 4 branches covered.">    while (i &gt;= 0 &amp;&amp; image.get(centerJ, i)) {</span>
+<span class="fc" id="L353">      stateCount[2]++;</span>
+<span class="fc" id="L354">      i--;</span>
+    }
+<span class="fc bfc" id="L356" title="All 2 branches covered.">    if (i &lt; 0) {</span>
+<span class="fc" id="L357">      return Float.NaN;</span>
+    }
+<span class="fc bfc" id="L359" title="All 6 branches covered.">    while (i &gt;= 0 &amp;&amp; !image.get(centerJ, i) &amp;&amp; stateCount[1] &lt;= maxCount) {</span>
+<span class="fc" id="L360">      stateCount[1]++;</span>
+<span class="fc" id="L361">      i--;</span>
+    }
+    // If already too many modules in this state or ran off the edge:
+<span class="fc bfc" id="L364" title="All 4 branches covered.">    if (i &lt; 0 || stateCount[1] &gt; maxCount) {</span>
+<span class="fc" id="L365">      return Float.NaN;</span>
+    }
+<span class="fc bfc" id="L367" title="All 6 branches covered.">    while (i &gt;= 0 &amp;&amp; image.get(centerJ, i) &amp;&amp; stateCount[0] &lt;= maxCount) {</span>
+<span class="fc" id="L368">      stateCount[0]++;</span>
+<span class="fc" id="L369">      i--;</span>
+    }
+<span class="fc bfc" id="L371" title="All 2 branches covered.">    if (stateCount[0] &gt; maxCount) {</span>
+<span class="fc" id="L372">      return Float.NaN;</span>
+    }
+
+    // Now also count down from center
+<span class="fc" id="L376">    i = startI + 1;</span>
+<span class="fc bfc" id="L377" title="All 4 branches covered.">    while (i &lt; maxI &amp;&amp; image.get(centerJ, i)) {</span>
+<span class="fc" id="L378">      stateCount[2]++;</span>
+<span class="fc" id="L379">      i++;</span>
+    }
+<span class="fc bfc" id="L381" title="All 2 branches covered.">    if (i == maxI) {</span>
+<span class="fc" id="L382">      return Float.NaN;</span>
+    }
+<span class="fc bfc" id="L384" title="All 6 branches covered.">    while (i &lt; maxI &amp;&amp; !image.get(centerJ, i) &amp;&amp; stateCount[3] &lt; maxCount) {</span>
+<span class="fc" id="L385">      stateCount[3]++;</span>
+<span class="fc" id="L386">      i++;</span>
+    }
+<span class="fc bfc" id="L388" title="All 4 branches covered.">    if (i == maxI || stateCount[3] &gt;= maxCount) {</span>
+<span class="fc" id="L389">      return Float.NaN;</span>
+    }
+<span class="fc bfc" id="L391" title="All 6 branches covered.">    while (i &lt; maxI &amp;&amp; image.get(centerJ, i) &amp;&amp; stateCount[4] &lt; maxCount) {</span>
+<span class="fc" id="L392">      stateCount[4]++;</span>
+<span class="fc" id="L393">      i++;</span>
+    }
+<span class="fc bfc" id="L395" title="All 2 branches covered.">    if (stateCount[4] &gt;= maxCount) {</span>
+<span class="fc" id="L396">      return Float.NaN;</span>
+    }
+
+    // If we found a finder-pattern-like section, but its size is more than 40% different than
+    // the original, assume it's a false positive
+<span class="fc" id="L401">    int stateCountTotal = stateCount[0] + stateCount[1] + stateCount[2] + stateCount[3] +</span>
+        stateCount[4];
+<span class="fc bfc" id="L403" title="All 2 branches covered.">    if (5 * Math.abs(stateCountTotal - originalStateCountTotal) &gt;= 2 * originalStateCountTotal) {</span>
+<span class="fc" id="L404">      return Float.NaN;</span>
+    }
+
+<span class="fc bfc" id="L407" title="All 2 branches covered.">    return foundPatternCross(stateCount) ? centerFromEnd(stateCount, i) : Float.NaN;</span>
+  }
+
+  /**
+   * &lt;p&gt;Like {@link #crossCheckVertical(int, int, int, int)}, and in fact is basically identical,
+   * except it reads horizontally instead of vertically. This is used to cross-cross
+   * check a vertical cross check and locate the real center of the alignment pattern.&lt;/p&gt;
+   */
+  private float crossCheckHorizontal(int startJ, int centerI, int maxCount,
+      int originalStateCountTotal) {
+<span class="fc" id="L417">    BitMatrix image = this.image;</span>
+
+<span class="fc" id="L419">    int maxJ = image.getWidth();</span>
+<span class="fc" id="L420">    int[] stateCount = getCrossCheckStateCount();</span>
+
+<span class="fc" id="L422">    int j = startJ;</span>
+<span class="fc bfc" id="L423" title="All 4 branches covered.">    while (j &gt;= 0 &amp;&amp; image.get(j, centerI)) {</span>
+<span class="fc" id="L424">      stateCount[2]++;</span>
+<span class="fc" id="L425">      j--;</span>
+    }
+<span class="fc bfc" id="L427" title="All 2 branches covered.">    if (j &lt; 0) {</span>
+<span class="fc" id="L428">      return Float.NaN;</span>
+    }
+<span class="fc bfc" id="L430" title="All 6 branches covered.">    while (j &gt;= 0 &amp;&amp; !image.get(j, centerI) &amp;&amp; stateCount[1] &lt;= maxCount) {</span>
+<span class="fc" id="L431">      stateCount[1]++;</span>
+<span class="fc" id="L432">      j--;</span>
+    }
+<span class="fc bfc" id="L434" title="All 4 branches covered.">    if (j &lt; 0 || stateCount[1] &gt; maxCount) {</span>
+<span class="fc" id="L435">      return Float.NaN;</span>
+    }
+<span class="fc bfc" id="L437" title="All 6 branches covered.">    while (j &gt;= 0 &amp;&amp; image.get(j, centerI) &amp;&amp; stateCount[0] &lt;= maxCount) {</span>
+<span class="fc" id="L438">      stateCount[0]++;</span>
+<span class="fc" id="L439">      j--;</span>
+    }
+<span class="fc bfc" id="L441" title="All 2 branches covered.">    if (stateCount[0] &gt; maxCount) {</span>
+<span class="fc" id="L442">      return Float.NaN;</span>
+    }
+
+<span class="fc" id="L445">    j = startJ + 1;</span>
+<span class="fc bfc" id="L446" title="All 4 branches covered.">    while (j &lt; maxJ &amp;&amp; image.get(j, centerI)) {</span>
+<span class="fc" id="L447">      stateCount[2]++;</span>
+<span class="fc" id="L448">      j++;</span>
+    }
+<span class="fc bfc" id="L450" title="All 2 branches covered.">    if (j == maxJ) {</span>
+<span class="fc" id="L451">      return Float.NaN;</span>
+    }
+<span class="fc bfc" id="L453" title="All 6 branches covered.">    while (j &lt; maxJ &amp;&amp; !image.get(j, centerI) &amp;&amp; stateCount[3] &lt; maxCount) {</span>
+<span class="fc" id="L454">      stateCount[3]++;</span>
+<span class="fc" id="L455">      j++;</span>
+    }
+<span class="fc bfc" id="L457" title="All 4 branches covered.">    if (j == maxJ || stateCount[3] &gt;= maxCount) {</span>
+<span class="fc" id="L458">      return Float.NaN;</span>
+    }
+<span class="fc bfc" id="L460" title="All 6 branches covered.">    while (j &lt; maxJ &amp;&amp; image.get(j, centerI) &amp;&amp; stateCount[4] &lt; maxCount) {</span>
+<span class="fc" id="L461">      stateCount[4]++;</span>
+<span class="fc" id="L462">      j++;</span>
+    }
+<span class="fc bfc" id="L464" title="All 2 branches covered.">    if (stateCount[4] &gt;= maxCount) {</span>
+<span class="fc" id="L465">      return Float.NaN;</span>
+    }
+
+    // If we found a finder-pattern-like section, but its size is significantly different than
+    // the original, assume it's a false positive
+<span class="fc" id="L470">    int stateCountTotal = stateCount[0] + stateCount[1] + stateCount[2] + stateCount[3] +</span>
+        stateCount[4];
+<span class="fc bfc" id="L472" title="All 2 branches covered.">    if (5 * Math.abs(stateCountTotal - originalStateCountTotal) &gt;= originalStateCountTotal) {</span>
+<span class="fc" id="L473">      return Float.NaN;</span>
+    }
+
+<span class="fc bfc" id="L476" title="All 2 branches covered.">    return foundPatternCross(stateCount) ? centerFromEnd(stateCount, j) : Float.NaN;</span>
+  }
+
+  /**
+   * @param stateCount reading state module counts from horizontal scan
+   * @param i row where finder pattern may be found
+   * @param j end of possible finder pattern in row
+   * @param pureBarcode ignored
+   * @return true if a finder pattern candidate was found this time
+   * @deprecated only exists for backwards compatibility
+   * @see #handlePossibleCenter(int[], int, int)
+   */
+  @Deprecated
+  protected final boolean handlePossibleCenter(int[] stateCount, int i, int j, boolean pureBarcode) {
+<span class="nc" id="L490">    return handlePossibleCenter(stateCount, i, j);</span>
+  }
+
+  /**
+   * &lt;p&gt;This is called when a horizontal scan finds a possible alignment pattern. It will
+   * cross check with a vertical scan, and if successful, will, ah, cross-cross-check
+   * with another horizontal scan. This is needed primarily to locate the real horizontal
+   * center of the pattern in cases of extreme skew.
+   * And then we cross-cross-cross check with another diagonal scan.&lt;/p&gt;
+   *
+   * &lt;p&gt;If that succeeds the finder pattern location is added to a list that tracks
+   * the number of times each location has been nearly-matched as a finder pattern.
+   * Each additional find is more evidence that the location is in fact a finder
+   * pattern center
+   *
+   * @param stateCount reading state module counts from horizontal scan
+   * @param i row where finder pattern may be found
+   * @param j end of possible finder pattern in row
+   * @return true if a finder pattern candidate was found this time
+   */
+  protected final boolean handlePossibleCenter(int[] stateCount, int i, int j) {
+<span class="fc" id="L511">    int stateCountTotal = stateCount[0] + stateCount[1] + stateCount[2] + stateCount[3] +</span>
+        stateCount[4];
+<span class="fc" id="L513">    float centerJ = centerFromEnd(stateCount, j);</span>
+<span class="fc" id="L514">    float centerI = crossCheckVertical(i, (int) centerJ, stateCount[2], stateCountTotal);</span>
+<span class="fc bfc" id="L515" title="All 2 branches covered.">    if (!Float.isNaN(centerI)) {</span>
+      // Re-cross check
+<span class="fc" id="L517">      centerJ = crossCheckHorizontal((int) centerJ, (int) centerI, stateCount[2], stateCountTotal);</span>
+<span class="fc bfc" id="L518" title="All 4 branches covered.">      if (!Float.isNaN(centerJ) &amp;&amp; crossCheckDiagonal((int) centerI, (int) centerJ)) {</span>
+<span class="fc" id="L519">        float estimatedModuleSize = stateCountTotal / 7.0f;</span>
+<span class="fc" id="L520">        boolean found = false;</span>
+<span class="fc bfc" id="L521" title="All 2 branches covered.">        for (int index = 0; index &lt; possibleCenters.size(); index++) {</span>
+<span class="fc" id="L522">          FinderPattern center = possibleCenters.get(index);</span>
+          // Look for about the same center and module size:
+<span class="fc bfc" id="L524" title="All 2 branches covered.">          if (center.aboutEquals(estimatedModuleSize, centerI, centerJ)) {</span>
+<span class="fc" id="L525">            possibleCenters.set(index, center.combineEstimate(centerI, centerJ, estimatedModuleSize));</span>
+<span class="fc" id="L526">            found = true;</span>
+<span class="fc" id="L527">            break;</span>
+          }
+        }
+<span class="fc bfc" id="L530" title="All 2 branches covered.">        if (!found) {</span>
+<span class="fc" id="L531">          FinderPattern point = new FinderPattern(centerJ, centerI, estimatedModuleSize);</span>
+<span class="fc" id="L532">          possibleCenters.add(point);</span>
+<span class="pc bpc" id="L533" title="1 of 2 branches missed.">          if (resultPointCallback != null) {</span>
+<span class="nc" id="L534">            resultPointCallback.foundPossibleResultPoint(point);</span>
+          }
+        }
+<span class="fc" id="L537">        return true;</span>
+      }
+    }
+<span class="fc" id="L540">    return false;</span>
+  }
+
+  /**
+   * @return number of rows we could safely skip during scanning, based on the first
+   *         two finder patterns that have been located. In some cases their position will
+   *         allow us to infer that the third pattern must lie below a certain point farther
+   *         down in the image.
+   */
+  private int findRowSkip() {
+<span class="fc" id="L550">    int max = possibleCenters.size();</span>
+<span class="fc bfc" id="L551" title="All 2 branches covered.">    if (max &lt;= 1) {</span>
+<span class="fc" id="L552">      return 0;</span>
+    }
+<span class="fc" id="L554">    ResultPoint firstConfirmedCenter = null;</span>
+<span class="fc bfc" id="L555" title="All 2 branches covered.">    for (FinderPattern center : possibleCenters) {</span>
+<span class="fc bfc" id="L556" title="All 2 branches covered.">      if (center.getCount() &gt;= CENTER_QUORUM) {</span>
+<span class="fc bfc" id="L557" title="All 2 branches covered.">        if (firstConfirmedCenter == null) {</span>
+<span class="fc" id="L558">          firstConfirmedCenter = center;</span>
+        } else {
+          // We have two confirmed centers
+          // How far down can we skip before resuming looking for the next
+          // pattern? In the worst case, only the difference between the
+          // difference in the x / y coordinates of the two centers.
+          // This is the case where you find top left last.
+<span class="fc" id="L565">          hasSkipped = true;</span>
+<span class="fc" id="L566">          return (int) (Math.abs(firstConfirmedCenter.getX() - center.getX()) -</span>
+<span class="fc" id="L567">              Math.abs(firstConfirmedCenter.getY() - center.getY())) / 2;</span>
+        }
+      }
+<span class="fc" id="L570">    }</span>
+<span class="fc" id="L571">    return 0;</span>
+  }
+
+  /**
+   * @return true iff we have found at least 3 finder patterns that have been detected
+   *         at least {@link #CENTER_QUORUM} times each, and, the estimated module size of the
+   *         candidates is &quot;pretty similar&quot;
+   */
+  private boolean haveMultiplyConfirmedCenters() {
+<span class="fc" id="L580">    int confirmedCount = 0;</span>
+<span class="fc" id="L581">    float totalModuleSize = 0.0f;</span>
+<span class="fc" id="L582">    int max = possibleCenters.size();</span>
+<span class="fc bfc" id="L583" title="All 2 branches covered.">    for (FinderPattern pattern : possibleCenters) {</span>
+<span class="fc bfc" id="L584" title="All 2 branches covered.">      if (pattern.getCount() &gt;= CENTER_QUORUM) {</span>
+<span class="fc" id="L585">        confirmedCount++;</span>
+<span class="fc" id="L586">        totalModuleSize += pattern.getEstimatedModuleSize();</span>
+      }
+<span class="fc" id="L588">    }</span>
+<span class="fc bfc" id="L589" title="All 2 branches covered.">    if (confirmedCount &lt; 3) {</span>
+<span class="fc" id="L590">      return false;</span>
+    }
+    // OK, we have at least 3 confirmed centers, but, it's possible that one is a &quot;false positive&quot;
+    // and that we need to keep looking. We detect this by asking if the estimated module sizes
+    // vary too much. We arbitrarily say that when the total deviation from average exceeds
+    // 5% of the total module size estimates, it's too much.
+<span class="fc" id="L596">    float average = totalModuleSize / max;</span>
+<span class="fc" id="L597">    float totalDeviation = 0.0f;</span>
+<span class="fc bfc" id="L598" title="All 2 branches covered.">    for (FinderPattern pattern : possibleCenters) {</span>
+<span class="fc" id="L599">      totalDeviation += Math.abs(pattern.getEstimatedModuleSize() - average);</span>
+<span class="fc" id="L600">    }</span>
+<span class="fc bfc" id="L601" title="All 2 branches covered.">    return totalDeviation &lt;= 0.05f * totalModuleSize;</span>
+  }
+
+  /**
+   * Get square of distance between a and b.
+   */
+  private static double squaredDistance(FinderPattern a, FinderPattern b) {
+<span class="fc" id="L608">    double x = a.getX() - b.getX();</span>
+<span class="fc" id="L609">    double y = a.getY() - b.getY();</span>
+<span class="fc" id="L610">    return x * x + y * y;</span>
+  }
+
+  /**
+   * @return the 3 best {@link FinderPattern}s from our list of candidates. The &quot;best&quot; are
+   *         those have similar module size and form a shape closer to a isosceles right triangle.
+   * @throws NotFoundException if 3 such finder patterns do not exist
+   */
+  private FinderPattern[] selectBestPatterns() throws NotFoundException {
+
+<span class="fc" id="L620">    int startSize = possibleCenters.size();</span>
+<span class="fc bfc" id="L621" title="All 2 branches covered.">    if (startSize &lt; 3) {</span>
+      // Couldn't find enough finder patterns
+<span class="fc" id="L623">      throw NotFoundException.getNotFoundInstance();</span>
+    }
+
+<span class="fc bfc" id="L626" title="All 2 branches covered.">    for (Iterator&lt;FinderPattern&gt; it = possibleCenters.iterator(); it.hasNext();) {</span>
+<span class="fc bfc" id="L627" title="All 2 branches covered.">      if (it.next().getCount() &lt; CENTER_QUORUM) {</span>
+<span class="fc" id="L628">        it.remove();</span>
+      }
+    }
+
+    // A more up-to-date version would be &quot;possibleCenters.sort(moduleComparator);&quot;
+    // But we need this old syntax for android API 23 (Marshmallow) and below
+    // cf. https://github.com/zxing/zxing/issues/1358
+<span class="fc" id="L635">    Collections.sort(possibleCenters, moduleComparator);</span>
+
+<span class="fc" id="L637">    double distortion = Double.MAX_VALUE;</span>
+<span class="fc" id="L638">    FinderPattern[] bestPatterns = new FinderPattern[3];</span>
+
+<span class="fc bfc" id="L640" title="All 2 branches covered.">    for (int i = 0; i &lt; possibleCenters.size() - 2; i++) {</span>
+<span class="fc" id="L641">      FinderPattern fpi = possibleCenters.get(i);</span>
+<span class="fc" id="L642">      float minModuleSize = fpi.getEstimatedModuleSize();</span>
+
+<span class="fc bfc" id="L644" title="All 2 branches covered.">      for (int j = i + 1; j &lt; possibleCenters.size() - 1; j++) {</span>
+<span class="fc" id="L645">        FinderPattern fpj = possibleCenters.get(j);</span>
+<span class="fc" id="L646">        double squares0 = squaredDistance(fpi, fpj);</span>
+
+<span class="fc bfc" id="L648" title="All 2 branches covered.">        for (int k = j + 1; k &lt; possibleCenters.size(); k++) {</span>
+<span class="fc" id="L649">          FinderPattern fpk = possibleCenters.get(k);</span>
+<span class="fc" id="L650">          float maxModuleSize = fpk.getEstimatedModuleSize();</span>
+<span class="fc bfc" id="L651" title="All 2 branches covered.">          if (maxModuleSize &gt; minModuleSize * 1.4f) {</span>
+            // module size is not similar
+<span class="fc" id="L653">            continue;</span>
+          }
+
+<span class="fc" id="L656">          double a = squares0;</span>
+<span class="fc" id="L657">          double b = squaredDistance(fpj, fpk);</span>
+<span class="fc" id="L658">          double c = squaredDistance(fpi, fpk);</span>
+
+          // sorts ascending - inlined
+<span class="fc bfc" id="L661" title="All 2 branches covered.">          if (a &lt; b) {</span>
+<span class="fc bfc" id="L662" title="All 2 branches covered.">            if (b &gt; c) {</span>
+<span class="fc bfc" id="L663" title="All 2 branches covered.">              if (a &lt; c) {</span>
+<span class="fc" id="L664">                double temp = b;</span>
+<span class="fc" id="L665">                b = c;</span>
+<span class="fc" id="L666">                c = temp;</span>
+<span class="fc" id="L667">              } else {</span>
+<span class="fc" id="L668">                double temp = a;</span>
+<span class="fc" id="L669">                a = c;</span>
+<span class="fc" id="L670">                c = b;</span>
+<span class="fc" id="L671">                b = temp;</span>
+<span class="fc" id="L672">              }</span>
+            }
+          } else {
+<span class="fc bfc" id="L675" title="All 2 branches covered.">            if (b &lt; c) {</span>
+<span class="fc bfc" id="L676" title="All 2 branches covered.">              if (a &lt; c) {</span>
+<span class="fc" id="L677">                double temp = a;</span>
+<span class="fc" id="L678">                a = b;</span>
+<span class="fc" id="L679">                b = temp;</span>
+<span class="fc" id="L680">              } else {</span>
+<span class="fc" id="L681">                double temp = a;</span>
+<span class="fc" id="L682">                a = b;</span>
+<span class="fc" id="L683">                b = c;</span>
+<span class="fc" id="L684">                c = temp;</span>
+<span class="fc" id="L685">              }</span>
+            } else {
+<span class="fc" id="L687">              double temp = a;</span>
+<span class="fc" id="L688">              a = c;</span>
+<span class="fc" id="L689">              c = temp;</span>
+            }
+          }
+
+          // a^2 + b^2 = c^2 (Pythagorean theorem), and a = b (isosceles triangle).
+          // Since any right triangle satisfies the formula c^2 - b^2 - a^2 = 0,
+          // we need to check both two equal sides separately.
+          // The value of |c^2 - 2 * b^2| + |c^2 - 2 * a^2| increases as dissimilarity
+          // from isosceles right triangle.
+<span class="fc" id="L698">          double d = Math.abs(c - 2 * b) + Math.abs(c - 2 * a);</span>
+<span class="fc bfc" id="L699" title="All 2 branches covered.">          if (d &lt; distortion) {</span>
+<span class="fc" id="L700">            distortion = d;</span>
+<span class="fc" id="L701">            bestPatterns[0] = fpi;</span>
+<span class="fc" id="L702">            bestPatterns[1] = fpj;</span>
+<span class="fc" id="L703">            bestPatterns[2] = fpk;</span>
+          }
+        }
+      }
+    }
+
+<span class="fc bfc" id="L709" title="All 2 branches covered.">    if (distortion == Double.MAX_VALUE) {</span>
+<span class="fc" id="L710">      throw NotFoundException.getNotFoundInstance();</span>
+    }
+
+<span class="fc" id="L713">    return bestPatterns;</span>
+  }
+
+  /**
+   * &lt;p&gt;Orders by {@link FinderPattern#getEstimatedModuleSize()}&lt;/p&gt;
+   */
+  private static final class EstimatedModuleComparator implements Comparator&lt;FinderPattern&gt;, Serializable {
+    @Override
+    public int compare(FinderPattern center1, FinderPattern center2) {
+<span class="fc" id="L722">      return Float.compare(center1.getEstimatedModuleSize(), center2.getEstimatedModuleSize());</span>
+    }
+  }
+
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.11.202310140853</span></div></body></html>

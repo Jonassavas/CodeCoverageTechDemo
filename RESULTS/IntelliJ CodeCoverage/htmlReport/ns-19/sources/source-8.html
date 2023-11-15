@@ -1,0 +1,365 @@
+
+
+
+<!DOCTYPE html>
+<html id="htmlId">
+<head>
+  <meta http-equiv="Content-Type" content="text/html;charset=windows-1252"> 
+  <title>Coverage Report > DetectionResultRowIndicatorColumn</title>
+  <style type="text/css">
+    @import "../../css/coverage.css";
+    @import "../../css/idea.min.css";
+  </style>
+  <script type="text/javascript" src="../../js/highlight.min.js"></script>
+  <script type="text/javascript" src="../../js/highlightjs-line-numbers.min.js"></script>
+</head>
+
+<body>
+<div class="content">
+<div class="breadCrumbs">
+Current scope:     <a href="../../index.html">all classes</a>
+    <span class="separator">|</span>
+    <a href="../index.html">com.google.zxing.pdf417.decoder</a>
+</div>
+
+<h1>Coverage Summary for Class: DetectionResultRowIndicatorColumn (com.google.zxing.pdf417.decoder)</h1>
+
+<table class="coverageStats">
+<tr>
+  <th class="name">Class</th>
+<th class="coverageStat 
+">
+  Class, %
+</th>
+<th class="coverageStat 
+">
+  Method, %
+</th>
+<th class="coverageStat 
+">
+  Line, %
+</th>
+</tr>
+<tr>
+  <td class="name">DetectionResultRowIndicatorColumn</td>
+<td class="coverageStat">
+  <span class="percent">
+    100%
+  </span>
+  <span class="absValue">
+    (1/1)
+  </span>
+</td>
+<td class="coverageStat">
+  <span class="percent">
+    88.9%
+  </span>
+  <span class="absValue">
+    (8/9)
+  </span>
+</td>
+<td class="coverageStat">
+  <span class="percent">
+    98.5%
+  </span>
+  <span class="absValue">
+    (128/130)
+  </span>
+</td>
+</tr>
+
+</table>
+
+<br/>
+<br/>
+
+
+<pre>
+<code class="sourceCode" id="sourceCode">&nbsp;/*
+&nbsp; * Copyright 2013 ZXing authors
+&nbsp; *
+&nbsp; * Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
+&nbsp; * you may not use this file except in compliance with the License.
+&nbsp; * You may obtain a copy of the License at
+&nbsp; *
+&nbsp; *      http://www.apache.org/licenses/LICENSE-2.0
+&nbsp; *
+&nbsp; * Unless required by applicable law or agreed to in writing, software
+&nbsp; * distributed under the License is distributed on an &quot;AS IS&quot; BASIS,
+&nbsp; * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+&nbsp; * See the License for the specific language governing permissions and
+&nbsp; * limitations under the License.
+&nbsp; */
+&nbsp;
+&nbsp;package com.google.zxing.pdf417.decoder;
+&nbsp;
+&nbsp;import com.google.zxing.ResultPoint;
+&nbsp;import com.google.zxing.pdf417.PDF417Common;
+&nbsp;
+&nbsp;/**
+&nbsp; * @author Guenther Grau
+&nbsp; */
+&nbsp;final class DetectionResultRowIndicatorColumn extends DetectionResultColumn {
+&nbsp;
+&nbsp;  private final boolean isLeft;
+&nbsp;
+&nbsp;  DetectionResultRowIndicatorColumn(BoundingBox boundingBox, boolean isLeft) {
+<b class="fc">&nbsp;    super(boundingBox);</b>
+<b class="fc">&nbsp;    this.isLeft = isLeft;</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  private void setRowNumbers() {
+<b class="fc">&nbsp;    for (Codeword codeword : getCodewords()) {</b>
+<b class="fc">&nbsp;      if (codeword != null) {</b>
+<b class="fc">&nbsp;        codeword.setRowNumberAsRowIndicatorColumn();</b>
+&nbsp;      }
+&nbsp;    }
+&nbsp;  }
+&nbsp;
+&nbsp;  // TODO implement properly
+&nbsp;  // TODO maybe we should add missing codewords to store the correct row number to make
+&nbsp;  // finding row numbers for other columns easier
+&nbsp;  // use row height count to make detection of invalid row numbers more reliable
+&nbsp;  void adjustCompleteIndicatorColumnRowNumbers(BarcodeMetadata barcodeMetadata) {
+<b class="fc">&nbsp;    Codeword[] codewords = getCodewords();</b>
+<b class="fc">&nbsp;    setRowNumbers();</b>
+<b class="fc">&nbsp;    removeIncorrectCodewords(codewords, barcodeMetadata);</b>
+<b class="fc">&nbsp;    BoundingBox boundingBox = getBoundingBox();</b>
+<b class="fc">&nbsp;    ResultPoint top = isLeft ? boundingBox.getTopLeft() : boundingBox.getTopRight();</b>
+<b class="fc">&nbsp;    ResultPoint bottom = isLeft ? boundingBox.getBottomLeft() : boundingBox.getBottomRight();</b>
+<b class="fc">&nbsp;    int firstRow = imageRowToCodewordIndex((int) top.getY());</b>
+<b class="fc">&nbsp;    int lastRow = imageRowToCodewordIndex((int) bottom.getY());</b>
+&nbsp;    // We need to be careful using the average row height. Barcode could be skewed so that we have smaller and
+&nbsp;    // taller rows
+&nbsp;    //float averageRowHeight = (lastRow - firstRow) / (float) barcodeMetadata.getRowCount();
+<b class="fc">&nbsp;    int barcodeRow = -1;</b>
+<b class="fc">&nbsp;    int maxRowHeight = 1;</b>
+<b class="fc">&nbsp;    int currentRowHeight = 0;</b>
+<b class="fc">&nbsp;    for (int codewordsRow = firstRow; codewordsRow &lt; lastRow; codewordsRow++) {</b>
+<b class="fc">&nbsp;      if (codewords[codewordsRow] == null) {</b>
+<b class="fc">&nbsp;        continue;</b>
+&nbsp;      }
+<b class="fc">&nbsp;      Codeword codeword = codewords[codewordsRow];</b>
+&nbsp;
+<b class="fc">&nbsp;      int rowDifference = codeword.getRowNumber() - barcodeRow;</b>
+&nbsp;
+&nbsp;      // TODO improve handling with case where first row indicator doesn&#39;t start with 0
+&nbsp;
+<b class="fc">&nbsp;      if (rowDifference == 0) {</b>
+<b class="fc">&nbsp;        currentRowHeight++;</b>
+<b class="fc">&nbsp;      } else if (rowDifference == 1) {</b>
+<b class="fc">&nbsp;        maxRowHeight = Math.max(maxRowHeight, currentRowHeight);</b>
+<b class="fc">&nbsp;        currentRowHeight = 1;</b>
+<b class="fc">&nbsp;        barcodeRow = codeword.getRowNumber();</b>
+<b class="fc">&nbsp;      } else if (rowDifference &lt; 0 ||</b>
+<b class="fc">&nbsp;                 codeword.getRowNumber() &gt;= barcodeMetadata.getRowCount() ||</b>
+&nbsp;                 rowDifference &gt; codewordsRow) {
+<b class="fc">&nbsp;        codewords[codewordsRow] = null;</b>
+&nbsp;      } else {
+&nbsp;        int checkedRows;
+<b class="fc">&nbsp;        if (maxRowHeight &gt; 2) {</b>
+<b class="fc">&nbsp;          checkedRows = (maxRowHeight - 2) * rowDifference;</b>
+&nbsp;        } else {
+<b class="fc">&nbsp;          checkedRows = rowDifference;</b>
+&nbsp;        }
+<b class="fc">&nbsp;        boolean closePreviousCodewordFound = checkedRows &gt;= codewordsRow;</b>
+<b class="fc">&nbsp;        for (int i = 1; i &lt;= checkedRows &amp;&amp; !closePreviousCodewordFound; i++) {</b>
+&nbsp;          // there must be (height * rowDifference) number of codewords missing. For now we assume height = 1.
+&nbsp;          // This should hopefully get rid of most problems already.
+<b class="fc">&nbsp;          closePreviousCodewordFound = codewords[codewordsRow - i] != null;</b>
+&nbsp;        }
+<b class="fc">&nbsp;        if (closePreviousCodewordFound) {</b>
+<b class="fc">&nbsp;          codewords[codewordsRow] = null;</b>
+&nbsp;        } else {
+<b class="fc">&nbsp;          barcodeRow = codeword.getRowNumber();</b>
+<b class="fc">&nbsp;          currentRowHeight = 1;</b>
+&nbsp;        }
+&nbsp;      }
+&nbsp;    }
+&nbsp;    //return (int) (averageRowHeight + 0.5);
+&nbsp;  }
+&nbsp;
+&nbsp;  int[] getRowHeights() {
+<b class="fc">&nbsp;    BarcodeMetadata barcodeMetadata = getBarcodeMetadata();</b>
+<b class="fc">&nbsp;    if (barcodeMetadata == null) {</b>
+<b class="nc">&nbsp;      return null;</b>
+&nbsp;    }
+<b class="fc">&nbsp;    adjustIncompleteIndicatorColumnRowNumbers(barcodeMetadata);</b>
+<b class="fc">&nbsp;    int[] result = new int[barcodeMetadata.getRowCount()];</b>
+<b class="fc">&nbsp;    for (Codeword codeword : getCodewords()) {</b>
+<b class="fc">&nbsp;      if (codeword != null) {</b>
+<b class="fc">&nbsp;        int rowNumber = codeword.getRowNumber();</b>
+<b class="fc">&nbsp;        if (rowNumber &gt;= result.length) {</b>
+&nbsp;          // We have more rows than the barcode metadata allows for, ignore them.
+<b class="fc">&nbsp;          continue;</b>
+&nbsp;        }
+<b class="fc">&nbsp;        result[rowNumber]++;</b>
+&nbsp;      } // else throw exception?
+&nbsp;    }
+<b class="fc">&nbsp;    return result;</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  // TODO maybe we should add missing codewords to store the correct row number to make
+&nbsp;  // finding row numbers for other columns easier
+&nbsp;  // use row height count to make detection of invalid row numbers more reliable
+&nbsp;  private void adjustIncompleteIndicatorColumnRowNumbers(BarcodeMetadata barcodeMetadata) {
+<b class="fc">&nbsp;    BoundingBox boundingBox = getBoundingBox();</b>
+<b class="fc">&nbsp;    ResultPoint top = isLeft ? boundingBox.getTopLeft() : boundingBox.getTopRight();</b>
+<b class="fc">&nbsp;    ResultPoint bottom = isLeft ? boundingBox.getBottomLeft() : boundingBox.getBottomRight();</b>
+<b class="fc">&nbsp;    int firstRow = imageRowToCodewordIndex((int) top.getY());</b>
+<b class="fc">&nbsp;    int lastRow = imageRowToCodewordIndex((int) bottom.getY());</b>
+&nbsp;    //float averageRowHeight = (lastRow - firstRow) / (float) barcodeMetadata.getRowCount();
+<b class="fc">&nbsp;    Codeword[] codewords = getCodewords();</b>
+<b class="fc">&nbsp;    int barcodeRow = -1;</b>
+<b class="fc">&nbsp;    int maxRowHeight = 1;</b>
+<b class="fc">&nbsp;    int currentRowHeight = 0;</b>
+<b class="fc">&nbsp;    for (int codewordsRow = firstRow; codewordsRow &lt; lastRow; codewordsRow++) {</b>
+<b class="fc">&nbsp;      if (codewords[codewordsRow] == null) {</b>
+<b class="fc">&nbsp;        continue;</b>
+&nbsp;      }
+<b class="fc">&nbsp;      Codeword codeword = codewords[codewordsRow];</b>
+&nbsp;
+<b class="fc">&nbsp;      codeword.setRowNumberAsRowIndicatorColumn();</b>
+&nbsp;
+<b class="fc">&nbsp;      int rowDifference = codeword.getRowNumber() - barcodeRow;</b>
+&nbsp;
+&nbsp;      // TODO improve handling with case where first row indicator doesn&#39;t start with 0
+&nbsp;
+<b class="fc">&nbsp;      if (rowDifference == 0) {</b>
+<b class="fc">&nbsp;        currentRowHeight++;</b>
+<b class="fc">&nbsp;      } else if (rowDifference == 1) {</b>
+<b class="fc">&nbsp;        maxRowHeight = Math.max(maxRowHeight, currentRowHeight);</b>
+<b class="fc">&nbsp;        currentRowHeight = 1;</b>
+<b class="fc">&nbsp;        barcodeRow = codeword.getRowNumber();</b>
+<b class="fc">&nbsp;      } else if (codeword.getRowNumber() &gt;= barcodeMetadata.getRowCount()) {</b>
+<b class="fc">&nbsp;        codewords[codewordsRow] = null;</b>
+&nbsp;      } else {
+<b class="fc">&nbsp;        barcodeRow = codeword.getRowNumber();</b>
+<b class="fc">&nbsp;        currentRowHeight = 1;</b>
+&nbsp;      }
+&nbsp;    }
+&nbsp;    //return (int) (averageRowHeight + 0.5);
+&nbsp;  }
+&nbsp;
+&nbsp;  BarcodeMetadata getBarcodeMetadata() {
+<b class="fc">&nbsp;    Codeword[] codewords = getCodewords();</b>
+<b class="fc">&nbsp;    BarcodeValue barcodeColumnCount = new BarcodeValue();</b>
+<b class="fc">&nbsp;    BarcodeValue barcodeRowCountUpperPart = new BarcodeValue();</b>
+<b class="fc">&nbsp;    BarcodeValue barcodeRowCountLowerPart = new BarcodeValue();</b>
+<b class="fc">&nbsp;    BarcodeValue barcodeECLevel = new BarcodeValue();</b>
+<b class="fc">&nbsp;    for (Codeword codeword : codewords) {</b>
+<b class="fc">&nbsp;      if (codeword == null) {</b>
+<b class="fc">&nbsp;        continue;</b>
+&nbsp;      }
+<b class="fc">&nbsp;      codeword.setRowNumberAsRowIndicatorColumn();</b>
+<b class="fc">&nbsp;      int rowIndicatorValue = codeword.getValue() % 30;</b>
+<b class="fc">&nbsp;      int codewordRowNumber = codeword.getRowNumber();</b>
+<b class="fc">&nbsp;      if (!isLeft) {</b>
+<b class="fc">&nbsp;        codewordRowNumber += 2;</b>
+&nbsp;      }
+<b class="fc">&nbsp;      switch (codewordRowNumber % 3) {</b>
+&nbsp;        case 0:
+<b class="fc">&nbsp;          barcodeRowCountUpperPart.setValue(rowIndicatorValue * 3 + 1);</b>
+<b class="fc">&nbsp;          break;</b>
+&nbsp;        case 1:
+<b class="fc">&nbsp;          barcodeECLevel.setValue(rowIndicatorValue / 3);</b>
+<b class="fc">&nbsp;          barcodeRowCountLowerPart.setValue(rowIndicatorValue % 3);</b>
+<b class="fc">&nbsp;          break;</b>
+&nbsp;        case 2:
+<b class="fc">&nbsp;          barcodeColumnCount.setValue(rowIndicatorValue + 1);</b>
+&nbsp;          break;
+&nbsp;      }
+&nbsp;    }
+&nbsp;    // Maybe we should check if we have ambiguous values?
+<b class="fc">&nbsp;    if ((barcodeColumnCount.getValue().length == 0) ||</b>
+<b class="fc">&nbsp;        (barcodeRowCountUpperPart.getValue().length == 0) ||</b>
+<b class="fc">&nbsp;        (barcodeRowCountLowerPart.getValue().length == 0) ||</b>
+<b class="fc">&nbsp;        (barcodeECLevel.getValue().length == 0) ||</b>
+<b class="fc">&nbsp;        barcodeColumnCount.getValue()[0] &lt; 1 ||</b>
+<b class="fc">&nbsp;        barcodeRowCountUpperPart.getValue()[0] + barcodeRowCountLowerPart.getValue()[0] &lt;</b>
+&nbsp;            PDF417Common.MIN_ROWS_IN_BARCODE ||
+<b class="fc">&nbsp;        barcodeRowCountUpperPart.getValue()[0] + barcodeRowCountLowerPart.getValue()[0] &gt;</b>
+&nbsp;            PDF417Common.MAX_ROWS_IN_BARCODE) {
+<b class="fc">&nbsp;      return null;</b>
+&nbsp;    }
+<b class="fc">&nbsp;    BarcodeMetadata barcodeMetadata = new BarcodeMetadata(barcodeColumnCount.getValue()[0],</b>
+<b class="fc">&nbsp;        barcodeRowCountUpperPart.getValue()[0], barcodeRowCountLowerPart.getValue()[0], barcodeECLevel.getValue()[0]);</b>
+<b class="fc">&nbsp;    removeIncorrectCodewords(codewords, barcodeMetadata);</b>
+<b class="fc">&nbsp;    return barcodeMetadata;</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  private void removeIncorrectCodewords(Codeword[] codewords, BarcodeMetadata barcodeMetadata) {
+&nbsp;    // Remove codewords which do not match the metadata
+&nbsp;    // TODO Maybe we should keep the incorrect codewords for the start and end positions?
+<b class="fc">&nbsp;    for (int codewordRow = 0; codewordRow &lt; codewords.length; codewordRow++) {</b>
+<b class="fc">&nbsp;      Codeword codeword = codewords[codewordRow];</b>
+<b class="fc">&nbsp;      if (codewords[codewordRow] == null) {</b>
+<b class="fc">&nbsp;        continue;</b>
+&nbsp;      }
+<b class="fc">&nbsp;      int rowIndicatorValue = codeword.getValue() % 30;</b>
+<b class="fc">&nbsp;      int codewordRowNumber = codeword.getRowNumber();</b>
+<b class="fc">&nbsp;      if (codewordRowNumber &gt; barcodeMetadata.getRowCount()) {</b>
+<b class="fc">&nbsp;        codewords[codewordRow] = null;</b>
+<b class="fc">&nbsp;        continue;</b>
+&nbsp;      }
+<b class="fc">&nbsp;      if (!isLeft) {</b>
+<b class="fc">&nbsp;        codewordRowNumber += 2;</b>
+&nbsp;      }
+<b class="fc">&nbsp;      switch (codewordRowNumber % 3) {</b>
+&nbsp;        case 0:
+<b class="fc">&nbsp;          if (rowIndicatorValue * 3 + 1 != barcodeMetadata.getRowCountUpperPart()) {</b>
+<b class="fc">&nbsp;            codewords[codewordRow] = null;</b>
+&nbsp;          }
+&nbsp;          break;
+&nbsp;        case 1:
+<b class="fc">&nbsp;          if (rowIndicatorValue / 3 != barcodeMetadata.getErrorCorrectionLevel() ||</b>
+<b class="fc">&nbsp;              rowIndicatorValue % 3 != barcodeMetadata.getRowCountLowerPart()) {</b>
+<b class="fc">&nbsp;            codewords[codewordRow] = null;</b>
+&nbsp;          }
+&nbsp;          break;
+&nbsp;        case 2:
+<b class="fc">&nbsp;          if (rowIndicatorValue + 1 != barcodeMetadata.getColumnCount()) {</b>
+<b class="fc">&nbsp;            codewords[codewordRow] = null;</b>
+&nbsp;          }
+&nbsp;          break;
+&nbsp;      }
+&nbsp;    }
+&nbsp;  }
+&nbsp;
+&nbsp;  boolean isLeft() {
+<b class="fc">&nbsp;    return isLeft;</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  @Override
+&nbsp;  public String toString() {
+<b class="nc">&nbsp;    return &quot;IsLeft: &quot; + isLeft + &#39;\n&#39; + super.toString();</b>
+&nbsp;  }
+&nbsp;
+&nbsp;}
+</code>
+</pre>
+</div>
+
+<script type="text/javascript">
+(function() {
+    var msie = false, msie9 = false;
+    /*@cc_on
+      msie = true;
+      @if (@_jscript_version >= 9)
+        msie9 = true;
+      @end
+    @*/
+
+    if (!msie || msie && msie9) {
+      hljs.highlightAll()
+      hljs.initLineNumbersOnLoad();
+    }
+})();
+</script>
+
+<div class="footer">
+    
+    <div style="float:right;">generated on 2023-11-12 23:26</div>
+</div>
+</body>
+</html>

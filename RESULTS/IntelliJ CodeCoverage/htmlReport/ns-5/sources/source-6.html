@@ -1,0 +1,299 @@
+
+
+
+<!DOCTYPE html>
+<html id="htmlId">
+<head>
+  <meta http-equiv="Content-Type" content="text/html;charset=windows-1252"> 
+  <title>Coverage Report > State</title>
+  <style type="text/css">
+    @import "../../css/coverage.css";
+    @import "../../css/idea.min.css";
+  </style>
+  <script type="text/javascript" src="../../js/highlight.min.js"></script>
+  <script type="text/javascript" src="../../js/highlightjs-line-numbers.min.js"></script>
+</head>
+
+<body>
+<div class="content">
+<div class="breadCrumbs">
+Current scope:     <a href="../../index.html">all classes</a>
+    <span class="separator">|</span>
+    <a href="../index.html">com.google.zxing.aztec.encoder</a>
+</div>
+
+<h1>Coverage Summary for Class: State (com.google.zxing.aztec.encoder)</h1>
+
+<table class="coverageStats">
+<tr>
+  <th class="name">Class</th>
+<th class="coverageStat 
+">
+  Class, %
+</th>
+<th class="coverageStat 
+">
+  Method, %
+</th>
+<th class="coverageStat 
+">
+  Line, %
+</th>
+</tr>
+<tr>
+  <td class="name">State</td>
+<td class="coverageStat">
+  <span class="percent">
+    100%
+  </span>
+  <span class="absValue">
+    (1/1)
+  </span>
+</td>
+<td class="coverageStat">
+  <span class="percent">
+    86.7%
+  </span>
+  <span class="absValue">
+    (13/15)
+  </span>
+</td>
+<td class="coverageStat">
+  <span class="percent">
+    94.9%
+  </span>
+  <span class="absValue">
+    (74/78)
+  </span>
+</td>
+</tr>
+
+</table>
+
+<br/>
+<br/>
+
+
+<pre>
+<code class="sourceCode" id="sourceCode">&nbsp;/*
+&nbsp; * Copyright 2013 ZXing authors
+&nbsp; *
+&nbsp; * Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
+&nbsp; * you may not use this file except in compliance with the License.
+&nbsp; * You may obtain a copy of the License at
+&nbsp; *
+&nbsp; *      http://www.apache.org/licenses/LICENSE-2.0
+&nbsp; *
+&nbsp; * Unless required by applicable law or agreed to in writing, software
+&nbsp; * distributed under the License is distributed on an &quot;AS IS&quot; BASIS,
+&nbsp; * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+&nbsp; * See the License for the specific language governing permissions and
+&nbsp; * limitations under the License.
+&nbsp; */
+&nbsp;
+&nbsp;package com.google.zxing.aztec.encoder;
+&nbsp;
+&nbsp;import java.nio.charset.StandardCharsets;
+&nbsp;
+&nbsp;import java.util.ArrayList;
+&nbsp;import java.util.List;
+&nbsp;
+&nbsp;import com.google.zxing.common.BitArray;
+&nbsp;
+&nbsp;/**
+&nbsp; * State represents all information about a sequence necessary to generate the current output.
+&nbsp; * Note that a state is immutable.
+&nbsp; */
+&nbsp;final class State {
+&nbsp;
+<b class="fc">&nbsp;  static final State INITIAL_STATE = new State(Token.EMPTY, HighLevelEncoder.MODE_UPPER, 0, 0);</b>
+&nbsp;
+&nbsp;  // The current mode of the encoding (or the mode to which we&#39;ll return if
+&nbsp;  // we&#39;re in Binary Shift mode.
+&nbsp;  private final int mode;
+&nbsp;  // The list of tokens that we output.  If we are in Binary Shift mode, this
+&nbsp;  // token list does *not* yet included the token for those bytes
+&nbsp;  private final Token token;
+&nbsp;  // If non-zero, the number of most recent bytes that should be output
+&nbsp;  // in Binary Shift mode.
+&nbsp;  private final int binaryShiftByteCount;
+&nbsp;  // The total number of bits generated (including Binary Shift).
+&nbsp;  private final int bitCount;
+&nbsp;  private final int binaryShiftCost;
+&nbsp;
+<b class="fc">&nbsp;  private State(Token token, int mode, int binaryBytes, int bitCount) {</b>
+<b class="fc">&nbsp;    this.token = token;</b>
+<b class="fc">&nbsp;    this.mode = mode;</b>
+<b class="fc">&nbsp;    this.binaryShiftByteCount = binaryBytes;</b>
+<b class="fc">&nbsp;    this.bitCount = bitCount;</b>
+<b class="fc">&nbsp;    this.binaryShiftCost = calculateBinaryShiftCost(binaryBytes);</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  int getMode() {
+<b class="fc">&nbsp;    return mode;</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  Token getToken() {
+<b class="nc">&nbsp;    return token;</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  int getBinaryShiftByteCount() {
+<b class="fc">&nbsp;    return binaryShiftByteCount;</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  int getBitCount() {
+<b class="fc">&nbsp;    return bitCount;</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  State appendFLGn(int eci) {
+<b class="fc">&nbsp;    State result = shiftAndAppend(HighLevelEncoder.MODE_PUNCT, 0); // 0: FLG(n)</b>
+<b class="fc">&nbsp;    Token token = result.token;</b>
+<b class="fc">&nbsp;    int bitsAdded = 3;</b>
+<b class="fc">&nbsp;    if (eci &lt; 0) {</b>
+<b class="nc">&nbsp;      token = token.add(0, 3); // 0: FNC1</b>
+<b class="fc">&nbsp;    } else if (eci &gt; 999999) {</b>
+<b class="nc">&nbsp;      throw new IllegalArgumentException(&quot;ECI code must be between 0 and 999999&quot;);</b>
+&nbsp;    } else {
+<b class="fc">&nbsp;      byte[] eciDigits = Integer.toString(eci).getBytes(StandardCharsets.ISO_8859_1);</b>
+<b class="fc">&nbsp;      token = token.add(eciDigits.length, 3); // 1-6: number of ECI digits</b>
+<b class="fc">&nbsp;      for (byte eciDigit : eciDigits) {</b>
+<b class="fc">&nbsp;        token = token.add(eciDigit - &#39;0&#39; + 2, 4);</b>
+&nbsp;      }
+<b class="fc">&nbsp;      bitsAdded += eciDigits.length * 4;</b>
+&nbsp;    }
+<b class="fc">&nbsp;    return new State(token, mode, 0, bitCount + bitsAdded);</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  // Create a new state representing this state with a latch to a (not
+&nbsp;  // necessary different) mode, and then a code.
+&nbsp;  State latchAndAppend(int mode, int value) {
+<b class="fc">&nbsp;    int bitCount = this.bitCount;</b>
+<b class="fc">&nbsp;    Token token = this.token;</b>
+<b class="fc">&nbsp;    if (mode != this.mode) {</b>
+<b class="fc">&nbsp;      int latch = HighLevelEncoder.LATCH_TABLE[this.mode][mode];</b>
+<b class="fc">&nbsp;      token = token.add(latch &amp; 0xFFFF, latch &gt;&gt; 16);</b>
+<b class="fc">&nbsp;      bitCount += latch &gt;&gt; 16;</b>
+&nbsp;    }
+<b class="fc">&nbsp;    int latchModeBitCount = mode == HighLevelEncoder.MODE_DIGIT ? 4 : 5;</b>
+<b class="fc">&nbsp;    token = token.add(value, latchModeBitCount);</b>
+<b class="fc">&nbsp;    return new State(token, mode, 0, bitCount + latchModeBitCount);</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  // Create a new state representing this state, with a temporary shift
+&nbsp;  // to a different mode to output a single value.
+&nbsp;  State shiftAndAppend(int mode, int value) {
+<b class="fc">&nbsp;    Token token = this.token;</b>
+<b class="fc">&nbsp;    int thisModeBitCount = this.mode == HighLevelEncoder.MODE_DIGIT ? 4 : 5;</b>
+&nbsp;    // Shifts exist only to UPPER and PUNCT, both with tokens size 5.
+<b class="fc">&nbsp;    token = token.add(HighLevelEncoder.SHIFT_TABLE[this.mode][mode], thisModeBitCount);</b>
+<b class="fc">&nbsp;    token = token.add(value, 5);</b>
+<b class="fc">&nbsp;    return new State(token, this.mode, 0, this.bitCount + thisModeBitCount + 5);</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  // Create a new state representing this state, but an additional character
+&nbsp;  // output in Binary Shift mode.
+&nbsp;  State addBinaryShiftChar(int index) {
+<b class="fc">&nbsp;    Token token = this.token;</b>
+<b class="fc">&nbsp;    int mode = this.mode;</b>
+<b class="fc">&nbsp;    int bitCount = this.bitCount;</b>
+<b class="fc">&nbsp;    if (this.mode == HighLevelEncoder.MODE_PUNCT || this.mode == HighLevelEncoder.MODE_DIGIT) {</b>
+<b class="fc">&nbsp;      int latch = HighLevelEncoder.LATCH_TABLE[mode][HighLevelEncoder.MODE_UPPER];</b>
+<b class="fc">&nbsp;      token = token.add(latch &amp; 0xFFFF, latch &gt;&gt; 16);</b>
+<b class="fc">&nbsp;      bitCount += latch &gt;&gt; 16;</b>
+<b class="fc">&nbsp;      mode = HighLevelEncoder.MODE_UPPER;</b>
+&nbsp;    }
+&nbsp;    int deltaBitCount =
+<b class="fc">&nbsp;        (binaryShiftByteCount == 0 || binaryShiftByteCount == 31) ? 18 :</b>
+<b class="fc">&nbsp;        (binaryShiftByteCount == 62) ? 9 : 8;</b>
+<b class="fc">&nbsp;    State result = new State(token, mode, binaryShiftByteCount + 1, bitCount + deltaBitCount);</b>
+<b class="fc">&nbsp;    if (result.binaryShiftByteCount == 2047 + 31) {</b>
+&nbsp;      // The string is as long as it&#39;s allowed to be.  We should end it.
+<b class="fc">&nbsp;      result = result.endBinaryShift(index + 1);</b>
+&nbsp;    }
+<b class="fc">&nbsp;    return result;</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  // Create the state identical to this one, but we are no longer in
+&nbsp;  // Binary Shift mode.
+&nbsp;  State endBinaryShift(int index) {
+<b class="fc">&nbsp;    if (binaryShiftByteCount == 0) {</b>
+<b class="fc">&nbsp;      return this;</b>
+&nbsp;    }
+<b class="fc">&nbsp;    Token token = this.token;</b>
+<b class="fc">&nbsp;    token = token.addBinaryShift(index - binaryShiftByteCount, binaryShiftByteCount);</b>
+<b class="fc">&nbsp;    return new State(token, mode, 0, this.bitCount);</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  // Returns true if &quot;this&quot; state is better (or equal) to be in than &quot;that&quot;
+&nbsp;  // state under all possible circumstances.
+&nbsp;  boolean isBetterThanOrEqualTo(State other) {
+<b class="fc">&nbsp;    int newModeBitCount = this.bitCount + (HighLevelEncoder.LATCH_TABLE[this.mode][other.mode] &gt;&gt; 16);</b>
+<b class="fc">&nbsp;    if (this.binaryShiftByteCount &lt; other.binaryShiftByteCount) {</b>
+&nbsp;      // add additional B/S encoding cost of other, if any
+<b class="fc">&nbsp;      newModeBitCount += other.binaryShiftCost - this.binaryShiftCost;</b>
+<b class="fc">&nbsp;    } else if (this.binaryShiftByteCount &gt; other.binaryShiftByteCount &amp;&amp; other.binaryShiftByteCount &gt; 0) {</b>
+&nbsp;      // maximum possible additional cost (we end up exceeding the 31 byte boundary and other state can stay beneath it)
+<b class="fc">&nbsp;      newModeBitCount += 10;</b>
+&nbsp;    }
+<b class="fc">&nbsp;    return newModeBitCount &lt;= other.bitCount;</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  BitArray toBitArray(byte[] text) {
+<b class="fc">&nbsp;    List&lt;Token&gt; symbols = new ArrayList&lt;&gt;();</b>
+<b class="fc">&nbsp;    for (Token token = endBinaryShift(text.length).token; token != null; token = token.getPrevious()) {</b>
+<b class="fc">&nbsp;      symbols.add(token);</b>
+&nbsp;    }
+<b class="fc">&nbsp;    BitArray bitArray = new BitArray();</b>
+&nbsp;    // Add each token to the result in forward order
+<b class="fc">&nbsp;    for (int i = symbols.size() - 1; i &gt;= 0; i--) {</b>
+<b class="fc">&nbsp;      symbols.get(i).appendTo(bitArray, text);</b>
+&nbsp;    }
+<b class="fc">&nbsp;    return bitArray;</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  @Override
+&nbsp;  public String toString() {
+<b class="nc">&nbsp;    return String.format(&quot;%s bits=%d bytes=%d&quot;, HighLevelEncoder.MODE_NAMES[mode], bitCount, binaryShiftByteCount);</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  private static int calculateBinaryShiftCost(int binaryShiftByteCount) {
+<b class="fc">&nbsp;    if (binaryShiftByteCount &gt; 62) {</b>
+<b class="fc">&nbsp;      return 21; // B/S with extended length</b>
+&nbsp;    }
+<b class="fc">&nbsp;    if (binaryShiftByteCount &gt; 31) {</b>
+<b class="fc">&nbsp;      return 20; // two B/S</b>
+&nbsp;    }
+<b class="fc">&nbsp;    if (binaryShiftByteCount &gt; 0) {</b>
+<b class="fc">&nbsp;      return 10; // one B/S</b>
+&nbsp;    }
+<b class="fc">&nbsp;    return 0;</b>
+&nbsp;  }
+&nbsp;
+&nbsp;}
+</code>
+</pre>
+</div>
+
+<script type="text/javascript">
+(function() {
+    var msie = false, msie9 = false;
+    /*@cc_on
+      msie = true;
+      @if (@_jscript_version >= 9)
+        msie9 = true;
+      @end
+    @*/
+
+    if (!msie || msie && msie9) {
+      hljs.highlightAll()
+      hljs.initLineNumbersOnLoad();
+    }
+})();
+</script>
+
+<div class="footer">
+    
+    <div style="float:right;">generated on 2023-11-12 23:26</div>
+</div>
+</body>
+</html>

@@ -1,0 +1,363 @@
+
+
+
+<!DOCTYPE html>
+<html id="htmlId">
+<head>
+  <meta http-equiv="Content-Type" content="text/html;charset=windows-1252"> 
+  <title>Coverage Report > CalendarParsedResult</title>
+  <style type="text/css">
+    @import "../../css/coverage.css";
+    @import "../../css/idea.min.css";
+  </style>
+  <script type="text/javascript" src="../../js/highlight.min.js"></script>
+  <script type="text/javascript" src="../../js/highlightjs-line-numbers.min.js"></script>
+</head>
+
+<body>
+<div class="content">
+<div class="breadCrumbs">
+Current scope:     <a href="../../index.html">all classes</a>
+    <span class="separator">|</span>
+    <a href="../index.html">com.google.zxing.client.result</a>
+</div>
+
+<h1>Coverage Summary for Class: CalendarParsedResult (com.google.zxing.client.result)</h1>
+
+<table class="coverageStats">
+<tr>
+  <th class="name">Class</th>
+<th class="coverageStat 
+">
+  Class, %
+</th>
+<th class="coverageStat 
+">
+  Method, %
+</th>
+<th class="coverageStat 
+">
+  Line, %
+</th>
+</tr>
+<tr>
+  <td class="name">CalendarParsedResult</td>
+<td class="coverageStat">
+  <span class="percent">
+    100%
+  </span>
+  <span class="absValue">
+    (1/1)
+  </span>
+</td>
+<td class="coverageStat">
+  <span class="percent">
+    80%
+  </span>
+  <span class="absValue">
+    (16/20)
+  </span>
+</td>
+<td class="coverageStat">
+  <span class="percent">
+    87.5%
+  </span>
+  <span class="absValue">
+    (70/80)
+  </span>
+</td>
+</tr>
+
+</table>
+
+<br/>
+<br/>
+
+
+<pre>
+<code class="sourceCode" id="sourceCode">&nbsp;/*
+&nbsp; * Copyright 2008 ZXing authors
+&nbsp; *
+&nbsp; * Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
+&nbsp; * you may not use this file except in compliance with the License.
+&nbsp; * You may obtain a copy of the License at
+&nbsp; *
+&nbsp; *      http://www.apache.org/licenses/LICENSE-2.0
+&nbsp; *
+&nbsp; * Unless required by applicable law or agreed to in writing, software
+&nbsp; * distributed under the License is distributed on an &quot;AS IS&quot; BASIS,
+&nbsp; * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+&nbsp; * See the License for the specific language governing permissions and
+&nbsp; * limitations under the License.
+&nbsp; */
+&nbsp;
+&nbsp;package com.google.zxing.client.result;
+&nbsp;
+&nbsp;import java.text.DateFormat;
+&nbsp;import java.text.ParseException;
+&nbsp;import java.text.SimpleDateFormat;
+&nbsp;import java.util.Calendar;
+&nbsp;import java.util.Date;
+&nbsp;import java.util.GregorianCalendar;
+&nbsp;import java.util.Locale;
+&nbsp;import java.util.TimeZone;
+&nbsp;import java.util.regex.Matcher;
+&nbsp;import java.util.regex.Pattern;
+&nbsp;
+&nbsp;/**
+&nbsp; * Represents a parsed result that encodes a calendar event at a certain time, optionally
+&nbsp; * with attendees and a location.
+&nbsp; *
+&nbsp; * @author Sean Owen
+&nbsp; */
+&nbsp;public final class CalendarParsedResult extends ParsedResult {
+&nbsp;
+<b class="fc">&nbsp;  private static final Pattern RFC2445_DURATION =</b>
+<b class="fc">&nbsp;      Pattern.compile(&quot;P(?:(\\d+)W)?(?:(\\d+)D)?(?:T(?:(\\d+)H)?(?:(\\d+)M)?(?:(\\d+)S)?)?&quot;);</b>
+<b class="fc">&nbsp;  private static final long[] RFC2445_DURATION_FIELD_UNITS = {</b>
+&nbsp;      7 * 24 * 60 * 60 * 1000L, // 1 week
+&nbsp;      24 * 60 * 60 * 1000L, // 1 day
+&nbsp;      60 * 60 * 1000L, // 1 hour
+&nbsp;      60 * 1000L, // 1 minute
+&nbsp;      1000L, // 1 second
+&nbsp;  };
+&nbsp;
+<b class="fc">&nbsp;  private static final Pattern DATE_TIME = Pattern.compile(&quot;[0-9]{8}(T[0-9]{6}Z?)?&quot;);</b>
+&nbsp;
+&nbsp;  private final String summary;
+&nbsp;  private final long start;
+&nbsp;  private final boolean startAllDay;
+&nbsp;  private final long end;
+&nbsp;  private final boolean endAllDay;
+&nbsp;  private final String location;
+&nbsp;  private final String organizer;
+&nbsp;  private final String[] attendees;
+&nbsp;  private final String description;
+&nbsp;  private final double latitude;
+&nbsp;  private final double longitude;
+&nbsp;
+&nbsp;  public CalendarParsedResult(String summary,
+&nbsp;                              String startString,
+&nbsp;                              String endString,
+&nbsp;                              String durationString,
+&nbsp;                              String location,
+&nbsp;                              String organizer,
+&nbsp;                              String[] attendees,
+&nbsp;                              String description,
+&nbsp;                              double latitude,
+&nbsp;                              double longitude) {
+<b class="fc">&nbsp;    super(ParsedResultType.CALENDAR);</b>
+<b class="fc">&nbsp;    this.summary = summary;</b>
+&nbsp;
+&nbsp;    try {
+<b class="fc">&nbsp;      this.start = parseDate(startString);</b>
+<b class="nc">&nbsp;    } catch (ParseException pe) {</b>
+<b class="nc">&nbsp;      throw new IllegalArgumentException(pe.toString());</b>
+<b class="fc">&nbsp;    }</b>
+&nbsp;
+<b class="fc">&nbsp;    if (endString == null) {</b>
+<b class="fc">&nbsp;      long durationMS = parseDurationMS(durationString);</b>
+<b class="fc">&nbsp;      end = durationMS &lt; 0L ? -1L : start + durationMS;</b>
+<b class="fc">&nbsp;    } else {</b>
+&nbsp;      try {
+<b class="fc">&nbsp;        this.end = parseDate(endString);</b>
+<b class="nc">&nbsp;      } catch (ParseException pe) {</b>
+<b class="nc">&nbsp;        throw new IllegalArgumentException(pe.toString());</b>
+<b class="fc">&nbsp;      }</b>
+&nbsp;    }
+&nbsp;
+<b class="fc">&nbsp;    this.startAllDay = startString.length() == 8;</b>
+<b class="fc">&nbsp;    this.endAllDay = endString != null &amp;&amp; endString.length() == 8;</b>
+&nbsp;
+<b class="fc">&nbsp;    this.location = location;</b>
+<b class="fc">&nbsp;    this.organizer = organizer;</b>
+<b class="fc">&nbsp;    this.attendees = attendees;</b>
+<b class="fc">&nbsp;    this.description = description;</b>
+<b class="fc">&nbsp;    this.latitude = latitude;</b>
+<b class="fc">&nbsp;    this.longitude = longitude;</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  public String getSummary() {
+<b class="fc">&nbsp;    return summary;</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  /**
+&nbsp;   * @return start time
+&nbsp;   * @deprecated use {@link #getStartTimestamp()}
+&nbsp;   */
+&nbsp;  @Deprecated
+&nbsp;  public Date getStart() {
+<b class="nc">&nbsp;    return new Date(start);</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  /**
+&nbsp;   * @return start time
+&nbsp;   * @see #getEndTimestamp()
+&nbsp;   */
+&nbsp;  public long getStartTimestamp() {
+<b class="fc">&nbsp;    return start;</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  /**
+&nbsp;   * @return true if start time was specified as a whole day
+&nbsp;   */
+&nbsp;  public boolean isStartAllDay() {
+<b class="nc">&nbsp;    return startAllDay;</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  /**
+&nbsp;   * @return event end {@link Date}, or {@code null} if event has no duration
+&nbsp;   * @deprecated use {@link #getEndTimestamp()}
+&nbsp;   */
+&nbsp;  @Deprecated
+&nbsp;  public Date getEnd() {
+<b class="nc">&nbsp;    return end &lt; 0L ? null : new Date(end);</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  /**
+&nbsp;   * @return event end {@link Date}, or -1 if event has no duration
+&nbsp;   * @see #getStartTimestamp()
+&nbsp;   */
+&nbsp;  public long getEndTimestamp() {
+<b class="fc">&nbsp;    return end;</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  /**
+&nbsp;   * @return true if end time was specified as a whole day
+&nbsp;   */
+&nbsp;  public boolean isEndAllDay() {
+<b class="nc">&nbsp;    return endAllDay;</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  public String getLocation() {
+<b class="fc">&nbsp;    return location;</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  public String getOrganizer() {
+<b class="fc">&nbsp;    return organizer;</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  public String[] getAttendees() {
+<b class="fc">&nbsp;    return attendees;</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  public String getDescription() {
+<b class="fc">&nbsp;    return description;</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  public double getLatitude() {
+<b class="fc">&nbsp;    return latitude;</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  public double getLongitude() {
+<b class="fc">&nbsp;    return longitude;</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  @Override
+&nbsp;  public String getDisplayResult() {
+<b class="fc">&nbsp;    StringBuilder result = new StringBuilder(100);</b>
+<b class="fc">&nbsp;    maybeAppend(summary, result);</b>
+<b class="fc">&nbsp;    maybeAppend(format(startAllDay, start), result);</b>
+<b class="fc">&nbsp;    maybeAppend(format(endAllDay, end), result);</b>
+<b class="fc">&nbsp;    maybeAppend(location, result);</b>
+<b class="fc">&nbsp;    maybeAppend(organizer, result);</b>
+<b class="fc">&nbsp;    maybeAppend(attendees, result);</b>
+<b class="fc">&nbsp;    maybeAppend(description, result);</b>
+<b class="fc">&nbsp;    return result.toString();</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  /**
+&nbsp;   * Parses a string as a date. RFC 2445 allows the start and end fields to be of type DATE (e.g. 20081021)
+&nbsp;   * or DATE-TIME (e.g. 20081021T123000 for local time, or 20081021T123000Z for UTC).
+&nbsp;   *
+&nbsp;   * @param when The string to parse
+&nbsp;   * @throws ParseException if not able to parse as a date
+&nbsp;   */
+&nbsp;  private static long parseDate(String when) throws ParseException {
+<b class="fc">&nbsp;    if (!DATE_TIME.matcher(when).matches()) {</b>
+<b class="nc">&nbsp;      throw new ParseException(when, 0);</b>
+&nbsp;    }
+<b class="fc">&nbsp;    if (when.length() == 8) {</b>
+&nbsp;      // Show only year/month/day
+<b class="fc">&nbsp;      DateFormat format = new SimpleDateFormat(&quot;yyyyMMdd&quot;, Locale.ENGLISH);</b>
+&nbsp;      // For dates without a time, for purposes of interacting with Android, the resulting timestamp
+&nbsp;      // needs to be midnight of that day in GMT. See:
+&nbsp;      // http://code.google.com/p/android/issues/detail?id=8330
+<b class="fc">&nbsp;      format.setTimeZone(TimeZone.getTimeZone(&quot;GMT&quot;));</b>
+<b class="fc">&nbsp;      return format.parse(when).getTime();</b>
+&nbsp;    }
+&nbsp;    // The when string can be local time, or UTC if it ends with a Z
+<b class="fc">&nbsp;    if (when.length() == 16 &amp;&amp; when.charAt(15) == &#39;Z&#39;) {</b>
+<b class="fc">&nbsp;      long milliseconds = parseDateTimeString(when.substring(0, 15));</b>
+<b class="fc">&nbsp;      Calendar calendar = new GregorianCalendar();</b>
+&nbsp;      // Account for time zone difference
+<b class="fc">&nbsp;      milliseconds += calendar.get(Calendar.ZONE_OFFSET);</b>
+&nbsp;      // Might need to correct for daylight savings time, but use target time since
+&nbsp;      // now might be in DST but not then, or vice versa
+<b class="fc">&nbsp;      calendar.setTime(new Date(milliseconds));</b>
+<b class="fc">&nbsp;      return milliseconds + calendar.get(Calendar.DST_OFFSET);</b>
+&nbsp;    }
+<b class="fc">&nbsp;    return parseDateTimeString(when);</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  private static String format(boolean allDay, long date) {
+<b class="fc">&nbsp;    if (date &lt; 0L) {</b>
+<b class="fc">&nbsp;      return null;</b>
+&nbsp;    }
+<b class="fc">&nbsp;    DateFormat format = allDay</b>
+<b class="fc">&nbsp;        ? DateFormat.getDateInstance(DateFormat.MEDIUM)</b>
+<b class="fc">&nbsp;        : DateFormat.getDateTimeInstance(DateFormat.MEDIUM, DateFormat.MEDIUM);</b>
+<b class="fc">&nbsp;    return format.format(date);</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  private static long parseDurationMS(CharSequence durationString) {
+<b class="fc">&nbsp;    if (durationString == null) {</b>
+<b class="fc">&nbsp;      return -1L;</b>
+&nbsp;    }
+<b class="fc">&nbsp;    Matcher m = RFC2445_DURATION.matcher(durationString);</b>
+<b class="fc">&nbsp;    if (!m.matches()) {</b>
+<b class="nc">&nbsp;      return -1L;</b>
+&nbsp;    }
+<b class="fc">&nbsp;    long durationMS = 0L;</b>
+<b class="fc">&nbsp;    for (int i = 0; i &lt; RFC2445_DURATION_FIELD_UNITS.length; i++) {</b>
+<b class="fc">&nbsp;      String fieldValue = m.group(i + 1);</b>
+<b class="fc">&nbsp;      if (fieldValue != null) {</b>
+<b class="fc">&nbsp;        durationMS += RFC2445_DURATION_FIELD_UNITS[i] * Integer.parseInt(fieldValue);</b>
+&nbsp;      }
+&nbsp;    }
+<b class="fc">&nbsp;    return durationMS;</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  private static long parseDateTimeString(String dateTimeString) throws ParseException {
+<b class="fc">&nbsp;    DateFormat format = new SimpleDateFormat(&quot;yyyyMMdd&#39;T&#39;HHmmss&quot;, Locale.ENGLISH);</b>
+<b class="fc">&nbsp;    return format.parse(dateTimeString).getTime();</b>
+&nbsp;  }
+&nbsp;
+&nbsp;}
+</code>
+</pre>
+</div>
+
+<script type="text/javascript">
+(function() {
+    var msie = false, msie9 = false;
+    /*@cc_on
+      msie = true;
+      @if (@_jscript_version >= 9)
+        msie9 = true;
+      @end
+    @*/
+
+    if (!msie || msie && msie9) {
+      hljs.highlightAll()
+      hljs.initLineNumbersOnLoad();
+    }
+})();
+</script>
+
+<div class="footer">
+    
+    <div style="float:right;">generated on 2023-11-12 23:26</div>
+</div>
+</body>
+</html>

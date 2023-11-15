@@ -1,0 +1,341 @@
+
+
+
+<!DOCTYPE html>
+<html id="htmlId">
+<head>
+  <meta http-equiv="Content-Type" content="text/html;charset=windows-1252"> 
+  <title>Coverage Report > HtmlAssetTranslator</title>
+  <style type="text/css">
+    @import "../../css/coverage.css";
+    @import "../../css/idea.min.css";
+  </style>
+  <script type="text/javascript" src="../../js/highlight.min.js"></script>
+  <script type="text/javascript" src="../../js/highlightjs-line-numbers.min.js"></script>
+</head>
+
+<body>
+<div class="content">
+<div class="breadCrumbs">
+Current scope:     <a href="../../index.html">all classes</a>
+    <span class="separator">|</span>
+    <a href="../index.html">com.google.zxing.client.j2se</a>
+</div>
+
+<h1>Coverage Summary for Class: HtmlAssetTranslator (com.google.zxing.client.j2se)</h1>
+
+<table class="coverageStats">
+<tr>
+  <th class="name">Class</th>
+<th class="coverageStat 
+">
+  Class, %
+</th>
+<th class="coverageStat 
+">
+  Method, %
+</th>
+<th class="coverageStat 
+">
+  Line, %
+</th>
+</tr>
+<tr>
+  <td class="name">HtmlAssetTranslator</td>
+<td class="coverageStat">
+  <span class="percent">
+    0%
+  </span>
+  <span class="absValue">
+    (0/1)
+  </span>
+</td>
+<td class="coverageStat">
+  <span class="percent">
+    0%
+  </span>
+  <span class="absValue">
+    (0/9)
+  </span>
+</td>
+<td class="coverageStat">
+  <span class="percent">
+    0%
+  </span>
+  <span class="absValue">
+    (0/102)
+  </span>
+</td>
+</tr>
+
+</table>
+
+<br/>
+<br/>
+
+
+<pre>
+<code class="sourceCode" id="sourceCode">&nbsp;/*
+&nbsp; * Copyright 2011 ZXing authors
+&nbsp; *
+&nbsp; * Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
+&nbsp; * you may not use this file except in compliance with the License.
+&nbsp; * You may obtain a copy of the License at
+&nbsp; *
+&nbsp; *      http://www.apache.org/licenses/LICENSE-2.0
+&nbsp; *
+&nbsp; * Unless required by applicable law or agreed to in writing, software
+&nbsp; * distributed under the License is distributed on an &quot;AS IS&quot; BASIS,
+&nbsp; * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+&nbsp; * See the License for the specific language governing permissions and
+&nbsp; * limitations under the License.
+&nbsp; */
+&nbsp;
+&nbsp;package com.google.zxing.client.j2se;
+&nbsp;
+&nbsp;import org.w3c.dom.Document;
+&nbsp;import org.w3c.dom.Element;
+&nbsp;import org.w3c.dom.NamedNodeMap;
+&nbsp;import org.w3c.dom.Node;
+&nbsp;import org.w3c.dom.NodeList;
+&nbsp;import org.w3c.dom.bootstrap.DOMImplementationRegistry;
+&nbsp;import org.w3c.dom.ls.DOMImplementationLS;
+&nbsp;import org.w3c.dom.ls.LSSerializer;
+&nbsp;import org.xml.sax.SAXException;
+&nbsp;
+&nbsp;import javax.xml.XMLConstants;
+&nbsp;import javax.xml.parsers.DocumentBuilder;
+&nbsp;import javax.xml.parsers.DocumentBuilderFactory;
+&nbsp;import javax.xml.parsers.ParserConfigurationException;
+&nbsp;import java.io.IOException;
+&nbsp;import java.nio.charset.StandardCharsets;
+&nbsp;import java.nio.file.DirectoryStream;
+&nbsp;import java.nio.file.Files;
+&nbsp;import java.nio.file.Path;
+&nbsp;import java.nio.file.Paths;
+&nbsp;import java.util.ArrayList;
+&nbsp;import java.util.Arrays;
+&nbsp;import java.util.Collection;
+&nbsp;import java.util.Collections;
+&nbsp;import java.util.LinkedList;
+&nbsp;import java.util.List;
+&nbsp;import java.util.Queue;
+&nbsp;import java.util.regex.Pattern;
+&nbsp;
+&nbsp;/**
+&nbsp; * &lt;p&gt;A utility which auto-translates the English-language text in a directory of HTML documents using
+&nbsp; * Google Translate.&lt;/p&gt;
+&nbsp; *
+&nbsp; * &lt;p&gt;Pass the Android client assets/ directory as first argument, and the language to translate to second
+&nbsp; * as a comma-separated list. Specify &quot;all&quot; for language to try to translate for all existing translations.
+&nbsp; * Each argument after this is the name of a file to translate; if the first one is &quot;all&quot;, all files will
+&nbsp; * be translated.&lt;/p&gt;
+&nbsp; *
+&nbsp; * &lt;p&gt;Usage: {@code HtmlAssetTranslator android/assets/ (all|lang1[,lang2 ...]) (all|file1.html[ file2.html ...])}&lt;/p&gt;
+&nbsp; *
+&nbsp; * &lt;p&gt;{@code android/assets/ es all} will translate .html files in subdirectory html-en to
+&nbsp; * directory html-es, for example. Note that only text nodes in the HTML document are translated.
+&nbsp; * Any text that is a child of a node with {@code class=&quot;notranslate&quot;} will not be translated. It will
+&nbsp; * also add a note at the end of the translated page that indicates it was automatically translated.&lt;/p&gt;
+&nbsp; *
+&nbsp; * @author Sean Owen
+&nbsp; * @deprecated without replacement since 3.4.2
+&nbsp; */
+&nbsp;@Deprecated
+&nbsp;public final class HtmlAssetTranslator {
+&nbsp;
+<b class="nc">&nbsp;  private static final Pattern COMMA = Pattern.compile(&quot;,&quot;);</b>
+&nbsp;
+&nbsp;  private HtmlAssetTranslator() {}
+&nbsp;
+&nbsp;  public static void main(String[] args) throws IOException {
+<b class="nc">&nbsp;    if (args.length &lt; 3) {</b>
+<b class="nc">&nbsp;      System.err.println(&quot;Usage: HtmlAssetTranslator android/assets/ &quot; +</b>
+&nbsp;                         &quot;(all|lang1[,lang2 ...]) (all|file1.html[ file2.html ...])&quot;);
+&nbsp;      return;
+&nbsp;    }
+<b class="nc">&nbsp;    Path assetsDir = Paths.get(args[0]);</b>
+<b class="nc">&nbsp;    Collection&lt;String&gt; languagesToTranslate = parseLanguagesToTranslate(assetsDir, args[1]);</b>
+<b class="nc">&nbsp;    List&lt;String&gt; restOfArgs = Arrays.asList(args).subList(2, args.length);</b>
+<b class="nc">&nbsp;    Collection&lt;String&gt; fileNamesToTranslate = parseFileNamesToTranslate(assetsDir, restOfArgs);</b>
+<b class="nc">&nbsp;    for (String language : languagesToTranslate) {</b>
+<b class="nc">&nbsp;      translateOneLanguage(assetsDir, language, fileNamesToTranslate);</b>
+<b class="nc">&nbsp;    }</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  private static Collection&lt;String&gt; parseLanguagesToTranslate(Path assetsDir,
+&nbsp;                                                              String languageArg) throws IOException {
+<b class="nc">&nbsp;    if (&quot;all&quot;.equals(languageArg)) {</b>
+<b class="nc">&nbsp;      Collection&lt;String&gt; languages = new ArrayList&lt;&gt;();</b>
+<b class="nc">&nbsp;      DirectoryStream.Filter&lt;Path&gt; fileFilter = entry -&gt; {</b>
+<b class="nc">&nbsp;        String fileName = entry.getFileName().toString();</b>
+<b class="nc">&nbsp;        return Files.isDirectory(entry) &amp;&amp; !Files.isSymbolicLink(entry) &amp;&amp;</b>
+<b class="nc">&nbsp;            fileName.startsWith(&quot;html-&quot;) &amp;&amp; !&quot;html-en&quot;.equals(fileName);</b>
+&nbsp;      };
+<b class="nc">&nbsp;      try (DirectoryStream&lt;Path&gt; dirs = Files.newDirectoryStream(assetsDir, fileFilter)) {</b>
+<b class="nc">&nbsp;        for (Path languageDir : dirs) {</b>
+<b class="nc">&nbsp;          languages.add(languageDir.getFileName().toString().substring(5));</b>
+<b class="nc">&nbsp;        }</b>
+<b class="nc">&nbsp;      }</b>
+<b class="nc">&nbsp;      return languages;</b>
+&nbsp;    } else {
+<b class="nc">&nbsp;      return Arrays.asList(COMMA.split(languageArg));</b>
+&nbsp;    }
+&nbsp;  }
+&nbsp;
+&nbsp;  private static Collection&lt;String&gt; parseFileNamesToTranslate(Path assetsDir,
+&nbsp;                                                              List&lt;String&gt; restOfArgs) throws IOException {
+<b class="nc">&nbsp;    if (&quot;all&quot;.equals(restOfArgs.get(0))) {</b>
+<b class="nc">&nbsp;      Collection&lt;String&gt; fileNamesToTranslate = new ArrayList&lt;&gt;();</b>
+<b class="nc">&nbsp;      Path htmlEnAssetDir = assetsDir.resolve(&quot;html-en&quot;);</b>
+<b class="nc">&nbsp;      try (DirectoryStream&lt;Path&gt; files = Files.newDirectoryStream(htmlEnAssetDir, &quot;*.html&quot;)) {</b>
+<b class="nc">&nbsp;        for (Path file : files) {</b>
+<b class="nc">&nbsp;          fileNamesToTranslate.add(file.getFileName().toString());</b>
+<b class="nc">&nbsp;        }</b>
+<b class="nc">&nbsp;      }</b>
+<b class="nc">&nbsp;      return fileNamesToTranslate;</b>
+&nbsp;    } else {
+<b class="nc">&nbsp;      return restOfArgs;</b>
+&nbsp;    }
+&nbsp;  }
+&nbsp;
+&nbsp;  private static void translateOneLanguage(Path assetsDir,
+&nbsp;                                           String language,
+&nbsp;                                           final Collection&lt;String&gt; filesToTranslate) throws IOException {
+<b class="nc">&nbsp;    Path targetHtmlDir = assetsDir.resolve(&quot;html-&quot; + language);</b>
+<b class="nc">&nbsp;    Files.createDirectories(targetHtmlDir);</b>
+<b class="nc">&nbsp;    Path englishHtmlDir = assetsDir.resolve(&quot;html-en&quot;);</b>
+&nbsp;
+<b class="nc">&nbsp;    String translationTextTranslated =</b>
+<b class="nc">&nbsp;        StringsResourceTranslator.translateString(&quot;Translated by Google Translate.&quot;, language);</b>
+&nbsp;
+<b class="nc">&nbsp;    DirectoryStream.Filter&lt;Path&gt; filter = entry -&gt; {</b>
+<b class="nc">&nbsp;      String name = entry.getFileName().toString();</b>
+<b class="nc">&nbsp;      return name.endsWith(&quot;.html&quot;) &amp;&amp; (filesToTranslate.isEmpty() || filesToTranslate.contains(name));</b>
+&nbsp;    };
+<b class="nc">&nbsp;    try (DirectoryStream&lt;Path&gt; files = Files.newDirectoryStream(englishHtmlDir, filter)) {</b>
+<b class="nc">&nbsp;      for (Path sourceFile : files) {</b>
+<b class="nc">&nbsp;        translateOneFile(language, targetHtmlDir, sourceFile, translationTextTranslated);</b>
+<b class="nc">&nbsp;      }</b>
+<b class="nc">&nbsp;    }</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  private static void translateOneFile(String language,
+&nbsp;                                       Path targetHtmlDir,
+&nbsp;                                       Path sourceFile,
+&nbsp;                                       String translationTextTranslated) throws IOException {
+&nbsp;
+<b class="nc">&nbsp;    Path destFile = targetHtmlDir.resolve(sourceFile.getFileName());</b>
+&nbsp;
+&nbsp;    Document document;
+&nbsp;    try {
+<b class="nc">&nbsp;      DocumentBuilderFactory factory = DocumentBuilderFactory.newInstance();</b>
+<b class="nc">&nbsp;      factory.setFeature(XMLConstants.FEATURE_SECURE_PROCESSING, true);</b>
+<b class="nc">&nbsp;      DocumentBuilder builder = factory.newDocumentBuilder();</b>
+<b class="nc">&nbsp;      document = builder.parse(sourceFile.toFile());</b>
+<b class="nc">&nbsp;    } catch (ParserConfigurationException pce) {</b>
+<b class="nc">&nbsp;      throw new IllegalStateException(pce);</b>
+<b class="nc">&nbsp;    } catch (SAXException sae) {</b>
+<b class="nc">&nbsp;      throw new IOException(sae);</b>
+<b class="nc">&nbsp;    }</b>
+&nbsp;
+<b class="nc">&nbsp;    Element rootElement = document.getDocumentElement();</b>
+<b class="nc">&nbsp;    rootElement.normalize();</b>
+&nbsp;
+<b class="nc">&nbsp;    Queue&lt;Node&gt; nodes = new LinkedList&lt;&gt;();</b>
+<b class="nc">&nbsp;    nodes.add(rootElement);</b>
+&nbsp;
+<b class="nc">&nbsp;    while (!nodes.isEmpty()) {</b>
+<b class="nc">&nbsp;      Node node = nodes.poll();</b>
+<b class="nc">&nbsp;      if (shouldTranslate(node)) {</b>
+<b class="nc">&nbsp;        NodeList children = node.getChildNodes();</b>
+<b class="nc">&nbsp;        for (int i = 0; i &lt; children.getLength(); i++) {</b>
+<b class="nc">&nbsp;          nodes.add(children.item(i));</b>
+&nbsp;        }
+&nbsp;      }
+<b class="nc">&nbsp;      if (node.getNodeType() == Node.TEXT_NODE) {</b>
+<b class="nc">&nbsp;        String text = node.getTextContent();</b>
+<b class="nc">&nbsp;        if (!text.trim().isEmpty()) {</b>
+<b class="nc">&nbsp;          text = StringsResourceTranslator.translateString(text, language);</b>
+<b class="nc">&nbsp;          node.setTextContent(&#39; &#39; + text + &#39; &#39;);</b>
+&nbsp;        }
+&nbsp;      }
+<b class="nc">&nbsp;    }</b>
+&nbsp;
+<b class="nc">&nbsp;    Node translateText = document.createTextNode(translationTextTranslated);</b>
+<b class="nc">&nbsp;    Node paragraph = document.createElement(&quot;p&quot;);</b>
+<b class="nc">&nbsp;    paragraph.appendChild(translateText);</b>
+<b class="nc">&nbsp;    Node body = rootElement.getElementsByTagName(&quot;body&quot;).item(0);</b>
+<b class="nc">&nbsp;    body.appendChild(paragraph);</b>
+&nbsp;
+&nbsp;    DOMImplementationRegistry registry;
+&nbsp;    try {
+<b class="nc">&nbsp;      registry = DOMImplementationRegistry.newInstance();</b>
+<b class="nc">&nbsp;    } catch (ClassNotFoundException | InstantiationException | IllegalAccessException e) {</b>
+<b class="nc">&nbsp;      throw new IllegalStateException(e);</b>
+<b class="nc">&nbsp;    }</b>
+&nbsp;
+<b class="nc">&nbsp;    DOMImplementationLS impl = (DOMImplementationLS) registry.getDOMImplementation(&quot;LS&quot;);</b>
+<b class="nc">&nbsp;    LSSerializer writer = impl.createLSSerializer();</b>
+<b class="nc">&nbsp;    String fileAsString = writer.writeToString(document);</b>
+&nbsp;    // Replace default XML header with HTML DOCTYPE
+<b class="nc">&nbsp;    fileAsString = fileAsString.replaceAll(&quot;&lt;\\?xml[^&gt;]+&gt;&quot;, &quot;&lt;!DOCTYPE HTML&gt;&quot;);</b>
+<b class="nc">&nbsp;    Files.write(destFile, Collections.singleton(fileAsString), StandardCharsets.UTF_8);</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  private static boolean shouldTranslate(Node node) {
+&nbsp;    // Ignore &quot;notranslate&quot; nodes
+<b class="nc">&nbsp;    NamedNodeMap attributes = node.getAttributes();</b>
+<b class="nc">&nbsp;    if (attributes != null) {</b>
+<b class="nc">&nbsp;      Node classAttribute = attributes.getNamedItem(&quot;class&quot;);</b>
+<b class="nc">&nbsp;      if (classAttribute != null) {</b>
+<b class="nc">&nbsp;        String textContent = classAttribute.getTextContent();</b>
+<b class="nc">&nbsp;        if (textContent != null &amp;&amp; textContent.contains(&quot;notranslate&quot;)) {</b>
+<b class="nc">&nbsp;          return false;</b>
+&nbsp;        }
+&nbsp;      }
+&nbsp;    }
+<b class="nc">&nbsp;    String nodeName = node.getNodeName();</b>
+<b class="nc">&nbsp;    if (&quot;script&quot;.equalsIgnoreCase(nodeName)) {</b>
+<b class="nc">&nbsp;      return false;</b>
+&nbsp;    }
+&nbsp;    // Ignore non-text snippets
+<b class="nc">&nbsp;    String textContent = node.getTextContent();</b>
+<b class="nc">&nbsp;    if (textContent != null) {</b>
+<b class="nc">&nbsp;      for (int i = 0; i &lt; textContent.length(); i++) {</b>
+<b class="nc">&nbsp;        if (Character.isLetter(textContent.charAt(i))) {</b>
+<b class="nc">&nbsp;          return true;</b>
+&nbsp;        }
+&nbsp;      }
+&nbsp;    }
+<b class="nc">&nbsp;    return false;</b>
+&nbsp;  }
+&nbsp;
+&nbsp;}
+</code>
+</pre>
+</div>
+
+<script type="text/javascript">
+(function() {
+    var msie = false, msie9 = false;
+    /*@cc_on
+      msie = true;
+      @if (@_jscript_version >= 9)
+        msie9 = true;
+      @end
+    @*/
+
+    if (!msie || msie && msie9) {
+      hljs.highlightAll()
+      hljs.initLineNumbersOnLoad();
+    }
+})();
+</script>
+
+<div class="footer">
+    
+    <div style="float:right;">generated on 2023-11-12 23:26</div>
+</div>
+</body>
+</html>

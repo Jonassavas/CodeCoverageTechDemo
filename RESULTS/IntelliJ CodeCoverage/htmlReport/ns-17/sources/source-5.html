@@ -1,0 +1,212 @@
+
+
+
+<!DOCTYPE html>
+<html id="htmlId">
+<head>
+  <meta http-equiv="Content-Type" content="text/html;charset=windows-1252"> 
+  <title>Coverage Report > AI013x0x1xDecoder</title>
+  <style type="text/css">
+    @import "../../css/coverage.css";
+    @import "../../css/idea.min.css";
+  </style>
+  <script type="text/javascript" src="../../js/highlight.min.js"></script>
+  <script type="text/javascript" src="../../js/highlightjs-line-numbers.min.js"></script>
+</head>
+
+<body>
+<div class="content">
+<div class="breadCrumbs">
+Current scope:     <a href="../../index.html">all classes</a>
+    <span class="separator">|</span>
+    <a href="../index.html">com.google.zxing.oned.rss.expanded.decoders</a>
+</div>
+
+<h1>Coverage Summary for Class: AI013x0x1xDecoder (com.google.zxing.oned.rss.expanded.decoders)</h1>
+
+<table class="coverageStats">
+<tr>
+  <th class="name">Class</th>
+<th class="coverageStat 
+">
+  Class, %
+</th>
+<th class="coverageStat 
+">
+  Method, %
+</th>
+<th class="coverageStat 
+">
+  Line, %
+</th>
+</tr>
+<tr>
+  <td class="name">AI013x0x1xDecoder</td>
+<td class="coverageStat">
+  <span class="percent">
+    100%
+  </span>
+  <span class="absValue">
+    (1/1)
+  </span>
+</td>
+<td class="coverageStat">
+  <span class="percent">
+    100%
+  </span>
+  <span class="absValue">
+    (5/5)
+  </span>
+</td>
+<td class="coverageStat">
+  <span class="percent">
+    97.1%
+  </span>
+  <span class="absValue">
+    (33/34)
+  </span>
+</td>
+</tr>
+
+</table>
+
+<br/>
+<br/>
+
+
+<pre>
+<code class="sourceCode" id="sourceCode">&nbsp;/*
+&nbsp; * Copyright (C) 2010 ZXing authors
+&nbsp; *
+&nbsp; * Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
+&nbsp; * you may not use this file except in compliance with the License.
+&nbsp; * You may obtain a copy of the License at
+&nbsp; *
+&nbsp; *      http://www.apache.org/licenses/LICENSE-2.0
+&nbsp; *
+&nbsp; * Unless required by applicable law or agreed to in writing, software
+&nbsp; * distributed under the License is distributed on an &quot;AS IS&quot; BASIS,
+&nbsp; * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+&nbsp; * See the License for the specific language governing permissions and
+&nbsp; * limitations under the License.
+&nbsp; */
+&nbsp;
+&nbsp;/*
+&nbsp; * These authors would like to acknowledge the Spanish Ministry of Industry,
+&nbsp; * Tourism and Trade, for the support in the project TSI020301-2008-2
+&nbsp; * &quot;PIRAmIDE: Personalizable Interactions with Resources on AmI-enabled
+&nbsp; * Mobile Dynamic Environments&quot;, led by Treelogic
+&nbsp; * ( http://www.treelogic.com/ ):
+&nbsp; *
+&nbsp; *   http://www.piramidepse.com/
+&nbsp; */
+&nbsp;
+&nbsp;package com.google.zxing.oned.rss.expanded.decoders;
+&nbsp;
+&nbsp;import com.google.zxing.NotFoundException;
+&nbsp;import com.google.zxing.common.BitArray;
+&nbsp;
+&nbsp;/**
+&nbsp; * @author Pablo Orduña, University of Deusto (pablo.orduna@deusto.es)
+&nbsp; * @author Eduardo Castillejo, University of Deusto (eduardo.castillejo@deusto.es)
+&nbsp; */
+&nbsp;final class AI013x0x1xDecoder extends AI01weightDecoder {
+&nbsp;
+&nbsp;  private static final int HEADER_SIZE = 7 + 1;
+&nbsp;  private static final int WEIGHT_SIZE = 20;
+&nbsp;  private static final int DATE_SIZE = 16;
+&nbsp;
+&nbsp;  private final String dateCode;
+&nbsp;  private final String firstAIdigits;
+&nbsp;
+&nbsp;  AI013x0x1xDecoder(BitArray information, String firstAIdigits, String dateCode) {
+<b class="fc">&nbsp;    super(information);</b>
+<b class="fc">&nbsp;    this.dateCode = dateCode;</b>
+<b class="fc">&nbsp;    this.firstAIdigits = firstAIdigits;</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  @Override
+&nbsp;  public String parseInformation() throws NotFoundException {
+<b class="fc">&nbsp;    if (this.getInformation().getSize() != HEADER_SIZE + GTIN_SIZE + WEIGHT_SIZE + DATE_SIZE) {</b>
+<b class="nc">&nbsp;      throw NotFoundException.getNotFoundInstance();</b>
+&nbsp;    }
+&nbsp;
+<b class="fc">&nbsp;    StringBuilder buf = new StringBuilder();</b>
+&nbsp;
+<b class="fc">&nbsp;    encodeCompressedGtin(buf, HEADER_SIZE);</b>
+<b class="fc">&nbsp;    encodeCompressedWeight(buf, HEADER_SIZE + GTIN_SIZE, WEIGHT_SIZE);</b>
+<b class="fc">&nbsp;    encodeCompressedDate(buf, HEADER_SIZE + GTIN_SIZE + WEIGHT_SIZE);</b>
+&nbsp;
+<b class="fc">&nbsp;    return buf.toString();</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  private void encodeCompressedDate(StringBuilder buf, int currentPos) {
+<b class="fc">&nbsp;    int numericDate = this.getGeneralDecoder().extractNumericValueFromBitArray(currentPos, DATE_SIZE);</b>
+<b class="fc">&nbsp;    if (numericDate == 38400) {</b>
+&nbsp;      return;
+&nbsp;    }
+&nbsp;
+<b class="fc">&nbsp;    buf.append(&#39;(&#39;);</b>
+<b class="fc">&nbsp;    buf.append(this.dateCode);</b>
+<b class="fc">&nbsp;    buf.append(&#39;)&#39;);</b>
+&nbsp;
+<b class="fc">&nbsp;    int day   = numericDate % 32;</b>
+<b class="fc">&nbsp;    numericDate /= 32;</b>
+<b class="fc">&nbsp;    int month = numericDate % 12 + 1;</b>
+<b class="fc">&nbsp;    numericDate /= 12;</b>
+<b class="fc">&nbsp;    int year  = numericDate;</b>
+&nbsp;
+<b class="fc">&nbsp;    if (year / 10 == 0) {</b>
+<b class="fc">&nbsp;      buf.append(&#39;0&#39;);</b>
+&nbsp;    }
+<b class="fc">&nbsp;    buf.append(year);</b>
+<b class="fc">&nbsp;    if (month / 10 == 0) {</b>
+<b class="fc">&nbsp;      buf.append(&#39;0&#39;);</b>
+&nbsp;    }
+<b class="fc">&nbsp;    buf.append(month);</b>
+<b class="fc">&nbsp;    if (day / 10 == 0) {</b>
+<b class="fc">&nbsp;      buf.append(&#39;0&#39;);</b>
+&nbsp;    }
+<b class="fc">&nbsp;    buf.append(day);</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  @Override
+&nbsp;  protected void addWeightCode(StringBuilder buf, int weight) {
+<b class="fc">&nbsp;    buf.append(&#39;(&#39;);</b>
+<b class="fc">&nbsp;    buf.append(this.firstAIdigits);</b>
+<b class="fc">&nbsp;    buf.append(weight / 100000);</b>
+<b class="fc">&nbsp;    buf.append(&#39;)&#39;);</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  @Override
+&nbsp;  protected int checkWeight(int weight) {
+<b class="fc">&nbsp;    return weight % 100000;</b>
+&nbsp;  }
+&nbsp;}
+</code>
+</pre>
+</div>
+
+<script type="text/javascript">
+(function() {
+    var msie = false, msie9 = false;
+    /*@cc_on
+      msie = true;
+      @if (@_jscript_version >= 9)
+        msie9 = true;
+      @end
+    @*/
+
+    if (!msie || msie && msie9) {
+      hljs.highlightAll()
+      hljs.initLineNumbersOnLoad();
+    }
+})();
+</script>
+
+<div class="footer">
+    
+    <div style="float:right;">generated on 2023-11-12 23:26</div>
+</div>
+</body>
+</html>

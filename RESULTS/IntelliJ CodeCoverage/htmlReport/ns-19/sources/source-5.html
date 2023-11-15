@@ -1,0 +1,868 @@
+
+
+
+<!DOCTYPE html>
+<html id="htmlId">
+<head>
+  <meta http-equiv="Content-Type" content="text/html;charset=windows-1252"> 
+  <title>Coverage Report > DecodedBitStreamParser</title>
+  <style type="text/css">
+    @import "../../css/coverage.css";
+    @import "../../css/idea.min.css";
+  </style>
+  <script type="text/javascript" src="../../js/highlight.min.js"></script>
+  <script type="text/javascript" src="../../js/highlightjs-line-numbers.min.js"></script>
+</head>
+
+<body>
+<div class="content">
+<div class="breadCrumbs">
+Current scope:     <a href="../../index.html">all classes</a>
+    <span class="separator">|</span>
+    <a href="../index.html">com.google.zxing.pdf417.decoder</a>
+</div>
+
+<h1>Coverage Summary for Class: DecodedBitStreamParser (com.google.zxing.pdf417.decoder)</h1>
+
+<table class="coverageStats">
+
+<tr>
+  <th class="name">Class</th>
+<th class="coverageStat 
+">
+  Method, %
+</th>
+<th class="coverageStat 
+">
+  Line, %
+</th>
+</tr>
+<tr>
+  <td class="name">DecodedBitStreamParser</td>
+<td class="coverageStat">
+  <span class="percent">
+    100%
+  </span>
+  <span class="absValue">
+    (8/8)
+  </span>
+</td>
+<td class="coverageStat">
+  <span class="percent">
+    90.4%
+  </span>
+  <span class="absValue">
+    (264/292)
+  </span>
+</td>
+</tr>
+  <tr>
+    <td class="name">DecodedBitStreamParser$1</td>
+<td class="coverageStat">
+  <span class="percent">
+    100%
+  </span>
+  <span class="absValue">
+    (1/1)
+  </span>
+</td>
+<td class="coverageStat">
+  <span class="percent">
+    100%
+  </span>
+  <span class="absValue">
+    (1/1)
+  </span>
+</td>
+  </tr>
+  <tr>
+    <td class="name">DecodedBitStreamParser$Mode</td>
+<td class="coverageStat">
+  <span class="percent">
+    100%
+  </span>
+  <span class="absValue">
+    (2/2)
+  </span>
+</td>
+<td class="coverageStat">
+  <span class="percent">
+    100%
+  </span>
+  <span class="absValue">
+    (7/7)
+  </span>
+</td>
+  </tr>
+<tr>
+  <td class="name"><strong>Total</strong></td>
+<td class="coverageStat">
+  <span class="percent">
+    100%
+  </span>
+  <span class="absValue">
+    (11/11)
+  </span>
+</td>
+<td class="coverageStat">
+  <span class="percent">
+    90.7%
+  </span>
+  <span class="absValue">
+    (272/300)
+  </span>
+</td>
+</tr>
+</table>
+
+<br/>
+<br/>
+
+
+<pre>
+<code class="sourceCode" id="sourceCode">&nbsp;/*
+&nbsp; * Copyright 2009 ZXing authors
+&nbsp; *
+&nbsp; * Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
+&nbsp; * you may not use this file except in compliance with the License.
+&nbsp; * You may obtain a copy of the License at
+&nbsp; *
+&nbsp; *      http://www.apache.org/licenses/LICENSE-2.0
+&nbsp; *
+&nbsp; * Unless required by applicable law or agreed to in writing, software
+&nbsp; * distributed under the License is distributed on an &quot;AS IS&quot; BASIS,
+&nbsp; * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+&nbsp; * See the License for the specific language governing permissions and
+&nbsp; * limitations under the License.
+&nbsp; */
+&nbsp;
+&nbsp;package com.google.zxing.pdf417.decoder;
+&nbsp;
+&nbsp;import com.google.zxing.FormatException;
+&nbsp;import com.google.zxing.common.ECIStringBuilder;
+&nbsp;import com.google.zxing.common.DecoderResult;
+&nbsp;import com.google.zxing.pdf417.PDF417ResultMetadata;
+&nbsp;
+&nbsp;import java.math.BigInteger;
+&nbsp;import java.util.Arrays;
+&nbsp;
+&nbsp;/**
+&nbsp; * &lt;p&gt;This class contains the methods for decoding the PDF417 codewords.&lt;/p&gt;
+&nbsp; *
+&nbsp; * @author SITA Lab (kevin.osullivan@sita.aero)
+&nbsp; * @author Guenther Grau
+&nbsp; */
+&nbsp;final class DecodedBitStreamParser {
+&nbsp;
+<b class="fc">&nbsp;  private enum Mode {</b>
+<b class="fc">&nbsp;    ALPHA,</b>
+<b class="fc">&nbsp;    LOWER,</b>
+<b class="fc">&nbsp;    MIXED,</b>
+<b class="fc">&nbsp;    PUNCT,</b>
+<b class="fc">&nbsp;    ALPHA_SHIFT,</b>
+<b class="fc">&nbsp;    PUNCT_SHIFT</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  private static final int TEXT_COMPACTION_MODE_LATCH = 900;
+&nbsp;  private static final int BYTE_COMPACTION_MODE_LATCH = 901;
+&nbsp;  private static final int NUMERIC_COMPACTION_MODE_LATCH = 902;
+&nbsp;  private static final int BYTE_COMPACTION_MODE_LATCH_6 = 924;
+&nbsp;  private static final int ECI_USER_DEFINED = 925;
+&nbsp;  private static final int ECI_GENERAL_PURPOSE = 926;
+&nbsp;  private static final int ECI_CHARSET = 927;
+&nbsp;  private static final int BEGIN_MACRO_PDF417_CONTROL_BLOCK = 928;
+&nbsp;  private static final int BEGIN_MACRO_PDF417_OPTIONAL_FIELD = 923;
+&nbsp;  private static final int MACRO_PDF417_TERMINATOR = 922;
+&nbsp;  private static final int MODE_SHIFT_TO_BYTE_COMPACTION_MODE = 913;
+&nbsp;  private static final int MAX_NUMERIC_CODEWORDS = 15;
+&nbsp;
+&nbsp;  private static final int MACRO_PDF417_OPTIONAL_FIELD_FILE_NAME = 0;
+&nbsp;  private static final int MACRO_PDF417_OPTIONAL_FIELD_SEGMENT_COUNT = 1;
+&nbsp;  private static final int MACRO_PDF417_OPTIONAL_FIELD_TIME_STAMP = 2;
+&nbsp;  private static final int MACRO_PDF417_OPTIONAL_FIELD_SENDER = 3;
+&nbsp;  private static final int MACRO_PDF417_OPTIONAL_FIELD_ADDRESSEE = 4;
+&nbsp;  private static final int MACRO_PDF417_OPTIONAL_FIELD_FILE_SIZE = 5;
+&nbsp;  private static final int MACRO_PDF417_OPTIONAL_FIELD_CHECKSUM = 6;
+&nbsp;
+&nbsp;  private static final int PL = 25;
+&nbsp;  private static final int LL = 27;
+&nbsp;  private static final int AS = 27;
+&nbsp;  private static final int ML = 28;
+&nbsp;  private static final int AL = 28;
+&nbsp;  private static final int PS = 29;
+&nbsp;  private static final int PAL = 29;
+&nbsp;
+<b class="fc">&nbsp;  private static final char[] PUNCT_CHARS =</b>
+<b class="fc">&nbsp;      &quot;;&lt;&gt;@[\\]_`~!\r\t,:\n-.$/\&quot;|*()?{}&#39;&quot;.toCharArray();</b>
+&nbsp;
+<b class="fc">&nbsp;  private static final char[] MIXED_CHARS =</b>
+<b class="fc">&nbsp;      &quot;0123456789&amp;\r\t,:#-.$/+%*=^&quot;.toCharArray();</b>
+&nbsp;
+&nbsp;  /**
+&nbsp;   * Table containing values for the exponent of 900.
+&nbsp;   * This is used in the numeric compaction decode algorithm.
+&nbsp;   */
+&nbsp;  private static final BigInteger[] EXP900;
+&nbsp;
+&nbsp;  static {
+<b class="fc">&nbsp;    EXP900 = new BigInteger[16];</b>
+<b class="fc">&nbsp;    EXP900[0] = BigInteger.ONE;</b>
+<b class="fc">&nbsp;    BigInteger nineHundred = BigInteger.valueOf(900);</b>
+<b class="fc">&nbsp;    EXP900[1] = nineHundred;</b>
+<b class="fc">&nbsp;    for (int i = 2; i &lt; EXP900.length; i++) {</b>
+<b class="fc">&nbsp;      EXP900[i] = EXP900[i - 1].multiply(nineHundred);</b>
+&nbsp;    }
+&nbsp;  }
+&nbsp;
+&nbsp;  private static final int NUMBER_OF_SEQUENCE_CODEWORDS = 2;
+&nbsp;
+&nbsp;  private DecodedBitStreamParser() {
+&nbsp;  }
+&nbsp;
+&nbsp;  static DecoderResult decode(int[] codewords, String ecLevel) throws FormatException {
+<b class="fc">&nbsp;    ECIStringBuilder result = new ECIStringBuilder(codewords.length * 2);</b>
+<b class="fc">&nbsp;    int codeIndex = textCompaction(codewords, 1, result);</b>
+<b class="fc">&nbsp;    PDF417ResultMetadata resultMetadata = new PDF417ResultMetadata();</b>
+<b class="fc">&nbsp;    while (codeIndex &lt; codewords[0]) {</b>
+<b class="fc">&nbsp;      int code = codewords[codeIndex++];</b>
+<b class="fc">&nbsp;      switch (code) {</b>
+&nbsp;        case TEXT_COMPACTION_MODE_LATCH:
+<b class="fc">&nbsp;          codeIndex = textCompaction(codewords, codeIndex, result);</b>
+<b class="fc">&nbsp;          break;</b>
+&nbsp;        case BYTE_COMPACTION_MODE_LATCH:
+&nbsp;        case BYTE_COMPACTION_MODE_LATCH_6:
+<b class="fc">&nbsp;          codeIndex = byteCompaction(code, codewords, codeIndex, result);</b>
+<b class="fc">&nbsp;          break;</b>
+&nbsp;        case MODE_SHIFT_TO_BYTE_COMPACTION_MODE:
+<b class="nc">&nbsp;          result.append((char) codewords[codeIndex++]);</b>
+<b class="nc">&nbsp;          break;</b>
+&nbsp;        case NUMERIC_COMPACTION_MODE_LATCH:
+<b class="fc">&nbsp;          codeIndex = numericCompaction(codewords, codeIndex, result);</b>
+<b class="fc">&nbsp;          break;</b>
+&nbsp;        case ECI_CHARSET:
+<b class="nc">&nbsp;          result.appendECI(codewords[codeIndex++]);</b>
+<b class="nc">&nbsp;          break;</b>
+&nbsp;        case ECI_GENERAL_PURPOSE:
+&nbsp;          // Can&#39;t do anything with generic ECI; skip its 2 characters
+<b class="nc">&nbsp;          codeIndex += 2;</b>
+<b class="nc">&nbsp;          break;</b>
+&nbsp;        case ECI_USER_DEFINED:
+&nbsp;          // Can&#39;t do anything with user ECI; skip its 1 character
+<b class="nc">&nbsp;          codeIndex++;</b>
+<b class="nc">&nbsp;          break;</b>
+&nbsp;        case BEGIN_MACRO_PDF417_CONTROL_BLOCK:
+<b class="fc">&nbsp;          codeIndex = decodeMacroBlock(codewords, codeIndex, resultMetadata);</b>
+<b class="fc">&nbsp;          break;</b>
+&nbsp;        case BEGIN_MACRO_PDF417_OPTIONAL_FIELD:
+&nbsp;        case MACRO_PDF417_TERMINATOR:
+&nbsp;          // Should not see these outside a macro block
+<b class="nc">&nbsp;          throw FormatException.getFormatInstance();</b>
+&nbsp;        default:
+&nbsp;          // Default to text compaction. During testing numerous barcodes
+&nbsp;          // appeared to be missing the starting mode. In these cases defaulting
+&nbsp;          // to text compaction seems to work.
+<b class="nc">&nbsp;          codeIndex--;</b>
+<b class="nc">&nbsp;          codeIndex = textCompaction(codewords, codeIndex, result);</b>
+&nbsp;          break;
+&nbsp;      }
+<b class="fc">&nbsp;    }</b>
+<b class="fc">&nbsp;    if (result.isEmpty() &amp;&amp; resultMetadata.getFileId() == null) {</b>
+<b class="fc">&nbsp;      throw FormatException.getFormatInstance();</b>
+&nbsp;    }
+<b class="fc">&nbsp;    DecoderResult decoderResult = new DecoderResult(null, result.toString(), null, ecLevel);</b>
+<b class="fc">&nbsp;    decoderResult.setOther(resultMetadata);</b>
+<b class="fc">&nbsp;    return decoderResult;</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  @SuppressWarnings(&quot;deprecation&quot;)
+&nbsp;  static int decodeMacroBlock(int[] codewords, int codeIndex, PDF417ResultMetadata resultMetadata)
+&nbsp;      throws FormatException {
+<b class="fc">&nbsp;    if (codeIndex + NUMBER_OF_SEQUENCE_CODEWORDS &gt; codewords[0]) {</b>
+&nbsp;      // we must have at least two bytes left for the segment index
+<b class="fc">&nbsp;      throw FormatException.getFormatInstance();</b>
+&nbsp;    }
+<b class="fc">&nbsp;    int[] segmentIndexArray = new int[NUMBER_OF_SEQUENCE_CODEWORDS];</b>
+<b class="fc">&nbsp;    for (int i = 0; i &lt; NUMBER_OF_SEQUENCE_CODEWORDS; i++, codeIndex++) {</b>
+<b class="fc">&nbsp;      segmentIndexArray[i] = codewords[codeIndex];</b>
+&nbsp;    }
+<b class="fc">&nbsp;    String segmentIndexString = decodeBase900toBase10(segmentIndexArray, NUMBER_OF_SEQUENCE_CODEWORDS);</b>
+<b class="fc">&nbsp;    if (segmentIndexString.isEmpty()) {</b>
+<b class="nc">&nbsp;      resultMetadata.setSegmentIndex(0);</b>
+&nbsp;    } else {
+&nbsp;      try {
+<b class="fc">&nbsp;        resultMetadata.setSegmentIndex(Integer.parseInt(segmentIndexString));</b>
+<b class="nc">&nbsp;      } catch (NumberFormatException nfe) {</b>
+&nbsp;        // too large; bad input?
+<b class="nc">&nbsp;        throw FormatException.getFormatInstance();</b>
+<b class="fc">&nbsp;      }</b>
+&nbsp;    }
+&nbsp;
+&nbsp;    // Decoding the fileId codewords as 0-899 numbers, each 0-filled to width 3. This follows the spec
+&nbsp;    // (See ISO/IEC 15438:2015 Annex H.6) and preserves all info, but some generators (e.g. TEC-IT) write
+&nbsp;    // the fileId using text compaction, so in those cases the fileId will appear mangled.
+<b class="fc">&nbsp;    StringBuilder fileId = new StringBuilder();</b>
+<b class="fc">&nbsp;    while (codeIndex &lt; codewords[0] &amp;&amp;</b>
+&nbsp;           codeIndex &lt; codewords.length &amp;&amp;
+&nbsp;           codewords[codeIndex] != MACRO_PDF417_TERMINATOR &amp;&amp;
+&nbsp;           codewords[codeIndex] != BEGIN_MACRO_PDF417_OPTIONAL_FIELD) {
+<b class="fc">&nbsp;      fileId.append(String.format(&quot;%03d&quot;, codewords[codeIndex]));</b>
+<b class="fc">&nbsp;      codeIndex++;</b>
+&nbsp;    }
+<b class="fc">&nbsp;    if (fileId.length() == 0) {</b>
+&nbsp;      // at least one fileId codeword is required (Annex H.2)
+<b class="fc">&nbsp;      throw FormatException.getFormatInstance();</b>
+&nbsp;    }
+<b class="fc">&nbsp;    resultMetadata.setFileId(fileId.toString());</b>
+&nbsp;
+<b class="fc">&nbsp;    int optionalFieldsStart = -1;</b>
+<b class="fc">&nbsp;    if (codewords[codeIndex] == BEGIN_MACRO_PDF417_OPTIONAL_FIELD) {</b>
+<b class="fc">&nbsp;      optionalFieldsStart = codeIndex + 1;</b>
+&nbsp;    }
+&nbsp;
+<b class="fc">&nbsp;    while (codeIndex &lt; codewords[0]) {</b>
+<b class="fc">&nbsp;      switch (codewords[codeIndex]) {</b>
+&nbsp;        case BEGIN_MACRO_PDF417_OPTIONAL_FIELD:
+<b class="fc">&nbsp;          codeIndex++;</b>
+<b class="fc">&nbsp;          switch (codewords[codeIndex]) {</b>
+&nbsp;            case MACRO_PDF417_OPTIONAL_FIELD_FILE_NAME:
+<b class="fc">&nbsp;              ECIStringBuilder fileName = new ECIStringBuilder();</b>
+<b class="fc">&nbsp;              codeIndex = textCompaction(codewords, codeIndex + 1, fileName);</b>
+<b class="fc">&nbsp;              resultMetadata.setFileName(fileName.toString());</b>
+<b class="fc">&nbsp;              break;</b>
+&nbsp;            case MACRO_PDF417_OPTIONAL_FIELD_SENDER:
+<b class="fc">&nbsp;              ECIStringBuilder sender = new ECIStringBuilder();</b>
+<b class="fc">&nbsp;              codeIndex = textCompaction(codewords, codeIndex + 1, sender);</b>
+<b class="fc">&nbsp;              resultMetadata.setSender(sender.toString());</b>
+<b class="fc">&nbsp;              break;</b>
+&nbsp;            case MACRO_PDF417_OPTIONAL_FIELD_ADDRESSEE:
+<b class="fc">&nbsp;              ECIStringBuilder addressee = new ECIStringBuilder();</b>
+<b class="fc">&nbsp;              codeIndex = textCompaction(codewords, codeIndex + 1, addressee);</b>
+<b class="fc">&nbsp;              resultMetadata.setAddressee(addressee.toString());</b>
+<b class="fc">&nbsp;              break;</b>
+&nbsp;            case MACRO_PDF417_OPTIONAL_FIELD_SEGMENT_COUNT:
+<b class="fc">&nbsp;              ECIStringBuilder segmentCount = new ECIStringBuilder();</b>
+<b class="fc">&nbsp;              codeIndex = numericCompaction(codewords, codeIndex + 1, segmentCount);</b>
+&nbsp;              try {
+<b class="fc">&nbsp;                resultMetadata.setSegmentCount(Integer.parseInt(segmentCount.toString()));</b>
+<b class="nc">&nbsp;              } catch (NumberFormatException nfe) {</b>
+<b class="nc">&nbsp;                throw FormatException.getFormatInstance();</b>
+<b class="fc">&nbsp;              }</b>
+&nbsp;              break;
+&nbsp;            case MACRO_PDF417_OPTIONAL_FIELD_TIME_STAMP:
+<b class="fc">&nbsp;              ECIStringBuilder timestamp = new ECIStringBuilder();</b>
+<b class="fc">&nbsp;              codeIndex = numericCompaction(codewords, codeIndex + 1, timestamp);</b>
+&nbsp;              try {
+<b class="fc">&nbsp;                resultMetadata.setTimestamp(Long.parseLong(timestamp.toString()));</b>
+<b class="nc">&nbsp;              } catch (NumberFormatException nfe) {</b>
+<b class="nc">&nbsp;                throw FormatException.getFormatInstance();</b>
+<b class="fc">&nbsp;              }</b>
+&nbsp;              break;
+&nbsp;            case MACRO_PDF417_OPTIONAL_FIELD_CHECKSUM:
+<b class="fc">&nbsp;              ECIStringBuilder checksum = new ECIStringBuilder();</b>
+<b class="fc">&nbsp;              codeIndex = numericCompaction(codewords, codeIndex + 1, checksum);</b>
+&nbsp;              try {
+<b class="fc">&nbsp;                resultMetadata.setChecksum(Integer.parseInt(checksum.toString()));</b>
+<b class="nc">&nbsp;              } catch (NumberFormatException nfe) {</b>
+<b class="nc">&nbsp;                throw FormatException.getFormatInstance();</b>
+<b class="fc">&nbsp;              }</b>
+&nbsp;              break;
+&nbsp;            case MACRO_PDF417_OPTIONAL_FIELD_FILE_SIZE:
+<b class="fc">&nbsp;              ECIStringBuilder fileSize = new ECIStringBuilder();</b>
+<b class="fc">&nbsp;              codeIndex = numericCompaction(codewords, codeIndex + 1, fileSize);</b>
+&nbsp;              try {
+<b class="fc">&nbsp;                resultMetadata.setFileSize(Long.parseLong(fileSize.toString()));</b>
+<b class="nc">&nbsp;              } catch (NumberFormatException nfe) {</b>
+<b class="nc">&nbsp;                throw FormatException.getFormatInstance();</b>
+<b class="fc">&nbsp;              }</b>
+&nbsp;              break;
+&nbsp;            default:
+<b class="nc">&nbsp;              throw FormatException.getFormatInstance();</b>
+&nbsp;          }
+&nbsp;          break;
+&nbsp;        case MACRO_PDF417_TERMINATOR:
+<b class="fc">&nbsp;          codeIndex++;</b>
+<b class="fc">&nbsp;          resultMetadata.setLastSegment(true);</b>
+<b class="fc">&nbsp;          break;</b>
+&nbsp;        default:
+<b class="nc">&nbsp;          throw FormatException.getFormatInstance();</b>
+&nbsp;      }
+&nbsp;    }
+&nbsp;
+&nbsp;    // copy optional fields to additional options
+<b class="fc">&nbsp;    if (optionalFieldsStart != -1) {</b>
+<b class="fc">&nbsp;      int optionalFieldsLength = codeIndex - optionalFieldsStart;</b>
+<b class="fc">&nbsp;      if (resultMetadata.isLastSegment()) {</b>
+&nbsp;        // do not include terminator
+<b class="fc">&nbsp;        optionalFieldsLength--;</b>
+&nbsp;      }
+<b class="fc">&nbsp;      if (optionalFieldsLength &gt; 0) {</b>
+<b class="fc">&nbsp;        resultMetadata.setOptionalData(Arrays.copyOfRange(codewords,</b>
+&nbsp;            optionalFieldsStart, optionalFieldsStart + optionalFieldsLength));
+&nbsp;      }
+&nbsp;    }
+&nbsp;
+<b class="fc">&nbsp;    return codeIndex;</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  /**
+&nbsp;   * Text Compaction mode (see 5.4.1.5) permits all printable ASCII characters to be
+&nbsp;   * encoded, i.e. values 32 - 126 inclusive in accordance with ISO/IEC 646 (IRV), as
+&nbsp;   * well as selected control characters.
+&nbsp;   *
+&nbsp;   * @param codewords The array of codewords (data + error)
+&nbsp;   * @param codeIndex The current index into the codeword array.
+&nbsp;   * @param result    The decoded data is appended to the result.
+&nbsp;   * @return The next index into the codeword array.
+&nbsp;   */
+&nbsp;  private static int textCompaction(int[] codewords, int codeIndex, ECIStringBuilder result) throws FormatException {
+&nbsp;    // 2 character per codeword
+<b class="fc">&nbsp;    int[] textCompactionData = new int[(codewords[0] - codeIndex) * 2];</b>
+&nbsp;    // Used to hold the byte compaction value if there is a mode shift
+<b class="fc">&nbsp;    int[] byteCompactionData = new int[(codewords[0] - codeIndex) * 2];</b>
+&nbsp;
+<b class="fc">&nbsp;    int index = 0;</b>
+<b class="fc">&nbsp;    boolean end = false;</b>
+<b class="fc">&nbsp;    Mode subMode = Mode.ALPHA;</b>
+<b class="fc">&nbsp;    while ((codeIndex &lt; codewords[0]) &amp;&amp; !end) {</b>
+<b class="fc">&nbsp;      int code = codewords[codeIndex++];</b>
+<b class="fc">&nbsp;      if (code &lt; TEXT_COMPACTION_MODE_LATCH) {</b>
+<b class="fc">&nbsp;        textCompactionData[index] = code / 30;</b>
+<b class="fc">&nbsp;        textCompactionData[index + 1] = code % 30;</b>
+<b class="fc">&nbsp;        index += 2;</b>
+&nbsp;      } else {
+<b class="fc">&nbsp;        switch (code) {</b>
+&nbsp;          case TEXT_COMPACTION_MODE_LATCH:
+&nbsp;            // reinitialize text compaction mode to alpha sub mode
+<b class="fc">&nbsp;            textCompactionData[index++] = TEXT_COMPACTION_MODE_LATCH;</b>
+<b class="fc">&nbsp;            break;</b>
+&nbsp;          case BYTE_COMPACTION_MODE_LATCH:
+&nbsp;          case BYTE_COMPACTION_MODE_LATCH_6:
+&nbsp;          case NUMERIC_COMPACTION_MODE_LATCH:
+&nbsp;          case BEGIN_MACRO_PDF417_CONTROL_BLOCK:
+&nbsp;          case BEGIN_MACRO_PDF417_OPTIONAL_FIELD:
+&nbsp;          case MACRO_PDF417_TERMINATOR:
+<b class="fc">&nbsp;            codeIndex--;</b>
+<b class="fc">&nbsp;            end = true;</b>
+<b class="fc">&nbsp;            break;</b>
+&nbsp;          case MODE_SHIFT_TO_BYTE_COMPACTION_MODE:
+&nbsp;            // The Mode Shift codeword 913 shall cause a temporary
+&nbsp;            // switch from Text Compaction mode to Byte Compaction mode.
+&nbsp;            // This switch shall be in effect for only the next codeword,
+&nbsp;            // after which the mode shall revert to the prevailing sub-mode
+&nbsp;            // of the Text Compaction mode. Codeword 913 is only available
+&nbsp;            // in Text Compaction mode; its use is described in 5.4.2.4.
+<b class="fc">&nbsp;            textCompactionData[index] = MODE_SHIFT_TO_BYTE_COMPACTION_MODE;</b>
+<b class="fc">&nbsp;            code = codewords[codeIndex++];</b>
+<b class="fc">&nbsp;            byteCompactionData[index] = code;</b>
+<b class="fc">&nbsp;            index++;</b>
+<b class="fc">&nbsp;            break;</b>
+&nbsp;          case ECI_CHARSET:
+<b class="fc">&nbsp;            subMode = decodeTextCompaction(textCompactionData, byteCompactionData, index, result, subMode);</b>
+<b class="fc">&nbsp;            result.appendECI(codewords[codeIndex++]);</b>
+<b class="fc">&nbsp;            if (codeIndex &gt; codewords[0]) {</b>
+<b class="nc">&nbsp;              throw FormatException.getFormatInstance();</b>
+&nbsp;            }
+<b class="fc">&nbsp;            textCompactionData = new int[(codewords[0] - codeIndex) * 2];</b>
+<b class="fc">&nbsp;            byteCompactionData = new int[(codewords[0] - codeIndex) * 2];</b>
+<b class="fc">&nbsp;            index = 0;</b>
+&nbsp;            break;
+&nbsp;        }
+&nbsp;      }
+<b class="fc">&nbsp;    }</b>
+<b class="fc">&nbsp;    decodeTextCompaction(textCompactionData, byteCompactionData, index, result, subMode);</b>
+<b class="fc">&nbsp;    return codeIndex;</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  /**
+&nbsp;   * The Text Compaction mode includes all the printable ASCII characters
+&nbsp;   * (i.e. values from 32 to 126) and three ASCII control characters: HT or tab
+&nbsp;   * (ASCII value 9), LF or line feed (ASCII value 10), and CR or carriage
+&nbsp;   * return (ASCII value 13). The Text Compaction mode also includes various latch
+&nbsp;   * and shift characters which are used exclusively within the mode. The Text
+&nbsp;   * Compaction mode encodes up to 2 characters per codeword. The compaction rules
+&nbsp;   * for converting data into PDF417 codewords are defined in 5.4.2.2. The sub-mode
+&nbsp;   * switches are defined in 5.4.2.3.
+&nbsp;   *
+&nbsp;   * @param textCompactionData The text compaction data.
+&nbsp;   * @param byteCompactionData The byte compaction data if there
+&nbsp;   *                           was a mode shift.
+&nbsp;   * @param length             The size of the text compaction and byte compaction data.
+&nbsp;   * @param result             The decoded data is appended to the result.
+&nbsp;   * @param startMode          The mode in which decoding starts
+&nbsp;   * @return The mode in which decoding ended
+&nbsp;   */
+&nbsp;  private static Mode decodeTextCompaction(int[] textCompactionData,
+&nbsp;                                           int[] byteCompactionData,
+&nbsp;                                           int length,
+&nbsp;                                           ECIStringBuilder result,
+&nbsp;                                           Mode startMode) {
+&nbsp;    // Beginning from an initial state
+&nbsp;    // The default compaction mode for PDF417 in effect at the start of each symbol shall always be Text
+&nbsp;    // Compaction mode Alpha sub-mode (uppercase alphabetic). A latch codeword from another mode to the Text
+&nbsp;    // Compaction mode shall always switch to the Text Compaction Alpha sub-mode.
+<b class="fc">&nbsp;    Mode subMode = startMode;</b>
+<b class="fc">&nbsp;    Mode priorToShiftMode = startMode;</b>
+<b class="fc">&nbsp;    Mode latchedMode = startMode;</b>
+<b class="fc">&nbsp;    int i = 0;</b>
+<b class="fc">&nbsp;    while (i &lt; length) {</b>
+<b class="fc">&nbsp;      int subModeCh = textCompactionData[i];</b>
+<b class="fc">&nbsp;      char ch = 0;</b>
+<b class="fc">&nbsp;      switch (subMode) {</b>
+&nbsp;        case ALPHA:
+&nbsp;          // Alpha (uppercase alphabetic)
+<b class="fc">&nbsp;          if (subModeCh &lt; 26) {</b>
+&nbsp;            // Upper case Alpha Character
+<b class="fc">&nbsp;            ch = (char) (&#39;A&#39; + subModeCh);</b>
+&nbsp;          } else {
+<b class="fc">&nbsp;            switch (subModeCh) {</b>
+&nbsp;              case 26:
+<b class="fc">&nbsp;                ch = &#39; &#39;;</b>
+<b class="fc">&nbsp;                break;</b>
+&nbsp;              case LL:
+<b class="fc">&nbsp;                subMode = Mode.LOWER;</b>
+<b class="fc">&nbsp;                latchedMode = subMode;</b>
+<b class="fc">&nbsp;                break;</b>
+&nbsp;              case ML:
+<b class="fc">&nbsp;                subMode = Mode.MIXED;</b>
+<b class="fc">&nbsp;                latchedMode = subMode;</b>
+<b class="fc">&nbsp;                break;</b>
+&nbsp;              case PS:
+&nbsp;                // Shift to punctuation
+<b class="fc">&nbsp;                priorToShiftMode = subMode;</b>
+<b class="fc">&nbsp;                subMode = Mode.PUNCT_SHIFT;</b>
+<b class="fc">&nbsp;                break;</b>
+&nbsp;              case MODE_SHIFT_TO_BYTE_COMPACTION_MODE:
+<b class="fc">&nbsp;                result.append((char) byteCompactionData[i]);</b>
+<b class="fc">&nbsp;                break;</b>
+&nbsp;              case TEXT_COMPACTION_MODE_LATCH:
+<b class="fc">&nbsp;                subMode = Mode.ALPHA;</b>
+<b class="fc">&nbsp;                latchedMode = subMode;</b>
+&nbsp;                break;
+&nbsp;            }
+&nbsp;          }
+<b class="fc">&nbsp;          break;</b>
+&nbsp;
+&nbsp;        case LOWER:
+&nbsp;          // Lower (lowercase alphabetic)
+<b class="fc">&nbsp;          if (subModeCh &lt; 26) {</b>
+<b class="fc">&nbsp;            ch = (char) (&#39;a&#39; + subModeCh);</b>
+&nbsp;          } else {
+<b class="fc">&nbsp;            switch (subModeCh) {</b>
+&nbsp;              case 26:
+<b class="fc">&nbsp;                ch = &#39; &#39;;</b>
+<b class="fc">&nbsp;                break;</b>
+&nbsp;              case AS:
+&nbsp;                // Shift to alpha
+<b class="fc">&nbsp;                priorToShiftMode = subMode;</b>
+<b class="fc">&nbsp;                subMode = Mode.ALPHA_SHIFT;</b>
+<b class="fc">&nbsp;                break;</b>
+&nbsp;              case ML:
+<b class="fc">&nbsp;                subMode = Mode.MIXED;</b>
+<b class="fc">&nbsp;                latchedMode = subMode;</b>
+<b class="fc">&nbsp;                break;</b>
+&nbsp;              case PS:
+&nbsp;                // Shift to punctuation
+<b class="fc">&nbsp;                priorToShiftMode = subMode;</b>
+<b class="fc">&nbsp;                subMode = Mode.PUNCT_SHIFT;</b>
+<b class="fc">&nbsp;                break;</b>
+&nbsp;              case MODE_SHIFT_TO_BYTE_COMPACTION_MODE:
+<b class="fc">&nbsp;                result.append((char) byteCompactionData[i]);</b>
+<b class="fc">&nbsp;                break;</b>
+&nbsp;              case TEXT_COMPACTION_MODE_LATCH:
+<b class="fc">&nbsp;                subMode = Mode.ALPHA;</b>
+<b class="fc">&nbsp;                latchedMode = subMode;</b>
+&nbsp;                break;
+&nbsp;            }
+&nbsp;          }
+<b class="fc">&nbsp;          break;</b>
+&nbsp;
+&nbsp;        case MIXED:
+&nbsp;          // Mixed (numeric and some punctuation)
+<b class="fc">&nbsp;          if (subModeCh &lt; PL) {</b>
+<b class="fc">&nbsp;            ch = MIXED_CHARS[subModeCh];</b>
+&nbsp;          } else {
+<b class="fc">&nbsp;            switch (subModeCh) {</b>
+&nbsp;              case PL:
+<b class="fc">&nbsp;                subMode = Mode.PUNCT;</b>
+<b class="fc">&nbsp;                latchedMode = subMode;</b>
+<b class="fc">&nbsp;                break;</b>
+&nbsp;              case 26:
+<b class="fc">&nbsp;                ch = &#39; &#39;;</b>
+<b class="fc">&nbsp;                break;</b>
+&nbsp;              case LL:
+<b class="fc">&nbsp;                subMode = Mode.LOWER;</b>
+<b class="fc">&nbsp;                latchedMode = subMode;</b>
+<b class="fc">&nbsp;                break;</b>
+&nbsp;              case AL:
+&nbsp;              case TEXT_COMPACTION_MODE_LATCH:
+<b class="fc">&nbsp;                subMode = Mode.ALPHA;</b>
+<b class="fc">&nbsp;                latchedMode = subMode;</b>
+<b class="fc">&nbsp;                break;</b>
+&nbsp;              case PS:
+&nbsp;                // Shift to punctuation
+<b class="fc">&nbsp;                priorToShiftMode = subMode;</b>
+<b class="fc">&nbsp;                subMode = Mode.PUNCT_SHIFT;</b>
+<b class="fc">&nbsp;                break;</b>
+&nbsp;              case MODE_SHIFT_TO_BYTE_COMPACTION_MODE:
+<b class="fc">&nbsp;                result.append((char) byteCompactionData[i]);</b>
+&nbsp;                break;
+&nbsp;            }
+&nbsp;          }
+<b class="fc">&nbsp;          break;</b>
+&nbsp;
+&nbsp;        case PUNCT:
+&nbsp;          // Punctuation
+<b class="fc">&nbsp;          if (subModeCh &lt; PAL) {</b>
+<b class="fc">&nbsp;            ch = PUNCT_CHARS[subModeCh];</b>
+&nbsp;          } else {
+<b class="fc">&nbsp;            switch (subModeCh) {</b>
+&nbsp;              case PAL:
+&nbsp;              case TEXT_COMPACTION_MODE_LATCH:
+<b class="fc">&nbsp;                subMode = Mode.ALPHA;</b>
+<b class="fc">&nbsp;                latchedMode = subMode;</b>
+<b class="fc">&nbsp;                break;</b>
+&nbsp;              case MODE_SHIFT_TO_BYTE_COMPACTION_MODE:
+<b class="nc">&nbsp;                result.append((char) byteCompactionData[i]);</b>
+&nbsp;                break;
+&nbsp;            }
+&nbsp;          }
+<b class="fc">&nbsp;          break;</b>
+&nbsp;
+&nbsp;        case ALPHA_SHIFT:
+&nbsp;          // Restore sub-mode
+<b class="fc">&nbsp;          subMode = priorToShiftMode;</b>
+<b class="fc">&nbsp;          if (subModeCh &lt; 26) {</b>
+<b class="fc">&nbsp;            ch = (char) (&#39;A&#39; + subModeCh);</b>
+&nbsp;          } else {
+<b class="fc">&nbsp;            switch (subModeCh) {</b>
+&nbsp;              case 26:
+<b class="fc">&nbsp;                ch = &#39; &#39;;</b>
+<b class="fc">&nbsp;                break;</b>
+&nbsp;              case TEXT_COMPACTION_MODE_LATCH:
+<b class="nc">&nbsp;                subMode = Mode.ALPHA;</b>
+&nbsp;                break;
+&nbsp;            }
+&nbsp;          }
+<b class="fc">&nbsp;          break;</b>
+&nbsp;
+&nbsp;        case PUNCT_SHIFT:
+&nbsp;          // Restore sub-mode
+<b class="fc">&nbsp;          subMode = priorToShiftMode;</b>
+<b class="fc">&nbsp;          if (subModeCh &lt; PAL) {</b>
+<b class="fc">&nbsp;            ch = PUNCT_CHARS[subModeCh];</b>
+&nbsp;          } else {
+<b class="fc">&nbsp;            switch (subModeCh) {</b>
+&nbsp;              case PAL:
+&nbsp;              case TEXT_COMPACTION_MODE_LATCH:
+<b class="fc">&nbsp;                subMode = Mode.ALPHA;</b>
+<b class="fc">&nbsp;                break;</b>
+&nbsp;              case MODE_SHIFT_TO_BYTE_COMPACTION_MODE:
+&nbsp;                // PS before Shift-to-Byte is used as a padding character,
+&nbsp;                // see 5.4.2.4 of the specification
+<b class="fc">&nbsp;                result.append((char) byteCompactionData[i]);</b>
+&nbsp;                break;
+&nbsp;            }
+&nbsp;          }
+&nbsp;          break;
+&nbsp;      }
+<b class="fc">&nbsp;      if (ch != 0) {</b>
+&nbsp;        // Append decoded character to result
+<b class="fc">&nbsp;        result.append(ch);</b>
+&nbsp;      }
+<b class="fc">&nbsp;      i++;</b>
+<b class="fc">&nbsp;    }</b>
+<b class="fc">&nbsp;    return latchedMode;</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  /**
+&nbsp;   * Byte Compaction mode (see 5.4.3) permits all 256 possible 8-bit byte values to be encoded.
+&nbsp;   * This includes all ASCII characters value 0 to 127 inclusive and provides for international
+&nbsp;   * character set support.
+&nbsp;   *
+&nbsp;   * @param mode      The byte compaction mode i.e. 901 or 924
+&nbsp;   * @param codewords The array of codewords (data + error)
+&nbsp;   * @param codeIndex The current index into the codeword array.
+&nbsp;   * @param result    The decoded data is appended to the result.
+&nbsp;   * @return The next index into the codeword array.
+&nbsp;   */
+&nbsp;  private static int byteCompaction(int mode,
+&nbsp;                                    int[] codewords,
+&nbsp;                                    int codeIndex,
+&nbsp;                                    ECIStringBuilder result) throws FormatException {
+<b class="fc">&nbsp;    boolean end = false;</b>
+&nbsp;
+<b class="fc">&nbsp;    while (codeIndex &lt; codewords[0] &amp;&amp; !end) {</b>
+&nbsp;      //handle leading ECIs
+<b class="fc">&nbsp;      while (codeIndex &lt; codewords[0] &amp;&amp; codewords[codeIndex] == ECI_CHARSET) {</b>
+<b class="fc">&nbsp;        result.appendECI(codewords[++codeIndex]);</b>
+<b class="fc">&nbsp;        codeIndex++;</b>
+&nbsp;      }
+&nbsp;
+<b class="fc">&nbsp;      if (codeIndex &gt;= codewords[0] || codewords[codeIndex] &gt;= TEXT_COMPACTION_MODE_LATCH) {</b>
+<b class="fc">&nbsp;        end = true;</b>
+&nbsp;      } else {
+&nbsp;        //decode one block of 5 codewords to 6 bytes
+<b class="fc">&nbsp;        long value = 0;</b>
+<b class="fc">&nbsp;        int count = 0;</b>
+&nbsp;        do {
+<b class="fc">&nbsp;          value = 900 * value + codewords[codeIndex++];</b>
+<b class="fc">&nbsp;          count++;</b>
+<b class="fc">&nbsp;        } while (count &lt; 5 &amp;&amp;</b>
+&nbsp;                 codeIndex &lt; codewords[0] &amp;&amp;
+&nbsp;                 codewords[codeIndex] &lt; TEXT_COMPACTION_MODE_LATCH);
+<b class="fc">&nbsp;        if (count == 5 &amp;&amp; (mode == BYTE_COMPACTION_MODE_LATCH_6 ||</b>
+&nbsp;                           codeIndex &lt; codewords[0] &amp;&amp;
+&nbsp;                           codewords[codeIndex] &lt; TEXT_COMPACTION_MODE_LATCH)) {
+<b class="fc">&nbsp;          for (int i = 0; i &lt; 6; i++) {</b>
+<b class="fc">&nbsp;            result.append((byte) (value &gt;&gt; (8 * (5 - i))));</b>
+&nbsp;          }
+&nbsp;        } else {
+<b class="fc">&nbsp;          codeIndex -= count;</b>
+<b class="fc">&nbsp;          while ((codeIndex &lt; codewords[0]) &amp;&amp; !end) {</b>
+<b class="fc">&nbsp;            int code = codewords[codeIndex++];</b>
+<b class="fc">&nbsp;            if (code &lt; TEXT_COMPACTION_MODE_LATCH) {</b>
+<b class="fc">&nbsp;              result.append((byte) code);</b>
+<b class="fc">&nbsp;            } else if (code == ECI_CHARSET) {</b>
+<b class="fc">&nbsp;              result.appendECI(codewords[codeIndex++]);</b>
+&nbsp;            } else {
+<b class="fc">&nbsp;              codeIndex--;</b>
+<b class="fc">&nbsp;              end = true;</b>
+&nbsp;            }
+<b class="fc">&nbsp;          }</b>
+&nbsp;        }
+<b class="fc">&nbsp;      }</b>
+&nbsp;    }
+<b class="fc">&nbsp;    return codeIndex;</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  /**
+&nbsp;   * Numeric Compaction mode (see 5.4.4) permits efficient encoding of numeric data strings.
+&nbsp;   *
+&nbsp;   * @param codewords The array of codewords (data + error)
+&nbsp;   * @param codeIndex The current index into the codeword array.
+&nbsp;   * @param result    The decoded data is appended to the result.
+&nbsp;   * @return The next index into the codeword array.
+&nbsp;   */
+&nbsp;  private static int numericCompaction(int[] codewords, int codeIndex, ECIStringBuilder result) throws FormatException {
+<b class="fc">&nbsp;    int count = 0;</b>
+<b class="fc">&nbsp;    boolean end = false;</b>
+&nbsp;
+<b class="fc">&nbsp;    int[] numericCodewords = new int[MAX_NUMERIC_CODEWORDS];</b>
+&nbsp;
+<b class="fc">&nbsp;    while (codeIndex &lt; codewords[0] &amp;&amp; !end) {</b>
+<b class="fc">&nbsp;      int code = codewords[codeIndex++];</b>
+<b class="fc">&nbsp;      if (codeIndex == codewords[0]) {</b>
+<b class="fc">&nbsp;        end = true;</b>
+&nbsp;      }
+<b class="fc">&nbsp;      if (code &lt; TEXT_COMPACTION_MODE_LATCH) {</b>
+<b class="fc">&nbsp;        numericCodewords[count] = code;</b>
+<b class="fc">&nbsp;        count++;</b>
+&nbsp;      } else {
+<b class="fc">&nbsp;        switch (code) {</b>
+&nbsp;          case TEXT_COMPACTION_MODE_LATCH:
+&nbsp;          case BYTE_COMPACTION_MODE_LATCH:
+&nbsp;          case BYTE_COMPACTION_MODE_LATCH_6:
+&nbsp;          case BEGIN_MACRO_PDF417_CONTROL_BLOCK:
+&nbsp;          case BEGIN_MACRO_PDF417_OPTIONAL_FIELD:
+&nbsp;          case MACRO_PDF417_TERMINATOR:
+&nbsp;          case ECI_CHARSET:
+<b class="fc">&nbsp;            codeIndex--;</b>
+<b class="fc">&nbsp;            end = true;</b>
+&nbsp;            break;
+&nbsp;        }
+&nbsp;      }
+<b class="fc">&nbsp;      if ((count % MAX_NUMERIC_CODEWORDS == 0 || code == NUMERIC_COMPACTION_MODE_LATCH || end) &amp;&amp; count &gt; 0) {</b>
+&nbsp;        // Re-invoking Numeric Compaction mode (by using codeword 902
+&nbsp;        // while in Numeric Compaction mode) serves  to terminate the
+&nbsp;        // current Numeric Compaction mode grouping as described in 5.4.4.2,
+&nbsp;        // and then to start a new one grouping.
+<b class="fc">&nbsp;        result.append(decodeBase900toBase10(numericCodewords, count));</b>
+<b class="fc">&nbsp;        count = 0;</b>
+&nbsp;      }
+<b class="fc">&nbsp;    }</b>
+<b class="fc">&nbsp;    return codeIndex;</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  /**
+&nbsp;   * Convert a list of Numeric Compacted codewords from Base 900 to Base 10.
+&nbsp;   *
+&nbsp;   * @param codewords The array of codewords
+&nbsp;   * @param count     The number of codewords
+&nbsp;   * @return The decoded string representing the Numeric data.
+&nbsp;   */
+&nbsp;  /*
+&nbsp;     EXAMPLE
+&nbsp;     Encode the fifteen digit numeric string 000213298174000
+&nbsp;     Prefix the numeric string with a 1 and set the initial value of
+&nbsp;     t = 1 000 213 298 174 000
+&nbsp;     Calculate codeword 0
+&nbsp;     d0 = 1 000 213 298 174 000 mod 900 = 200
+&nbsp;
+&nbsp;     t = 1 000 213 298 174 000 div 900 = 1 111 348 109 082
+&nbsp;     Calculate codeword 1
+&nbsp;     d1 = 1 111 348 109 082 mod 900 = 282
+&nbsp;
+&nbsp;     t = 1 111 348 109 082 div 900 = 1 234 831 232
+&nbsp;     Calculate codeword 2
+&nbsp;     d2 = 1 234 831 232 mod 900 = 632
+&nbsp;
+&nbsp;     t = 1 234 831 232 div 900 = 1 372 034
+&nbsp;     Calculate codeword 3
+&nbsp;     d3 = 1 372 034 mod 900 = 434
+&nbsp;
+&nbsp;     t = 1 372 034 div 900 = 1 524
+&nbsp;     Calculate codeword 4
+&nbsp;     d4 = 1 524 mod 900 = 624
+&nbsp;
+&nbsp;     t = 1 524 div 900 = 1
+&nbsp;     Calculate codeword 5
+&nbsp;     d5 = 1 mod 900 = 1
+&nbsp;     t = 1 div 900 = 0
+&nbsp;     Codeword sequence is: 1, 624, 434, 632, 282, 200
+&nbsp;
+&nbsp;     Decode the above codewords involves
+&nbsp;       1 x 900 power of 5 + 624 x 900 power of 4 + 434 x 900 power of 3 +
+&nbsp;     632 x 900 power of 2 + 282 x 900 power of 1 + 200 x 900 power of 0 = 1000213298174000
+&nbsp;
+&nbsp;     Remove leading 1 =&gt;  Result is 000213298174000
+&nbsp;   */
+&nbsp;  private static String decodeBase900toBase10(int[] codewords, int count) throws FormatException {
+<b class="fc">&nbsp;    BigInteger result = BigInteger.ZERO;</b>
+<b class="fc">&nbsp;    for (int i = 0; i &lt; count; i++) {</b>
+<b class="fc">&nbsp;      result = result.add(EXP900[count - i - 1].multiply(BigInteger.valueOf(codewords[i])));</b>
+&nbsp;    }
+<b class="fc">&nbsp;    String resultString = result.toString();</b>
+<b class="fc">&nbsp;    if (resultString.charAt(0) != &#39;1&#39;) {</b>
+<b class="nc">&nbsp;      throw FormatException.getFormatInstance();</b>
+&nbsp;    }
+<b class="fc">&nbsp;    return resultString.substring(1);</b>
+&nbsp;  }
+&nbsp;
+&nbsp;}
+</code>
+</pre>
+</div>
+
+<script type="text/javascript">
+(function() {
+    var msie = false, msie9 = false;
+    /*@cc_on
+      msie = true;
+      @if (@_jscript_version >= 9)
+        msie9 = true;
+      @end
+    @*/
+
+    if (!msie || msie && msie9) {
+      hljs.highlightAll()
+      hljs.initLineNumbersOnLoad();
+    }
+})();
+</script>
+
+<div class="footer">
+    
+    <div style="float:right;">generated on 2023-11-12 23:26</div>
+</div>
+</body>
+</html>

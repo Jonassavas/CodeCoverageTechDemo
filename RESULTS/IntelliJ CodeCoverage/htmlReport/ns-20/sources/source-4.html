@@ -1,0 +1,328 @@
+
+
+
+<!DOCTYPE html>
+<html id="htmlId">
+<head>
+  <meta http-equiv="Content-Type" content="text/html;charset=windows-1252"> 
+  <title>Coverage Report > MaskUtil</title>
+  <style type="text/css">
+    @import "../../css/coverage.css";
+    @import "../../css/idea.min.css";
+  </style>
+  <script type="text/javascript" src="../../js/highlight.min.js"></script>
+  <script type="text/javascript" src="../../js/highlightjs-line-numbers.min.js"></script>
+</head>
+
+<body>
+<div class="content">
+<div class="breadCrumbs">
+Current scope:     <a href="../../index.html">all classes</a>
+    <span class="separator">|</span>
+    <a href="../index.html">com.google.zxing.qrcode.encoder</a>
+</div>
+
+<h1>Coverage Summary for Class: MaskUtil (com.google.zxing.qrcode.encoder)</h1>
+
+<table class="coverageStats">
+<tr>
+  <th class="name">Class</th>
+<th class="coverageStat 
+">
+  Class, %
+</th>
+<th class="coverageStat 
+">
+  Method, %
+</th>
+<th class="coverageStat 
+">
+  Line, %
+</th>
+</tr>
+<tr>
+  <td class="name">MaskUtil</td>
+<td class="coverageStat">
+  <span class="percent">
+    100%
+  </span>
+  <span class="absValue">
+    (1/1)
+  </span>
+</td>
+<td class="coverageStat">
+  <span class="percent">
+    100%
+  </span>
+  <span class="absValue">
+    (8/8)
+  </span>
+</td>
+<td class="coverageStat">
+  <span class="percent">
+    98.9%
+  </span>
+  <span class="absValue">
+    (89/90)
+  </span>
+</td>
+</tr>
+
+</table>
+
+<br/>
+<br/>
+
+
+<pre>
+<code class="sourceCode" id="sourceCode">&nbsp;/*
+&nbsp; * Copyright 2008 ZXing authors
+&nbsp; *
+&nbsp; * Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
+&nbsp; * you may not use this file except in compliance with the License.
+&nbsp; * You may obtain a copy of the License at
+&nbsp; *
+&nbsp; *      http://www.apache.org/licenses/LICENSE-2.0
+&nbsp; *
+&nbsp; * Unless required by applicable law or agreed to in writing, software
+&nbsp; * distributed under the License is distributed on an &quot;AS IS&quot; BASIS,
+&nbsp; * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+&nbsp; * See the License for the specific language governing permissions and
+&nbsp; * limitations under the License.
+&nbsp; */
+&nbsp;
+&nbsp;package com.google.zxing.qrcode.encoder;
+&nbsp;
+&nbsp;/**
+&nbsp; * @author Satoru Takabayashi
+&nbsp; * @author Daniel Switkin
+&nbsp; * @author Sean Owen
+&nbsp; */
+&nbsp;final class MaskUtil {
+&nbsp;
+&nbsp;  // Penalty weights from section 6.8.2.1
+&nbsp;  private static final int N1 = 3;
+&nbsp;  private static final int N2 = 3;
+&nbsp;  private static final int N3 = 40;
+&nbsp;  private static final int N4 = 10;
+&nbsp;
+&nbsp;  private MaskUtil() {
+&nbsp;    // do nothing
+&nbsp;  }
+&nbsp;
+&nbsp;  /**
+&nbsp;   * Apply mask penalty rule 1 and return the penalty. Find repetitive cells with the same color and
+&nbsp;   * give penalty to them. Example: 00000 or 11111.
+&nbsp;   */
+&nbsp;  static int applyMaskPenaltyRule1(ByteMatrix matrix) {
+<b class="fc">&nbsp;    return applyMaskPenaltyRule1Internal(matrix, true) + applyMaskPenaltyRule1Internal(matrix, false);</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  /**
+&nbsp;   * Apply mask penalty rule 2 and return the penalty. Find 2x2 blocks with the same color and give
+&nbsp;   * penalty to them. This is actually equivalent to the spec&#39;s rule, which is to find MxN blocks and give a
+&nbsp;   * penalty proportional to (M-1)x(N-1), because this is the number of 2x2 blocks inside such a block.
+&nbsp;   */
+&nbsp;  static int applyMaskPenaltyRule2(ByteMatrix matrix) {
+<b class="fc">&nbsp;    int penalty = 0;</b>
+<b class="fc">&nbsp;    byte[][] array = matrix.getArray();</b>
+<b class="fc">&nbsp;    int width = matrix.getWidth();</b>
+<b class="fc">&nbsp;    int height = matrix.getHeight();</b>
+<b class="fc">&nbsp;    for (int y = 0; y &lt; height - 1; y++) {</b>
+<b class="fc">&nbsp;      byte[] arrayY = array[y];</b>
+<b class="fc">&nbsp;      for (int x = 0; x &lt; width - 1; x++) {</b>
+<b class="fc">&nbsp;        int value = arrayY[x];</b>
+<b class="fc">&nbsp;        if (value == arrayY[x + 1] &amp;&amp; value == array[y + 1][x] &amp;&amp; value == array[y + 1][x + 1]) {</b>
+<b class="fc">&nbsp;          penalty++;</b>
+&nbsp;        }
+&nbsp;      }
+&nbsp;    }
+<b class="fc">&nbsp;    return N2 * penalty;</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  /**
+&nbsp;   * Apply mask penalty rule 3 and return the penalty. Find consecutive runs of 1:1:3:1:1:4
+&nbsp;   * starting with black, or 4:1:1:3:1:1 starting with white, and give penalty to them.  If we
+&nbsp;   * find patterns like 000010111010000, we give penalty once.
+&nbsp;   */
+&nbsp;  static int applyMaskPenaltyRule3(ByteMatrix matrix) {
+<b class="fc">&nbsp;    int numPenalties = 0;</b>
+<b class="fc">&nbsp;    byte[][] array = matrix.getArray();</b>
+<b class="fc">&nbsp;    int width = matrix.getWidth();</b>
+<b class="fc">&nbsp;    int height = matrix.getHeight();</b>
+<b class="fc">&nbsp;    for (int y = 0; y &lt; height; y++) {</b>
+<b class="fc">&nbsp;      for (int x = 0; x &lt; width; x++) {</b>
+<b class="fc">&nbsp;        byte[] arrayY = array[y];  // We can at least optimize this access</b>
+<b class="fc">&nbsp;        if (x + 6 &lt; width &amp;&amp;</b>
+&nbsp;            arrayY[x] == 1 &amp;&amp;
+&nbsp;            arrayY[x + 1] == 0 &amp;&amp;
+&nbsp;            arrayY[x + 2] == 1 &amp;&amp;
+&nbsp;            arrayY[x + 3] == 1 &amp;&amp;
+&nbsp;            arrayY[x + 4] == 1 &amp;&amp;
+&nbsp;            arrayY[x + 5] == 0 &amp;&amp;
+&nbsp;            arrayY[x + 6] == 1 &amp;&amp;
+<b class="fc">&nbsp;            (isWhiteHorizontal(arrayY, x - 4, x) || isWhiteHorizontal(arrayY, x + 7, x + 11))) {</b>
+<b class="fc">&nbsp;          numPenalties++;</b>
+&nbsp;        }
+<b class="fc">&nbsp;        if (y + 6 &lt; height &amp;&amp;</b>
+&nbsp;            array[y][x] == 1 &amp;&amp;
+&nbsp;            array[y + 1][x] == 0 &amp;&amp;
+&nbsp;            array[y + 2][x] == 1 &amp;&amp;
+&nbsp;            array[y + 3][x] == 1 &amp;&amp;
+&nbsp;            array[y + 4][x] == 1 &amp;&amp;
+&nbsp;            array[y + 5][x] == 0 &amp;&amp;
+&nbsp;            array[y + 6][x] == 1 &amp;&amp;
+<b class="fc">&nbsp;            (isWhiteVertical(array, x, y - 4, y) || isWhiteVertical(array, x, y + 7, y + 11))) {</b>
+<b class="fc">&nbsp;          numPenalties++;</b>
+&nbsp;        }
+&nbsp;      }
+&nbsp;    }
+<b class="fc">&nbsp;    return numPenalties * N3;</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  private static boolean isWhiteHorizontal(byte[] rowArray, int from, int to) {
+<b class="fc">&nbsp;    if (from &lt; 0 || rowArray.length &lt; to) {</b>
+<b class="fc">&nbsp;      return false;</b>
+&nbsp;    }
+<b class="fc">&nbsp;    for (int i = from; i &lt; to; i++) {</b>
+<b class="fc">&nbsp;      if (rowArray[i] == 1) {</b>
+<b class="fc">&nbsp;        return false;</b>
+&nbsp;      }
+&nbsp;    }
+<b class="fc">&nbsp;    return true;</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  private static boolean isWhiteVertical(byte[][] array, int col, int from, int to) {
+<b class="fc">&nbsp;    if (from &lt; 0 || array.length &lt; to) {</b>
+<b class="fc">&nbsp;      return false;</b>
+&nbsp;    }
+<b class="fc">&nbsp;    for (int i = from; i &lt; to; i++) {</b>
+<b class="fc">&nbsp;      if (array[i][col] == 1) {</b>
+<b class="fc">&nbsp;        return false;</b>
+&nbsp;      }
+&nbsp;    }
+<b class="fc">&nbsp;    return true;</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  /**
+&nbsp;   * Apply mask penalty rule 4 and return the penalty. Calculate the ratio of dark cells and give
+&nbsp;   * penalty if the ratio is far from 50%. It gives 10 penalty for 5% distance.
+&nbsp;   */
+&nbsp;  static int applyMaskPenaltyRule4(ByteMatrix matrix) {
+<b class="fc">&nbsp;    int numDarkCells = 0;</b>
+<b class="fc">&nbsp;    byte[][] array = matrix.getArray();</b>
+<b class="fc">&nbsp;    int width = matrix.getWidth();</b>
+<b class="fc">&nbsp;    int height = matrix.getHeight();</b>
+<b class="fc">&nbsp;    for (int y = 0; y &lt; height; y++) {</b>
+<b class="fc">&nbsp;      byte[] arrayY = array[y];</b>
+<b class="fc">&nbsp;      for (int x = 0; x &lt; width; x++) {</b>
+<b class="fc">&nbsp;        if (arrayY[x] == 1) {</b>
+<b class="fc">&nbsp;          numDarkCells++;</b>
+&nbsp;        }
+&nbsp;      }
+&nbsp;    }
+<b class="fc">&nbsp;    int numTotalCells = matrix.getHeight() * matrix.getWidth();</b>
+<b class="fc">&nbsp;    int fivePercentVariances = Math.abs(numDarkCells * 2 - numTotalCells) * 10 / numTotalCells;</b>
+<b class="fc">&nbsp;    return fivePercentVariances * N4;</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  /**
+&nbsp;   * Return the mask bit for &quot;getMaskPattern&quot; at &quot;x&quot; and &quot;y&quot;. See 8.8 of JISX0510:2004 for mask
+&nbsp;   * pattern conditions.
+&nbsp;   */
+&nbsp;  static boolean getDataMaskBit(int maskPattern, int x, int y) {
+&nbsp;    int intermediate;
+&nbsp;    int temp;
+<b class="fc">&nbsp;    switch (maskPattern) {</b>
+&nbsp;      case 0:
+<b class="fc">&nbsp;        intermediate = (y + x) &amp; 0x1;</b>
+<b class="fc">&nbsp;        break;</b>
+&nbsp;      case 1:
+<b class="fc">&nbsp;        intermediate = y &amp; 0x1;</b>
+<b class="fc">&nbsp;        break;</b>
+&nbsp;      case 2:
+<b class="fc">&nbsp;        intermediate = x % 3;</b>
+<b class="fc">&nbsp;        break;</b>
+&nbsp;      case 3:
+<b class="fc">&nbsp;        intermediate = (y + x) % 3;</b>
+<b class="fc">&nbsp;        break;</b>
+&nbsp;      case 4:
+<b class="fc">&nbsp;        intermediate = ((y / 2) + (x / 3)) &amp; 0x1;</b>
+<b class="fc">&nbsp;        break;</b>
+&nbsp;      case 5:
+<b class="fc">&nbsp;        temp = y * x;</b>
+<b class="fc">&nbsp;        intermediate = (temp &amp; 0x1) + (temp % 3);</b>
+<b class="fc">&nbsp;        break;</b>
+&nbsp;      case 6:
+<b class="fc">&nbsp;        temp = y * x;</b>
+<b class="fc">&nbsp;        intermediate = ((temp &amp; 0x1) + (temp % 3)) &amp; 0x1;</b>
+<b class="fc">&nbsp;        break;</b>
+&nbsp;      case 7:
+<b class="fc">&nbsp;        temp = y * x;</b>
+<b class="fc">&nbsp;        intermediate = ((temp % 3) + ((y + x) &amp; 0x1)) &amp; 0x1;</b>
+<b class="fc">&nbsp;        break;</b>
+&nbsp;      default:
+<b class="nc">&nbsp;        throw new IllegalArgumentException(&quot;Invalid mask pattern: &quot; + maskPattern);</b>
+&nbsp;    }
+<b class="fc">&nbsp;    return intermediate == 0;</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  /**
+&nbsp;   * Helper function for applyMaskPenaltyRule1. We need this for doing this calculation in both
+&nbsp;   * vertical and horizontal orders respectively.
+&nbsp;   */
+&nbsp;  private static int applyMaskPenaltyRule1Internal(ByteMatrix matrix, boolean isHorizontal) {
+<b class="fc">&nbsp;    int penalty = 0;</b>
+<b class="fc">&nbsp;    int iLimit = isHorizontal ? matrix.getHeight() : matrix.getWidth();</b>
+<b class="fc">&nbsp;    int jLimit = isHorizontal ? matrix.getWidth() : matrix.getHeight();</b>
+<b class="fc">&nbsp;    byte[][] array = matrix.getArray();</b>
+<b class="fc">&nbsp;    for (int i = 0; i &lt; iLimit; i++) {</b>
+<b class="fc">&nbsp;      int numSameBitCells = 0;</b>
+<b class="fc">&nbsp;      int prevBit = -1;</b>
+<b class="fc">&nbsp;      for (int j = 0; j &lt; jLimit; j++) {</b>
+<b class="fc">&nbsp;        int bit = isHorizontal ? array[i][j] : array[j][i];</b>
+<b class="fc">&nbsp;        if (bit == prevBit) {</b>
+<b class="fc">&nbsp;          numSameBitCells++;</b>
+&nbsp;        } else {
+<b class="fc">&nbsp;          if (numSameBitCells &gt;= 5) {</b>
+<b class="fc">&nbsp;            penalty += N1 + (numSameBitCells - 5);</b>
+&nbsp;          }
+<b class="fc">&nbsp;          numSameBitCells = 1;  // Include the cell itself.</b>
+<b class="fc">&nbsp;          prevBit = bit;</b>
+&nbsp;        }
+&nbsp;      }
+<b class="fc">&nbsp;      if (numSameBitCells &gt;= 5) {</b>
+<b class="fc">&nbsp;        penalty += N1 + (numSameBitCells - 5);</b>
+&nbsp;      }
+&nbsp;    }
+<b class="fc">&nbsp;    return penalty;</b>
+&nbsp;  }
+&nbsp;
+&nbsp;}
+</code>
+</pre>
+</div>
+
+<script type="text/javascript">
+(function() {
+    var msie = false, msie9 = false;
+    /*@cc_on
+      msie = true;
+      @if (@_jscript_version >= 9)
+        msie9 = true;
+      @end
+    @*/
+
+    if (!msie || msie && msie9) {
+      hljs.highlightAll()
+      hljs.initLineNumbersOnLoad();
+    }
+})();
+</script>
+
+<div class="footer">
+    
+    <div style="float:right;">generated on 2023-11-12 23:26</div>
+</div>
+</body>
+</html>

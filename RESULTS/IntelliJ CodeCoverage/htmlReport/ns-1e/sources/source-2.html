@@ -1,0 +1,226 @@
+
+
+
+<!DOCTYPE html>
+<html id="htmlId">
+<head>
+  <meta http-equiv="Content-Type" content="text/html;charset=windows-1252"> 
+  <title>Coverage Report > DataBlock</title>
+  <style type="text/css">
+    @import "../../css/coverage.css";
+    @import "../../css/idea.min.css";
+  </style>
+  <script type="text/javascript" src="../../js/highlight.min.js"></script>
+  <script type="text/javascript" src="../../js/highlightjs-line-numbers.min.js"></script>
+</head>
+
+<body>
+<div class="content">
+<div class="breadCrumbs">
+Current scope:     <a href="../../index.html">all classes</a>
+    <span class="separator">|</span>
+    <a href="../index.html">com.google.zxing.qrcode.decoder</a>
+</div>
+
+<h1>Coverage Summary for Class: DataBlock (com.google.zxing.qrcode.decoder)</h1>
+
+<table class="coverageStats">
+<tr>
+  <th class="name">Class</th>
+<th class="coverageStat 
+">
+  Class, %
+</th>
+<th class="coverageStat 
+">
+  Method, %
+</th>
+<th class="coverageStat 
+">
+  Line, %
+</th>
+</tr>
+<tr>
+  <td class="name">DataBlock</td>
+<td class="coverageStat">
+  <span class="percent">
+    100%
+  </span>
+  <span class="absValue">
+    (1/1)
+  </span>
+</td>
+<td class="coverageStat">
+  <span class="percent">
+    100%
+  </span>
+  <span class="absValue">
+    (4/4)
+  </span>
+</td>
+<td class="coverageStat">
+  <span class="percent">
+    97.6%
+  </span>
+  <span class="absValue">
+    (40/41)
+  </span>
+</td>
+</tr>
+
+</table>
+
+<br/>
+<br/>
+
+
+<pre>
+<code class="sourceCode" id="sourceCode">&nbsp;/*
+&nbsp; * Copyright 2007 ZXing authors
+&nbsp; *
+&nbsp; * Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
+&nbsp; * you may not use this file except in compliance with the License.
+&nbsp; * You may obtain a copy of the License at
+&nbsp; *
+&nbsp; *      http://www.apache.org/licenses/LICENSE-2.0
+&nbsp; *
+&nbsp; * Unless required by applicable law or agreed to in writing, software
+&nbsp; * distributed under the License is distributed on an &quot;AS IS&quot; BASIS,
+&nbsp; * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+&nbsp; * See the License for the specific language governing permissions and
+&nbsp; * limitations under the License.
+&nbsp; */
+&nbsp;
+&nbsp;package com.google.zxing.qrcode.decoder;
+&nbsp;
+&nbsp;/**
+&nbsp; * &lt;p&gt;Encapsulates a block of data within a QR Code. QR Codes may split their data into
+&nbsp; * multiple blocks, each of which is a unit of data and error-correction codewords. Each
+&nbsp; * is represented by an instance of this class.&lt;/p&gt;
+&nbsp; *
+&nbsp; * @author Sean Owen
+&nbsp; */
+&nbsp;final class DataBlock {
+&nbsp;
+&nbsp;  private final int numDataCodewords;
+&nbsp;  private final byte[] codewords;
+&nbsp;
+<b class="fc">&nbsp;  private DataBlock(int numDataCodewords, byte[] codewords) {</b>
+<b class="fc">&nbsp;    this.numDataCodewords = numDataCodewords;</b>
+<b class="fc">&nbsp;    this.codewords = codewords;</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  /**
+&nbsp;   * &lt;p&gt;When QR Codes use multiple data blocks, they are actually interleaved.
+&nbsp;   * That is, the first byte of data block 1 to n is written, then the second bytes, and so on. This
+&nbsp;   * method will separate the data into original blocks.&lt;/p&gt;
+&nbsp;   *
+&nbsp;   * @param rawCodewords bytes as read directly from the QR Code
+&nbsp;   * @param version version of the QR Code
+&nbsp;   * @param ecLevel error-correction level of the QR Code
+&nbsp;   * @return DataBlocks containing original bytes, &quot;de-interleaved&quot; from representation in the
+&nbsp;   *         QR Code
+&nbsp;   */
+&nbsp;  static DataBlock[] getDataBlocks(byte[] rawCodewords,
+&nbsp;                                   Version version,
+&nbsp;                                   ErrorCorrectionLevel ecLevel) {
+&nbsp;
+<b class="fc">&nbsp;    if (rawCodewords.length != version.getTotalCodewords()) {</b>
+<b class="nc">&nbsp;      throw new IllegalArgumentException();</b>
+&nbsp;    }
+&nbsp;
+&nbsp;    // Figure out the number and size of data blocks used by this version and
+&nbsp;    // error correction level
+<b class="fc">&nbsp;    Version.ECBlocks ecBlocks = version.getECBlocksForLevel(ecLevel);</b>
+&nbsp;
+&nbsp;    // First count the total number of data blocks
+<b class="fc">&nbsp;    int totalBlocks = 0;</b>
+<b class="fc">&nbsp;    Version.ECB[] ecBlockArray = ecBlocks.getECBlocks();</b>
+<b class="fc">&nbsp;    for (Version.ECB ecBlock : ecBlockArray) {</b>
+<b class="fc">&nbsp;      totalBlocks += ecBlock.getCount();</b>
+&nbsp;    }
+&nbsp;
+&nbsp;    // Now establish DataBlocks of the appropriate size and number of data codewords
+<b class="fc">&nbsp;    DataBlock[] result = new DataBlock[totalBlocks];</b>
+<b class="fc">&nbsp;    int numResultBlocks = 0;</b>
+<b class="fc">&nbsp;    for (Version.ECB ecBlock : ecBlockArray) {</b>
+<b class="fc">&nbsp;      for (int i = 0; i &lt; ecBlock.getCount(); i++) {</b>
+<b class="fc">&nbsp;        int numDataCodewords = ecBlock.getDataCodewords();</b>
+<b class="fc">&nbsp;        int numBlockCodewords = ecBlocks.getECCodewordsPerBlock() + numDataCodewords;</b>
+<b class="fc">&nbsp;        result[numResultBlocks++] = new DataBlock(numDataCodewords, new byte[numBlockCodewords]);</b>
+&nbsp;      }
+&nbsp;    }
+&nbsp;
+&nbsp;    // All blocks have the same amount of data, except that the last n
+&nbsp;    // (where n may be 0) have 1 more byte. Figure out where these start.
+<b class="fc">&nbsp;    int shorterBlocksTotalCodewords = result[0].codewords.length;</b>
+<b class="fc">&nbsp;    int longerBlocksStartAt = result.length - 1;</b>
+<b class="fc">&nbsp;    while (longerBlocksStartAt &gt;= 0) {</b>
+<b class="fc">&nbsp;      int numCodewords = result[longerBlocksStartAt].codewords.length;</b>
+<b class="fc">&nbsp;      if (numCodewords == shorterBlocksTotalCodewords) {</b>
+<b class="fc">&nbsp;        break;</b>
+&nbsp;      }
+<b class="fc">&nbsp;      longerBlocksStartAt--;</b>
+<b class="fc">&nbsp;    }</b>
+<b class="fc">&nbsp;    longerBlocksStartAt++;</b>
+&nbsp;
+<b class="fc">&nbsp;    int shorterBlocksNumDataCodewords = shorterBlocksTotalCodewords - ecBlocks.getECCodewordsPerBlock();</b>
+&nbsp;    // The last elements of result may be 1 element longer;
+&nbsp;    // first fill out as many elements as all of them have
+<b class="fc">&nbsp;    int rawCodewordsOffset = 0;</b>
+<b class="fc">&nbsp;    for (int i = 0; i &lt; shorterBlocksNumDataCodewords; i++) {</b>
+<b class="fc">&nbsp;      for (int j = 0; j &lt; numResultBlocks; j++) {</b>
+<b class="fc">&nbsp;        result[j].codewords[i] = rawCodewords[rawCodewordsOffset++];</b>
+&nbsp;      }
+&nbsp;    }
+&nbsp;    // Fill out the last data block in the longer ones
+<b class="fc">&nbsp;    for (int j = longerBlocksStartAt; j &lt; numResultBlocks; j++) {</b>
+<b class="fc">&nbsp;      result[j].codewords[shorterBlocksNumDataCodewords] = rawCodewords[rawCodewordsOffset++];</b>
+&nbsp;    }
+&nbsp;    // Now add in error correction blocks
+<b class="fc">&nbsp;    int max = result[0].codewords.length;</b>
+<b class="fc">&nbsp;    for (int i = shorterBlocksNumDataCodewords; i &lt; max; i++) {</b>
+<b class="fc">&nbsp;      for (int j = 0; j &lt; numResultBlocks; j++) {</b>
+<b class="fc">&nbsp;        int iOffset = j &lt; longerBlocksStartAt ? i : i + 1;</b>
+<b class="fc">&nbsp;        result[j].codewords[iOffset] = rawCodewords[rawCodewordsOffset++];</b>
+&nbsp;      }
+&nbsp;    }
+<b class="fc">&nbsp;    return result;</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  int getNumDataCodewords() {
+<b class="fc">&nbsp;    return numDataCodewords;</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  byte[] getCodewords() {
+<b class="fc">&nbsp;    return codewords;</b>
+&nbsp;  }
+&nbsp;
+&nbsp;}
+</code>
+</pre>
+</div>
+
+<script type="text/javascript">
+(function() {
+    var msie = false, msie9 = false;
+    /*@cc_on
+      msie = true;
+      @if (@_jscript_version >= 9)
+        msie9 = true;
+      @end
+    @*/
+
+    if (!msie || msie && msie9) {
+      hljs.highlightAll()
+      hljs.initLineNumbersOnLoad();
+    }
+})();
+</script>
+
+<div class="footer">
+    
+    <div style="float:right;">generated on 2023-11-12 23:26</div>
+</div>
+</body>
+</html>

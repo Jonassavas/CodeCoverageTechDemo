@@ -1,0 +1,588 @@
+
+
+
+<!DOCTYPE html>
+<html id="htmlId">
+<head>
+  <meta http-equiv="Content-Type" content="text/html;charset=windows-1252"> 
+  <title>Coverage Report > HighLevelEncoder</title>
+  <style type="text/css">
+    @import "../../css/coverage.css";
+    @import "../../css/idea.min.css";
+  </style>
+  <script type="text/javascript" src="../../js/highlight.min.js"></script>
+  <script type="text/javascript" src="../../js/highlightjs-line-numbers.min.js"></script>
+</head>
+
+<body>
+<div class="content">
+<div class="breadCrumbs">
+Current scope:     <a href="../../index.html">all classes</a>
+    <span class="separator">|</span>
+    <a href="../index.html">com.google.zxing.datamatrix.encoder</a>
+</div>
+
+<h1>Coverage Summary for Class: HighLevelEncoder (com.google.zxing.datamatrix.encoder)</h1>
+
+<table class="coverageStats">
+<tr>
+  <th class="name">Class</th>
+<th class="coverageStat 
+">
+  Class, %
+</th>
+<th class="coverageStat 
+">
+  Method, %
+</th>
+<th class="coverageStat 
+">
+  Line, %
+</th>
+</tr>
+<tr>
+  <td class="name">HighLevelEncoder</td>
+<td class="coverageStat">
+  <span class="percent">
+    100%
+  </span>
+  <span class="absValue">
+    (1/1)
+  </span>
+</td>
+<td class="coverageStat">
+  <span class="percent">
+    90%
+  </span>
+  <span class="absValue">
+    (18/20)
+  </span>
+</td>
+<td class="coverageStat">
+  <span class="percent">
+    91.7%
+  </span>
+  <span class="absValue">
+    (155/169)
+  </span>
+</td>
+</tr>
+
+</table>
+
+<br/>
+<br/>
+
+
+<pre>
+<code class="sourceCode" id="sourceCode">&nbsp;/*
+&nbsp; * Copyright 2006-2007 Jeremias Maerki.
+&nbsp; *
+&nbsp; * Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
+&nbsp; * you may not use this file except in compliance with the License.
+&nbsp; * You may obtain a copy of the License at
+&nbsp; *
+&nbsp; *      http://www.apache.org/licenses/LICENSE-2.0
+&nbsp; *
+&nbsp; * Unless required by applicable law or agreed to in writing, software
+&nbsp; * distributed under the License is distributed on an &quot;AS IS&quot; BASIS,
+&nbsp; * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+&nbsp; * See the License for the specific language governing permissions and
+&nbsp; * limitations under the License.
+&nbsp; */
+&nbsp;
+&nbsp;package com.google.zxing.datamatrix.encoder;
+&nbsp;
+&nbsp;import com.google.zxing.Dimension;
+&nbsp;
+&nbsp;import java.util.Arrays;
+&nbsp;
+&nbsp;/**
+&nbsp; * DataMatrix ECC 200 data encoder following the algorithm described in ISO/IEC 16022:200(E) in
+&nbsp; * annex S.
+&nbsp; */
+&nbsp;public final class HighLevelEncoder {
+&nbsp;
+&nbsp;  /**
+&nbsp;   * Padding character
+&nbsp;   */
+&nbsp;  private static final char PAD = 129;
+&nbsp;  /**
+&nbsp;   * mode latch to C40 encodation mode
+&nbsp;   */
+&nbsp;  static final char LATCH_TO_C40 = 230;
+&nbsp;  /**
+&nbsp;   * mode latch to Base 256 encodation mode
+&nbsp;   */
+&nbsp;  static final char LATCH_TO_BASE256 = 231;
+&nbsp;  /**
+&nbsp;   * FNC1 Codeword
+&nbsp;   */
+&nbsp;  //private static final char FNC1 = 232;
+&nbsp;  /**
+&nbsp;   * Structured Append Codeword
+&nbsp;   */
+&nbsp;  //private static final char STRUCTURED_APPEND = 233;
+&nbsp;  /**
+&nbsp;   * Reader Programming
+&nbsp;   */
+&nbsp;  //private static final char READER_PROGRAMMING = 234;
+&nbsp;  /**
+&nbsp;   * Upper Shift
+&nbsp;   */
+&nbsp;  static final char UPPER_SHIFT = 235;
+&nbsp;  /**
+&nbsp;   * 05 Macro
+&nbsp;   */
+&nbsp;  private static final char MACRO_05 = 236;
+&nbsp;  /**
+&nbsp;   * 06 Macro
+&nbsp;   */
+&nbsp;  private static final char MACRO_06 = 237;
+&nbsp;  /**
+&nbsp;   * mode latch to ANSI X.12 encodation mode
+&nbsp;   */
+&nbsp;  static final char LATCH_TO_ANSIX12 = 238;
+&nbsp;  /**
+&nbsp;   * mode latch to Text encodation mode
+&nbsp;   */
+&nbsp;  static final char LATCH_TO_TEXT = 239;
+&nbsp;  /**
+&nbsp;   * mode latch to EDIFACT encodation mode
+&nbsp;   */
+&nbsp;  static final char LATCH_TO_EDIFACT = 240;
+&nbsp;  /**
+&nbsp;   * ECI character (Extended Channel Interpretation)
+&nbsp;   */
+&nbsp;  //private static final char ECI = 241;
+&nbsp;
+&nbsp;  /**
+&nbsp;   * Unlatch from C40 encodation
+&nbsp;   */
+&nbsp;  static final char C40_UNLATCH = 254;
+&nbsp;  /**
+&nbsp;   * Unlatch from X12 encodation
+&nbsp;   */
+&nbsp;  static final char X12_UNLATCH = 254;
+&nbsp;
+&nbsp;  /**
+&nbsp;   * 05 Macro header
+&nbsp;   */
+&nbsp;  static final String MACRO_05_HEADER = &quot;[)&gt;\u001E05\u001D&quot;;
+&nbsp;  /**
+&nbsp;   * 06 Macro header
+&nbsp;   */
+&nbsp;  static final String MACRO_06_HEADER = &quot;[)&gt;\u001E06\u001D&quot;;
+&nbsp;  /**
+&nbsp;   * Macro trailer
+&nbsp;   */
+&nbsp;  static final String MACRO_TRAILER = &quot;\u001E\u0004&quot;;
+&nbsp;
+&nbsp;  static final int ASCII_ENCODATION = 0;
+&nbsp;  static final int C40_ENCODATION = 1;
+&nbsp;  static final int TEXT_ENCODATION = 2;
+&nbsp;  static final int X12_ENCODATION = 3;
+&nbsp;  static final int EDIFACT_ENCODATION = 4;
+&nbsp;  static final int BASE256_ENCODATION = 5;
+&nbsp;
+&nbsp;  private HighLevelEncoder() {
+&nbsp;  }
+&nbsp;
+&nbsp;  private static char randomize253State(int codewordPosition) {
+<b class="fc">&nbsp;    int pseudoRandom = ((149 * codewordPosition) % 253) + 1;</b>
+<b class="fc">&nbsp;    int tempVariable = PAD + pseudoRandom;</b>
+<b class="fc">&nbsp;    return (char) (tempVariable &lt;= 254 ? tempVariable : tempVariable - 254);</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  /**
+&nbsp;   * Performs message encoding of a DataMatrix message using the algorithm described in annex P
+&nbsp;   * of ISO/IEC 16022:2000(E).
+&nbsp;   *
+&nbsp;   * @param msg the message
+&nbsp;   * @return the encoded message (the char values range from 0 to 255)
+&nbsp;   */
+&nbsp;  public static String encodeHighLevel(String msg) {
+<b class="fc">&nbsp;    return encodeHighLevel(msg, SymbolShapeHint.FORCE_NONE, null, null, false);</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  /**
+&nbsp;   * Performs message encoding of a DataMatrix message using the algorithm described in annex P
+&nbsp;   * of ISO/IEC 16022:2000(E).
+&nbsp;   *
+&nbsp;   * @param msg     the message
+&nbsp;   * @param shape   requested shape. May be {@code SymbolShapeHint.FORCE_NONE},
+&nbsp;   *                {@code SymbolShapeHint.FORCE_SQUARE} or {@code SymbolShapeHint.FORCE_RECTANGLE}.
+&nbsp;   * @param minSize the minimum symbol size constraint or null for no constraint
+&nbsp;   * @param maxSize the maximum symbol size constraint or null for no constraint
+&nbsp;   * @return the encoded message (the char values range from 0 to 255)
+&nbsp;   */
+&nbsp;  public static String encodeHighLevel(String msg,
+&nbsp;                                       SymbolShapeHint shape,
+&nbsp;                                       Dimension minSize,
+&nbsp;                                       Dimension maxSize) {
+<b class="nc">&nbsp;    return encodeHighLevel(msg, shape, minSize, maxSize, false);</b>
+&nbsp;  }
+&nbsp;  /**
+&nbsp;   * Performs message encoding of a DataMatrix message using the algorithm described in annex P
+&nbsp;   * of ISO/IEC 16022:2000(E).
+&nbsp;   *
+&nbsp;   * @param msg     the message
+&nbsp;   * @param shape   requested shape. May be {@code SymbolShapeHint.FORCE_NONE},
+&nbsp;   *                {@code SymbolShapeHint.FORCE_SQUARE} or {@code SymbolShapeHint.FORCE_RECTANGLE}.
+&nbsp;   * @param minSize the minimum symbol size constraint or null for no constraint
+&nbsp;   * @param maxSize the maximum symbol size constraint or null for no constraint
+&nbsp;   * @param forceC40 enforce C40 encoding
+&nbsp;   * @return the encoded message (the char values range from 0 to 255)
+&nbsp;   */
+&nbsp;  public static String encodeHighLevel(String msg,
+&nbsp;                                       SymbolShapeHint shape,
+&nbsp;                                       Dimension minSize,
+&nbsp;                                       Dimension maxSize,
+&nbsp;                                       boolean forceC40) {
+&nbsp;    //the codewords 0..255 are encoded as Unicode characters
+<b class="fc">&nbsp;    C40Encoder c40Encoder = new C40Encoder();</b>
+<b class="fc">&nbsp;    Encoder[] encoders = {</b>
+&nbsp;        new ASCIIEncoder(), c40Encoder, new TextEncoder(),
+&nbsp;        new X12Encoder(), new EdifactEncoder(),  new Base256Encoder()
+&nbsp;    };
+&nbsp;
+<b class="fc">&nbsp;    EncoderContext context = new EncoderContext(msg);</b>
+<b class="fc">&nbsp;    context.setSymbolShape(shape);</b>
+<b class="fc">&nbsp;    context.setSizeConstraints(minSize, maxSize);</b>
+&nbsp;
+<b class="fc">&nbsp;    if (msg.startsWith(MACRO_05_HEADER) &amp;&amp; msg.endsWith(MACRO_TRAILER)) {</b>
+<b class="fc">&nbsp;      context.writeCodeword(MACRO_05);</b>
+<b class="fc">&nbsp;      context.setSkipAtEnd(2);</b>
+<b class="fc">&nbsp;      context.pos += MACRO_05_HEADER.length();</b>
+<b class="fc">&nbsp;    } else if (msg.startsWith(MACRO_06_HEADER) &amp;&amp; msg.endsWith(MACRO_TRAILER)) {</b>
+<b class="nc">&nbsp;      context.writeCodeword(MACRO_06);</b>
+<b class="nc">&nbsp;      context.setSkipAtEnd(2);</b>
+<b class="nc">&nbsp;      context.pos += MACRO_06_HEADER.length();</b>
+&nbsp;    }
+&nbsp;
+<b class="fc">&nbsp;    int encodingMode = ASCII_ENCODATION; //Default mode</b>
+&nbsp;
+<b class="fc">&nbsp;    if (forceC40) {</b>
+<b class="nc">&nbsp;      c40Encoder.encodeMaximal(context);</b>
+<b class="nc">&nbsp;      encodingMode = context.getNewEncoding();</b>
+<b class="nc">&nbsp;      context.resetEncoderSignal();</b>
+&nbsp;    }
+&nbsp;
+<b class="fc">&nbsp;    while (context.hasMoreCharacters()) {</b>
+<b class="fc">&nbsp;      encoders[encodingMode].encode(context);</b>
+<b class="fc">&nbsp;      if (context.getNewEncoding() &gt;= 0) {</b>
+<b class="fc">&nbsp;        encodingMode = context.getNewEncoding();</b>
+<b class="fc">&nbsp;        context.resetEncoderSignal();</b>
+&nbsp;      }
+&nbsp;    }
+<b class="fc">&nbsp;    int len = context.getCodewordCount();</b>
+<b class="fc">&nbsp;    context.updateSymbolInfo();</b>
+<b class="fc">&nbsp;    int capacity = context.getSymbolInfo().getDataCapacity();</b>
+<b class="fc">&nbsp;    if (len &lt; capacity &amp;&amp;</b>
+&nbsp;        encodingMode != ASCII_ENCODATION &amp;&amp;
+&nbsp;        encodingMode != BASE256_ENCODATION &amp;&amp;
+&nbsp;        encodingMode != EDIFACT_ENCODATION) {
+<b class="nc">&nbsp;      context.writeCodeword(&#39;\u00fe&#39;); //Unlatch (254)</b>
+&nbsp;    }
+&nbsp;    //Padding
+<b class="fc">&nbsp;    StringBuilder codewords = context.getCodewords();</b>
+<b class="fc">&nbsp;    if (codewords.length() &lt; capacity) {</b>
+<b class="fc">&nbsp;      codewords.append(PAD);</b>
+&nbsp;    }
+<b class="fc">&nbsp;    while (codewords.length() &lt; capacity) {</b>
+<b class="fc">&nbsp;      codewords.append(randomize253State(codewords.length() + 1));</b>
+&nbsp;    }
+&nbsp;
+<b class="fc">&nbsp;    return context.getCodewords().toString();</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  static int lookAheadTest(CharSequence msg, int startpos, int currentMode) {
+<b class="fc">&nbsp;    int newMode = lookAheadTestIntern(msg, startpos, currentMode);</b>
+<b class="fc">&nbsp;    if (currentMode == X12_ENCODATION &amp;&amp; newMode == X12_ENCODATION) {</b>
+<b class="fc">&nbsp;      int endpos = Math.min(startpos + 3, msg.length());</b>
+<b class="fc">&nbsp;      for (int i = startpos; i &lt; endpos; i++) {</b>
+<b class="fc">&nbsp;        if (!isNativeX12(msg.charAt(i))) {</b>
+<b class="fc">&nbsp;          return ASCII_ENCODATION;</b>
+&nbsp;        }
+&nbsp;      }
+<b class="fc">&nbsp;    } else if (currentMode == EDIFACT_ENCODATION &amp;&amp; newMode == EDIFACT_ENCODATION) {</b>
+<b class="fc">&nbsp;      int endpos = Math.min(startpos + 4, msg.length());</b>
+<b class="fc">&nbsp;      for (int i = startpos; i &lt; endpos; i++) {</b>
+<b class="fc">&nbsp;        if (!isNativeEDIFACT(msg.charAt(i))) {</b>
+<b class="fc">&nbsp;          return ASCII_ENCODATION;</b>
+&nbsp;        }
+&nbsp;      }
+&nbsp;    }
+<b class="fc">&nbsp;    return newMode;</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  static int lookAheadTestIntern(CharSequence msg, int startpos, int currentMode) {
+<b class="fc">&nbsp;    if (startpos &gt;= msg.length()) {</b>
+<b class="fc">&nbsp;      return currentMode;</b>
+&nbsp;    }
+&nbsp;    float[] charCounts;
+&nbsp;    //step J
+<b class="fc">&nbsp;    if (currentMode == ASCII_ENCODATION) {</b>
+<b class="fc">&nbsp;      charCounts = new float[]{0, 1, 1, 1, 1, 1.25f};</b>
+&nbsp;    } else {
+<b class="fc">&nbsp;      charCounts = new float[]{1, 2, 2, 2, 2, 2.25f};</b>
+<b class="fc">&nbsp;      charCounts[currentMode] = 0;</b>
+&nbsp;    }
+&nbsp;
+<b class="fc">&nbsp;    int charsProcessed = 0;</b>
+<b class="fc">&nbsp;    byte[] mins = new byte[6];</b>
+<b class="fc">&nbsp;    int[] intCharCounts = new int[6];</b>
+&nbsp;    while (true) {
+&nbsp;      //step K
+<b class="fc">&nbsp;      if ((startpos + charsProcessed) == msg.length()) {</b>
+<b class="fc">&nbsp;        Arrays.fill(mins, (byte) 0);</b>
+<b class="fc">&nbsp;        Arrays.fill(intCharCounts, 0);</b>
+<b class="fc">&nbsp;        int min = findMinimums(charCounts, intCharCounts, Integer.MAX_VALUE, mins);</b>
+<b class="fc">&nbsp;        int minCount = getMinimumCount(mins);</b>
+&nbsp;
+<b class="fc">&nbsp;        if (intCharCounts[ASCII_ENCODATION] == min) {</b>
+<b class="fc">&nbsp;          return ASCII_ENCODATION;</b>
+&nbsp;        }
+<b class="fc">&nbsp;        if (minCount == 1) {</b>
+<b class="fc">&nbsp;          if (mins[BASE256_ENCODATION] &gt; 0) {</b>
+<b class="fc">&nbsp;            return BASE256_ENCODATION;</b>
+&nbsp;          }
+<b class="fc">&nbsp;          if (mins[EDIFACT_ENCODATION] &gt; 0) {</b>
+<b class="fc">&nbsp;            return EDIFACT_ENCODATION;</b>
+&nbsp;          }
+<b class="fc">&nbsp;          if (mins[TEXT_ENCODATION] &gt; 0) {</b>
+<b class="fc">&nbsp;            return TEXT_ENCODATION;</b>
+&nbsp;          }
+<b class="fc">&nbsp;          if (mins[X12_ENCODATION] &gt; 0) {</b>
+<b class="fc">&nbsp;            return X12_ENCODATION;</b>
+&nbsp;          }
+&nbsp;        }
+<b class="fc">&nbsp;        return C40_ENCODATION;</b>
+&nbsp;      }
+&nbsp;
+<b class="fc">&nbsp;      char c = msg.charAt(startpos + charsProcessed);</b>
+<b class="fc">&nbsp;      charsProcessed++;</b>
+&nbsp;
+&nbsp;      //step L
+<b class="fc">&nbsp;      if (isDigit(c)) {</b>
+<b class="fc">&nbsp;        charCounts[ASCII_ENCODATION] += 0.5f;</b>
+<b class="fc">&nbsp;      } else if (isExtendedASCII(c)) {</b>
+<b class="fc">&nbsp;        charCounts[ASCII_ENCODATION] = (float) Math.ceil(charCounts[ASCII_ENCODATION]);</b>
+<b class="fc">&nbsp;        charCounts[ASCII_ENCODATION] += 2.0f;</b>
+&nbsp;      } else {
+<b class="fc">&nbsp;        charCounts[ASCII_ENCODATION] = (float) Math.ceil(charCounts[ASCII_ENCODATION]);</b>
+<b class="fc">&nbsp;        charCounts[ASCII_ENCODATION]++;</b>
+&nbsp;      }
+&nbsp;
+&nbsp;      //step M
+<b class="fc">&nbsp;      if (isNativeC40(c)) {</b>
+<b class="fc">&nbsp;        charCounts[C40_ENCODATION] += 2.0f / 3.0f;</b>
+<b class="fc">&nbsp;      } else if (isExtendedASCII(c)) {</b>
+<b class="fc">&nbsp;        charCounts[C40_ENCODATION] += 8.0f / 3.0f;</b>
+&nbsp;      } else {
+<b class="fc">&nbsp;        charCounts[C40_ENCODATION] += 4.0f / 3.0f;</b>
+&nbsp;      }
+&nbsp;
+&nbsp;      //step N
+<b class="fc">&nbsp;      if (isNativeText(c)) {</b>
+<b class="fc">&nbsp;        charCounts[TEXT_ENCODATION] += 2.0f / 3.0f;</b>
+<b class="fc">&nbsp;      } else if (isExtendedASCII(c)) {</b>
+<b class="fc">&nbsp;        charCounts[TEXT_ENCODATION] += 8.0f / 3.0f;</b>
+&nbsp;      } else {
+<b class="fc">&nbsp;        charCounts[TEXT_ENCODATION] += 4.0f / 3.0f;</b>
+&nbsp;      }
+&nbsp;
+&nbsp;      //step O
+<b class="fc">&nbsp;      if (isNativeX12(c)) {</b>
+<b class="fc">&nbsp;        charCounts[X12_ENCODATION] += 2.0f / 3.0f;</b>
+<b class="fc">&nbsp;      } else if (isExtendedASCII(c)) {</b>
+<b class="fc">&nbsp;        charCounts[X12_ENCODATION] += 13.0f / 3.0f;</b>
+&nbsp;      } else {
+<b class="fc">&nbsp;        charCounts[X12_ENCODATION] += 10.0f / 3.0f;</b>
+&nbsp;      }
+&nbsp;
+&nbsp;      //step P
+<b class="fc">&nbsp;      if (isNativeEDIFACT(c)) {</b>
+<b class="fc">&nbsp;        charCounts[EDIFACT_ENCODATION] += 3.0f / 4.0f;</b>
+<b class="fc">&nbsp;      } else if (isExtendedASCII(c)) {</b>
+<b class="fc">&nbsp;        charCounts[EDIFACT_ENCODATION] += 17.0f / 4.0f;</b>
+&nbsp;      } else {
+<b class="fc">&nbsp;        charCounts[EDIFACT_ENCODATION] += 13.0f / 4.0f;</b>
+&nbsp;      }
+&nbsp;
+&nbsp;      // step Q
+<b class="fc">&nbsp;      if (isSpecialB256(c)) {</b>
+<b class="nc">&nbsp;        charCounts[BASE256_ENCODATION] += 4.0f;</b>
+&nbsp;      } else {
+<b class="fc">&nbsp;        charCounts[BASE256_ENCODATION]++;</b>
+&nbsp;      }
+&nbsp;
+&nbsp;      //step R
+<b class="fc">&nbsp;      if (charsProcessed &gt;= 4) {</b>
+<b class="fc">&nbsp;        Arrays.fill(mins, (byte) 0);</b>
+<b class="fc">&nbsp;        Arrays.fill(intCharCounts, 0);</b>
+<b class="fc">&nbsp;        findMinimums(charCounts, intCharCounts, Integer.MAX_VALUE, mins);</b>
+&nbsp;
+<b class="fc">&nbsp;        if (intCharCounts[ASCII_ENCODATION] &lt; min(intCharCounts[BASE256_ENCODATION],</b>
+&nbsp;              intCharCounts[C40_ENCODATION], intCharCounts[TEXT_ENCODATION], intCharCounts[X12_ENCODATION],
+&nbsp;              intCharCounts[EDIFACT_ENCODATION])) {
+<b class="fc">&nbsp;          return ASCII_ENCODATION;</b>
+&nbsp;        }
+<b class="fc">&nbsp;        if (intCharCounts[BASE256_ENCODATION] &lt; intCharCounts[ASCII_ENCODATION] ||</b>
+<b class="fc">&nbsp;              intCharCounts[BASE256_ENCODATION] + 1 &lt; min(intCharCounts[C40_ENCODATION],</b>
+&nbsp;              intCharCounts[TEXT_ENCODATION], intCharCounts[X12_ENCODATION], intCharCounts[EDIFACT_ENCODATION])) {
+<b class="fc">&nbsp;          return BASE256_ENCODATION;</b>
+&nbsp;        }
+<b class="fc">&nbsp;        if (intCharCounts[EDIFACT_ENCODATION] + 1 &lt; min(intCharCounts[BASE256_ENCODATION],</b>
+&nbsp;              intCharCounts[C40_ENCODATION] , intCharCounts[TEXT_ENCODATION] , intCharCounts[X12_ENCODATION],
+&nbsp;              intCharCounts[ASCII_ENCODATION])) {
+<b class="fc">&nbsp;          return EDIFACT_ENCODATION;</b>
+&nbsp;        }
+<b class="fc">&nbsp;        if (intCharCounts[TEXT_ENCODATION] + 1 &lt; min(intCharCounts[BASE256_ENCODATION],</b>
+&nbsp;              intCharCounts[C40_ENCODATION] , intCharCounts[EDIFACT_ENCODATION] , intCharCounts[X12_ENCODATION],
+&nbsp;              intCharCounts[ASCII_ENCODATION])) {
+<b class="fc">&nbsp;          return TEXT_ENCODATION;</b>
+&nbsp;        }
+<b class="fc">&nbsp;        if (intCharCounts[X12_ENCODATION] + 1 &lt; min(intCharCounts[BASE256_ENCODATION],</b>
+&nbsp;              intCharCounts[C40_ENCODATION] , intCharCounts[EDIFACT_ENCODATION] , intCharCounts[TEXT_ENCODATION],
+&nbsp;              intCharCounts[ASCII_ENCODATION])) {
+<b class="fc">&nbsp;          return X12_ENCODATION;</b>
+&nbsp;        }
+<b class="fc">&nbsp;        if (intCharCounts[C40_ENCODATION] + 1 &lt; min(intCharCounts[ASCII_ENCODATION],</b>
+&nbsp;              intCharCounts[BASE256_ENCODATION] , intCharCounts[EDIFACT_ENCODATION] , intCharCounts[TEXT_ENCODATION])) {
+<b class="fc">&nbsp;          if (intCharCounts[C40_ENCODATION] &lt; intCharCounts[X12_ENCODATION]) {</b>
+<b class="fc">&nbsp;            return C40_ENCODATION;</b>
+&nbsp;          }
+<b class="fc">&nbsp;          if (intCharCounts[C40_ENCODATION] == intCharCounts[X12_ENCODATION]) {</b>
+<b class="fc">&nbsp;            int p = startpos + charsProcessed + 1;</b>
+<b class="fc">&nbsp;            while (p &lt; msg.length()) {</b>
+<b class="fc">&nbsp;              char tc = msg.charAt(p);</b>
+<b class="fc">&nbsp;              if (isX12TermSep(tc)) {</b>
+<b class="nc">&nbsp;                return X12_ENCODATION;</b>
+&nbsp;              }
+<b class="fc">&nbsp;              if (!isNativeX12(tc)) {</b>
+<b class="nc">&nbsp;                break;</b>
+&nbsp;              }
+<b class="fc">&nbsp;              p++;</b>
+<b class="fc">&nbsp;            }</b>
+<b class="fc">&nbsp;            return C40_ENCODATION;</b>
+&nbsp;          }
+&nbsp;        }
+&nbsp;      }
+<b class="fc">&nbsp;    }</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  private static int min(int f1, int f2, int f3, int f4, int f5) {
+<b class="fc">&nbsp;    return Math.min(min(f1, f2, f3, f4),f5);</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  private static int min(int f1, int f2, int f3, int f4) {
+<b class="fc">&nbsp;    return Math.min(f1, Math.min(f2, Math.min(f3, f4)));</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  private static int findMinimums(float[] charCounts, int[] intCharCounts, int min, byte[] mins) {
+<b class="fc">&nbsp;    for (int i = 0; i &lt; 6; i++) {</b>
+<b class="fc">&nbsp;      int current = (intCharCounts[i] = (int) Math.ceil(charCounts[i]));</b>
+<b class="fc">&nbsp;      if (min &gt; current) {</b>
+<b class="fc">&nbsp;        min = current;</b>
+<b class="fc">&nbsp;        Arrays.fill(mins, (byte) 0);</b>
+&nbsp;      }
+<b class="fc">&nbsp;      if (min == current) {</b>
+<b class="fc">&nbsp;        mins[i]++;</b>
+&nbsp;      }
+&nbsp;    }
+<b class="fc">&nbsp;    return min;</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  private static int getMinimumCount(byte[] mins) {
+<b class="fc">&nbsp;    int minCount = 0;</b>
+<b class="fc">&nbsp;    for (int i = 0; i &lt; 6; i++) {</b>
+<b class="fc">&nbsp;      minCount += mins[i];</b>
+&nbsp;    }
+<b class="fc">&nbsp;    return minCount;</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  static boolean isDigit(char ch) {
+<b class="fc">&nbsp;    return ch &gt;= &#39;0&#39; &amp;&amp; ch &lt;= &#39;9&#39;;</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  static boolean isExtendedASCII(char ch) {
+<b class="fc">&nbsp;    return ch &gt;= 128 &amp;&amp; ch &lt;= 255;</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  static boolean isNativeC40(char ch) {
+<b class="fc">&nbsp;    return (ch == &#39; &#39;) || (ch &gt;= &#39;0&#39; &amp;&amp; ch &lt;= &#39;9&#39;) || (ch &gt;= &#39;A&#39; &amp;&amp; ch &lt;= &#39;Z&#39;);</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  static boolean isNativeText(char ch) {
+<b class="fc">&nbsp;    return (ch == &#39; &#39;) || (ch &gt;= &#39;0&#39; &amp;&amp; ch &lt;= &#39;9&#39;) || (ch &gt;= &#39;a&#39; &amp;&amp; ch &lt;= &#39;z&#39;);</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  static boolean isNativeX12(char ch) {
+<b class="fc">&nbsp;    return isX12TermSep(ch) || (ch == &#39; &#39;) || (ch &gt;= &#39;0&#39; &amp;&amp; ch &lt;= &#39;9&#39;) || (ch &gt;= &#39;A&#39; &amp;&amp; ch &lt;= &#39;Z&#39;);</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  private static boolean isX12TermSep(char ch) {
+<b class="fc">&nbsp;    return (ch == &#39;\r&#39;) //CR</b>
+&nbsp;        || (ch == &#39;*&#39;)
+&nbsp;        || (ch == &#39;&gt;&#39;);
+&nbsp;  }
+&nbsp;
+&nbsp;  static boolean isNativeEDIFACT(char ch) {
+<b class="fc">&nbsp;    return ch &gt;= &#39; &#39; &amp;&amp; ch &lt;= &#39;^&#39;;</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  private static boolean isSpecialB256(char ch) {
+<b class="fc">&nbsp;    return false; //TODO NOT IMPLEMENTED YET!!!</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  /**
+&nbsp;   * Determines the number of consecutive characters that are encodable using numeric compaction.
+&nbsp;   *
+&nbsp;   * @param msg      the message
+&nbsp;   * @param startpos the start position within the message
+&nbsp;   * @return the requested character count
+&nbsp;   */
+&nbsp;  public static int determineConsecutiveDigitCount(CharSequence msg, int startpos) {
+<b class="fc">&nbsp;    int len = msg.length();</b>
+<b class="fc">&nbsp;    int idx = startpos;</b>
+<b class="fc">&nbsp;    while (idx &lt; len &amp;&amp; isDigit(msg.charAt(idx))) {</b>
+<b class="fc">&nbsp;      idx++;</b>
+&nbsp;    }
+<b class="fc">&nbsp;    return idx - startpos;</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  static void illegalCharacter(char c) {
+<b class="nc">&nbsp;    String hex = Integer.toHexString(c);</b>
+<b class="nc">&nbsp;    hex = &quot;0000&quot;.substring(0, 4 - hex.length()) + hex;</b>
+<b class="nc">&nbsp;    throw new IllegalArgumentException(&quot;Illegal character: &quot; + c + &quot; (0x&quot; + hex + &#39;)&#39;);</b>
+&nbsp;  }
+&nbsp;
+&nbsp;}
+</code>
+</pre>
+</div>
+
+<script type="text/javascript">
+(function() {
+    var msie = false, msie9 = false;
+    /*@cc_on
+      msie = true;
+      @if (@_jscript_version >= 9)
+        msie9 = true;
+      @end
+    @*/
+
+    if (!msie || msie && msie9) {
+      hljs.highlightAll()
+      hljs.initLineNumbersOnLoad();
+    }
+})();
+</script>
+
+<div class="footer">
+    
+    <div style="float:right;">generated on 2023-11-12 23:26</div>
+</div>
+</body>
+</html>

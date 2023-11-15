@@ -1,0 +1,243 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>StringUtils.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">ZXing Core</a> &gt; <a href="index.source.html" class="el_package">com.google.zxing.common</a> &gt; <span class="el_source">StringUtils.java</span></div><h1>StringUtils.java</h1><pre class="source lang-java linenums">/*
+ * Copyright (C) 2010 ZXing authors
+ *
+ * Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an &quot;AS IS&quot; BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+package com.google.zxing.common;
+
+import java.nio.charset.Charset;
+import java.nio.charset.StandardCharsets;
+import java.nio.charset.UnsupportedCharsetException;
+import java.util.Map;
+
+import com.google.zxing.DecodeHintType;
+
+/**
+ * Common string-related functions.
+ *
+ * @author Sean Owen
+ * @author Alex Dupre
+ */
+public final class StringUtils {
+
+<span class="fc" id="L34">  private static final Charset PLATFORM_DEFAULT_ENCODING = Charset.defaultCharset();</span>
+<span class="fc" id="L35">  public static final Charset SHIFT_JIS_CHARSET = Charset.forName(&quot;SJIS&quot;);</span>
+  public static final Charset GB2312_CHARSET;
+  static {
+    Charset gb2312Charset;
+    try {
+<span class="fc" id="L40">      gb2312Charset = Charset.forName(&quot;GB2312&quot;);</span>
+<span class="nc" id="L41">    } catch (UnsupportedCharsetException ucee) {</span>
+      // Can happen on some embedded JREs?
+<span class="nc" id="L43">      gb2312Charset = null;</span>
+<span class="fc" id="L44">    }</span>
+<span class="fc" id="L45">    GB2312_CHARSET = gb2312Charset;</span>
+  }
+<span class="fc" id="L47">  private static final Charset EUC_JP = Charset.forName(&quot;EUC_JP&quot;);</span>
+<span class="fc" id="L48">  private static final boolean ASSUME_SHIFT_JIS =</span>
+<span class="pc bpc" id="L49" title="1 of 2 branches missed.">      SHIFT_JIS_CHARSET.equals(PLATFORM_DEFAULT_ENCODING) ||</span>
+<span class="pc bpc" id="L50" title="1 of 2 branches missed.">      EUC_JP.equals(PLATFORM_DEFAULT_ENCODING);</span>
+
+  // Retained for ABI compatibility with earlier versions
+  public static final String SHIFT_JIS = &quot;SJIS&quot;;
+  public static final String GB2312 = &quot;GB2312&quot;;
+
+  private StringUtils() { }
+
+  /**
+   * @param bytes bytes encoding a string, whose encoding should be guessed
+   * @param hints decode hints if applicable
+   * @return name of guessed encoding; at the moment will only guess one of:
+   *  &quot;SJIS&quot;, &quot;UTF8&quot;, &quot;ISO8859_1&quot;, or the platform default encoding if none
+   *  of these can possibly be correct
+   */
+  public static String guessEncoding(byte[] bytes, Map&lt;DecodeHintType,?&gt; hints) {
+<span class="fc" id="L66">    Charset c = guessCharset(bytes, hints);</span>
+<span class="fc bfc" id="L67" title="All 2 branches covered.">    if (c.equals(SHIFT_JIS_CHARSET)) {</span>
+<span class="fc" id="L68">      return &quot;SJIS&quot;;</span>
+    }
+<span class="fc bfc" id="L70" title="All 2 branches covered.">    if (c.equals(StandardCharsets.UTF_8)) {</span>
+<span class="fc" id="L71">      return &quot;UTF8&quot;;</span>
+    }
+<span class="fc bfc" id="L73" title="All 2 branches covered.">    if (c.equals(StandardCharsets.ISO_8859_1)) {</span>
+<span class="fc" id="L74">      return &quot;ISO8859_1&quot;;</span>
+    }
+<span class="fc" id="L76">    return c.name();</span>
+  }
+
+  /**
+   * @param bytes bytes encoding a string, whose encoding should be guessed
+   * @param hints decode hints if applicable
+   * @return Charset of guessed encoding; at the moment will only guess one of:
+   *  {@link #SHIFT_JIS_CHARSET}, {@link StandardCharsets#UTF_8},
+   *  {@link StandardCharsets#ISO_8859_1}, {@link StandardCharsets#UTF_16},
+   *  or the platform default encoding if
+   *  none of these can possibly be correct
+   */
+  public static Charset guessCharset(byte[] bytes, Map&lt;DecodeHintType,?&gt; hints) {
+<span class="pc bpc" id="L89" title="1 of 4 branches missed.">    if (hints != null &amp;&amp; hints.containsKey(DecodeHintType.CHARACTER_SET)) {</span>
+<span class="nc" id="L90">      return Charset.forName(hints.get(DecodeHintType.CHARACTER_SET).toString());</span>
+    }
+
+    // First try UTF-16, assuming anything with its BOM is UTF-16
+<span class="pc bpc" id="L94" title="2 of 10 branches missed.">    if (bytes.length &gt; 2 &amp;&amp;</span>
+        ((bytes[0] == (byte) 0xFE &amp;&amp; bytes[1] == (byte) 0xFF) ||
+         (bytes[0] == (byte) 0xFF &amp;&amp; bytes[1] == (byte) 0xFE))) {
+<span class="fc" id="L97">      return StandardCharsets.UTF_16;</span>
+    }
+
+    // For now, merely tries to distinguish ISO-8859-1, UTF-8 and Shift_JIS,
+    // which should be by far the most common encodings.
+<span class="fc" id="L102">    int length = bytes.length;</span>
+<span class="fc" id="L103">    boolean canBeISO88591 = true;</span>
+<span class="fc" id="L104">    boolean canBeShiftJIS = true;</span>
+<span class="fc" id="L105">    boolean canBeUTF8 = true;</span>
+<span class="fc" id="L106">    int utf8BytesLeft = 0;</span>
+<span class="fc" id="L107">    int utf2BytesChars = 0;</span>
+<span class="fc" id="L108">    int utf3BytesChars = 0;</span>
+<span class="fc" id="L109">    int utf4BytesChars = 0;</span>
+<span class="fc" id="L110">    int sjisBytesLeft = 0;</span>
+<span class="fc" id="L111">    int sjisKatakanaChars = 0;</span>
+<span class="fc" id="L112">    int sjisCurKatakanaWordLength = 0;</span>
+<span class="fc" id="L113">    int sjisCurDoubleBytesWordLength = 0;</span>
+<span class="fc" id="L114">    int sjisMaxKatakanaWordLength = 0;</span>
+<span class="fc" id="L115">    int sjisMaxDoubleBytesWordLength = 0;</span>
+<span class="fc" id="L116">    int isoHighOther = 0;</span>
+
+<span class="pc bpc" id="L118" title="5 of 8 branches missed.">    boolean utf8bom = bytes.length &gt; 3 &amp;&amp;</span>
+        bytes[0] == (byte) 0xEF &amp;&amp;
+        bytes[1] == (byte) 0xBB &amp;&amp;
+        bytes[2] == (byte) 0xBF;
+
+<span class="fc" id="L123">    for (int i = 0;</span>
+<span class="pc bpc" id="L124" title="1 of 8 branches missed.">         i &lt; length &amp;&amp; (canBeISO88591 || canBeShiftJIS || canBeUTF8);</span>
+<span class="fc" id="L125">         i++) {</span>
+
+<span class="fc" id="L127">      int value = bytes[i] &amp; 0xFF;</span>
+
+      // UTF-8 stuff
+<span class="fc bfc" id="L130" title="All 2 branches covered.">      if (canBeUTF8) {</span>
+<span class="fc bfc" id="L131" title="All 2 branches covered.">        if (utf8BytesLeft &gt; 0) {</span>
+<span class="fc bfc" id="L132" title="All 2 branches covered.">          if ((value &amp; 0x80) == 0) {</span>
+<span class="fc" id="L133">            canBeUTF8 = false;</span>
+          } else {
+<span class="fc" id="L135">            utf8BytesLeft--;</span>
+          }
+<span class="fc bfc" id="L137" title="All 2 branches covered.">        } else if ((value &amp; 0x80) != 0) {</span>
+<span class="fc bfc" id="L138" title="All 2 branches covered.">          if ((value &amp; 0x40) == 0) {</span>
+<span class="fc" id="L139">            canBeUTF8 = false;</span>
+          } else {
+<span class="fc" id="L141">            utf8BytesLeft++;</span>
+<span class="fc bfc" id="L142" title="All 2 branches covered.">            if ((value &amp; 0x20) == 0) {</span>
+<span class="fc" id="L143">              utf2BytesChars++;</span>
+            } else {
+<span class="fc" id="L145">              utf8BytesLeft++;</span>
+<span class="fc bfc" id="L146" title="All 2 branches covered.">              if ((value &amp; 0x10) == 0) {</span>
+<span class="fc" id="L147">                utf3BytesChars++;</span>
+              } else {
+<span class="fc" id="L149">                utf8BytesLeft++;</span>
+<span class="pc bpc" id="L150" title="1 of 2 branches missed.">                if ((value &amp; 0x08) == 0) {</span>
+<span class="fc" id="L151">                  utf4BytesChars++;</span>
+                } else {
+<span class="nc" id="L153">                  canBeUTF8 = false;</span>
+                }
+              }
+            }
+          }
+        }
+      }
+
+      // ISO-8859-1 stuff
+<span class="fc bfc" id="L162" title="All 2 branches covered.">      if (canBeISO88591) {</span>
+<span class="fc bfc" id="L163" title="All 4 branches covered.">        if (value &gt; 0x7F &amp;&amp; value &lt; 0xA0) {</span>
+<span class="fc" id="L164">          canBeISO88591 = false;</span>
+<span class="pc bpc" id="L165" title="1 of 8 branches missed.">        } else if (value &gt; 0x9F &amp;&amp; (value &lt; 0xC0 || value == 0xD7 || value == 0xF7)) {</span>
+<span class="fc" id="L166">          isoHighOther++;</span>
+        }
+      }
+
+      // Shift_JIS stuff
+<span class="fc bfc" id="L171" title="All 2 branches covered.">      if (canBeShiftJIS) {</span>
+<span class="fc bfc" id="L172" title="All 2 branches covered.">        if (sjisBytesLeft &gt; 0) {</span>
+<span class="pc bpc" id="L173" title="3 of 6 branches missed.">          if (value &lt; 0x40 || value == 0x7F || value &gt; 0xFC) {</span>
+<span class="nc" id="L174">            canBeShiftJIS = false;</span>
+          } else {
+<span class="fc" id="L176">            sjisBytesLeft--;</span>
+          }
+<span class="pc bpc" id="L178" title="2 of 6 branches missed.">        } else if (value == 0x80 || value == 0xA0 || value &gt; 0xEF) {</span>
+<span class="fc" id="L179">          canBeShiftJIS = false;</span>
+<span class="fc bfc" id="L180" title="All 4 branches covered.">        } else if (value &gt; 0xA0 &amp;&amp; value &lt; 0xE0) {</span>
+<span class="fc" id="L181">          sjisKatakanaChars++;</span>
+<span class="fc" id="L182">          sjisCurDoubleBytesWordLength = 0;</span>
+<span class="fc" id="L183">          sjisCurKatakanaWordLength++;</span>
+<span class="fc bfc" id="L184" title="All 2 branches covered.">          if (sjisCurKatakanaWordLength &gt; sjisMaxKatakanaWordLength) {</span>
+<span class="fc" id="L185">            sjisMaxKatakanaWordLength = sjisCurKatakanaWordLength;</span>
+          }
+<span class="fc bfc" id="L187" title="All 2 branches covered.">        } else if (value &gt; 0x7F) {</span>
+<span class="fc" id="L188">          sjisBytesLeft++;</span>
+          //sjisDoubleBytesChars++;
+<span class="fc" id="L190">          sjisCurKatakanaWordLength = 0;</span>
+<span class="fc" id="L191">          sjisCurDoubleBytesWordLength++;</span>
+<span class="fc bfc" id="L192" title="All 2 branches covered.">          if (sjisCurDoubleBytesWordLength &gt; sjisMaxDoubleBytesWordLength) {</span>
+<span class="fc" id="L193">            sjisMaxDoubleBytesWordLength = sjisCurDoubleBytesWordLength;</span>
+          }
+        } else {
+          //sjisLowChars++;
+<span class="fc" id="L197">          sjisCurKatakanaWordLength = 0;</span>
+<span class="fc" id="L198">          sjisCurDoubleBytesWordLength = 0;</span>
+        }
+      }
+    }
+
+<span class="fc bfc" id="L203" title="All 4 branches covered.">    if (canBeUTF8 &amp;&amp; utf8BytesLeft &gt; 0) {</span>
+<span class="fc" id="L204">      canBeUTF8 = false;</span>
+    }
+<span class="pc bpc" id="L206" title="1 of 4 branches missed.">    if (canBeShiftJIS &amp;&amp; sjisBytesLeft &gt; 0) {</span>
+<span class="nc" id="L207">      canBeShiftJIS = false;</span>
+    }
+
+    // Easy -- if there is BOM or at least 1 valid not-single byte character (and no evidence it can't be UTF-8), done
+<span class="pc bpc" id="L211" title="1 of 6 branches missed.">    if (canBeUTF8 &amp;&amp; (utf8bom || utf2BytesChars + utf3BytesChars + utf4BytesChars &gt; 0)) {</span>
+<span class="fc" id="L212">      return StandardCharsets.UTF_8;</span>
+    }
+    // Easy -- if assuming Shift_JIS or &gt;= 3 valid consecutive not-ascii characters (and no evidence it can't be), done
+<span class="pc bpc" id="L215" title="1 of 8 branches missed.">    if (canBeShiftJIS &amp;&amp; (ASSUME_SHIFT_JIS || sjisMaxKatakanaWordLength &gt;= 3 || sjisMaxDoubleBytesWordLength &gt;= 3)) {</span>
+<span class="fc" id="L216">      return SHIFT_JIS_CHARSET;</span>
+    }
+    // Distinguishing Shift_JIS and ISO-8859-1 can be a little tough for short words. The crude heuristic is:
+    // - If we saw
+    //   - only two consecutive katakana chars in the whole text, or
+    //   - at least 10% of bytes that could be &quot;upper&quot; not-alphanumeric Latin1,
+    // - then we conclude Shift_JIS, else ISO-8859-1
+<span class="fc bfc" id="L223" title="All 4 branches covered.">    if (canBeISO88591 &amp;&amp; canBeShiftJIS) {</span>
+<span class="pc bpc" id="L224" title="4 of 6 branches missed.">      return (sjisMaxKatakanaWordLength == 2 &amp;&amp; sjisKatakanaChars == 2) || isoHighOther * 10 &gt;= length</span>
+<span class="pc" id="L225">          ? SHIFT_JIS_CHARSET : StandardCharsets.ISO_8859_1;</span>
+    }
+
+    // Otherwise, try in order ISO-8859-1, Shift JIS, UTF-8 and fall back to default platform encoding
+<span class="fc bfc" id="L229" title="All 2 branches covered.">    if (canBeISO88591) {</span>
+<span class="fc" id="L230">      return StandardCharsets.ISO_8859_1;</span>
+    }
+<span class="fc bfc" id="L232" title="All 2 branches covered.">    if (canBeShiftJIS) {</span>
+<span class="fc" id="L233">      return SHIFT_JIS_CHARSET;</span>
+    }
+<span class="pc bpc" id="L235" title="1 of 2 branches missed.">    if (canBeUTF8) {</span>
+<span class="nc" id="L236">      return StandardCharsets.UTF_8;</span>
+    }
+    // Otherwise, we take a wild guess with platform encoding
+<span class="fc" id="L239">    return PLATFORM_DEFAULT_ENCODING;</span>
+  }
+
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.11.202310140853</span></div></body></html>

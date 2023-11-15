@@ -1,0 +1,563 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>Code128Reader.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">ZXing Core</a> &gt; <a href="index.source.html" class="el_package">com.google.zxing.oned</a> &gt; <span class="el_source">Code128Reader.java</span></div><h1>Code128Reader.java</h1><pre class="source lang-java linenums">/*
+ * Copyright 2008 ZXing authors
+ *
+ * Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an &quot;AS IS&quot; BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+package com.google.zxing.oned;
+
+import com.google.zxing.BarcodeFormat;
+import com.google.zxing.ChecksumException;
+import com.google.zxing.DecodeHintType;
+import com.google.zxing.FormatException;
+import com.google.zxing.NotFoundException;
+import com.google.zxing.Result;
+import com.google.zxing.ResultMetadataType;
+import com.google.zxing.ResultPoint;
+import com.google.zxing.common.BitArray;
+
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+
+/**
+ * &lt;p&gt;Decodes Code 128 barcodes.&lt;/p&gt;
+ *
+ * @author Sean Owen
+ */
+<span class="fc" id="L38">public final class Code128Reader extends OneDReader {</span>
+
+<span class="fc" id="L40">  static final int[][] CODE_PATTERNS = {</span>
+      {2, 1, 2, 2, 2, 2}, // 0
+      {2, 2, 2, 1, 2, 2},
+      {2, 2, 2, 2, 2, 1},
+      {1, 2, 1, 2, 2, 3},
+      {1, 2, 1, 3, 2, 2},
+      {1, 3, 1, 2, 2, 2}, // 5
+      {1, 2, 2, 2, 1, 3},
+      {1, 2, 2, 3, 1, 2},
+      {1, 3, 2, 2, 1, 2},
+      {2, 2, 1, 2, 1, 3},
+      {2, 2, 1, 3, 1, 2}, // 10
+      {2, 3, 1, 2, 1, 2},
+      {1, 1, 2, 2, 3, 2},
+      {1, 2, 2, 1, 3, 2},
+      {1, 2, 2, 2, 3, 1},
+      {1, 1, 3, 2, 2, 2}, // 15
+      {1, 2, 3, 1, 2, 2},
+      {1, 2, 3, 2, 2, 1},
+      {2, 2, 3, 2, 1, 1},
+      {2, 2, 1, 1, 3, 2},
+      {2, 2, 1, 2, 3, 1}, // 20
+      {2, 1, 3, 2, 1, 2},
+      {2, 2, 3, 1, 1, 2},
+      {3, 1, 2, 1, 3, 1},
+      {3, 1, 1, 2, 2, 2},
+      {3, 2, 1, 1, 2, 2}, // 25
+      {3, 2, 1, 2, 2, 1},
+      {3, 1, 2, 2, 1, 2},
+      {3, 2, 2, 1, 1, 2},
+      {3, 2, 2, 2, 1, 1},
+      {2, 1, 2, 1, 2, 3}, // 30
+      {2, 1, 2, 3, 2, 1},
+      {2, 3, 2, 1, 2, 1},
+      {1, 1, 1, 3, 2, 3},
+      {1, 3, 1, 1, 2, 3},
+      {1, 3, 1, 3, 2, 1}, // 35
+      {1, 1, 2, 3, 1, 3},
+      {1, 3, 2, 1, 1, 3},
+      {1, 3, 2, 3, 1, 1},
+      {2, 1, 1, 3, 1, 3},
+      {2, 3, 1, 1, 1, 3}, // 40
+      {2, 3, 1, 3, 1, 1},
+      {1, 1, 2, 1, 3, 3},
+      {1, 1, 2, 3, 3, 1},
+      {1, 3, 2, 1, 3, 1},
+      {1, 1, 3, 1, 2, 3}, // 45
+      {1, 1, 3, 3, 2, 1},
+      {1, 3, 3, 1, 2, 1},
+      {3, 1, 3, 1, 2, 1},
+      {2, 1, 1, 3, 3, 1},
+      {2, 3, 1, 1, 3, 1}, // 50
+      {2, 1, 3, 1, 1, 3},
+      {2, 1, 3, 3, 1, 1},
+      {2, 1, 3, 1, 3, 1},
+      {3, 1, 1, 1, 2, 3},
+      {3, 1, 1, 3, 2, 1}, // 55
+      {3, 3, 1, 1, 2, 1},
+      {3, 1, 2, 1, 1, 3},
+      {3, 1, 2, 3, 1, 1},
+      {3, 3, 2, 1, 1, 1},
+      {3, 1, 4, 1, 1, 1}, // 60
+      {2, 2, 1, 4, 1, 1},
+      {4, 3, 1, 1, 1, 1},
+      {1, 1, 1, 2, 2, 4},
+      {1, 1, 1, 4, 2, 2},
+      {1, 2, 1, 1, 2, 4}, // 65
+      {1, 2, 1, 4, 2, 1},
+      {1, 4, 1, 1, 2, 2},
+      {1, 4, 1, 2, 2, 1},
+      {1, 1, 2, 2, 1, 4},
+      {1, 1, 2, 4, 1, 2}, // 70
+      {1, 2, 2, 1, 1, 4},
+      {1, 2, 2, 4, 1, 1},
+      {1, 4, 2, 1, 1, 2},
+      {1, 4, 2, 2, 1, 1},
+      {2, 4, 1, 2, 1, 1}, // 75
+      {2, 2, 1, 1, 1, 4},
+      {4, 1, 3, 1, 1, 1},
+      {2, 4, 1, 1, 1, 2},
+      {1, 3, 4, 1, 1, 1},
+      {1, 1, 1, 2, 4, 2}, // 80
+      {1, 2, 1, 1, 4, 2},
+      {1, 2, 1, 2, 4, 1},
+      {1, 1, 4, 2, 1, 2},
+      {1, 2, 4, 1, 1, 2},
+      {1, 2, 4, 2, 1, 1}, // 85
+      {4, 1, 1, 2, 1, 2},
+      {4, 2, 1, 1, 1, 2},
+      {4, 2, 1, 2, 1, 1},
+      {2, 1, 2, 1, 4, 1},
+      {2, 1, 4, 1, 2, 1}, // 90
+      {4, 1, 2, 1, 2, 1},
+      {1, 1, 1, 1, 4, 3},
+      {1, 1, 1, 3, 4, 1},
+      {1, 3, 1, 1, 4, 1},
+      {1, 1, 4, 1, 1, 3}, // 95
+      {1, 1, 4, 3, 1, 1},
+      {4, 1, 1, 1, 1, 3},
+      {4, 1, 1, 3, 1, 1},
+      {1, 1, 3, 1, 4, 1},
+      {1, 1, 4, 1, 3, 1}, // 100
+      {3, 1, 1, 1, 4, 1},
+      {4, 1, 1, 1, 3, 1},
+      {2, 1, 1, 4, 1, 2},
+      {2, 1, 1, 2, 1, 4},
+      {2, 1, 1, 2, 3, 2}, // 105
+      {2, 3, 3, 1, 1, 1, 2}
+  };
+
+  private static final float MAX_AVG_VARIANCE = 0.25f;
+  private static final float MAX_INDIVIDUAL_VARIANCE = 0.7f;
+
+  private static final int CODE_SHIFT = 98;
+
+  private static final int CODE_CODE_C = 99;
+  private static final int CODE_CODE_B = 100;
+  private static final int CODE_CODE_A = 101;
+
+  private static final int CODE_FNC_1 = 102;
+  private static final int CODE_FNC_2 = 97;
+  private static final int CODE_FNC_3 = 96;
+  private static final int CODE_FNC_4_A = 101;
+  private static final int CODE_FNC_4_B = 100;
+
+  private static final int CODE_START_A = 103;
+  private static final int CODE_START_B = 104;
+  private static final int CODE_START_C = 105;
+  private static final int CODE_STOP = 106;
+
+  private static int[] findStartPattern(BitArray row) throws NotFoundException {
+<span class="fc" id="L171">    int width = row.getSize();</span>
+<span class="fc" id="L172">    int rowOffset = row.getNextSet(0);</span>
+
+<span class="fc" id="L174">    int counterPosition = 0;</span>
+<span class="fc" id="L175">    int[] counters = new int[6];</span>
+<span class="fc" id="L176">    int patternStart = rowOffset;</span>
+<span class="fc" id="L177">    boolean isWhite = false;</span>
+<span class="fc" id="L178">    int patternLength = counters.length;</span>
+
+<span class="fc bfc" id="L180" title="All 2 branches covered.">    for (int i = rowOffset; i &lt; width; i++) {</span>
+<span class="fc bfc" id="L181" title="All 2 branches covered.">      if (row.get(i) != isWhite) {</span>
+<span class="fc" id="L182">        counters[counterPosition]++;</span>
+      } else {
+<span class="fc bfc" id="L184" title="All 2 branches covered.">        if (counterPosition == patternLength - 1) {</span>
+<span class="fc" id="L185">          float bestVariance = MAX_AVG_VARIANCE;</span>
+<span class="fc" id="L186">          int bestMatch = -1;</span>
+<span class="fc bfc" id="L187" title="All 2 branches covered.">          for (int startCode = CODE_START_A; startCode &lt;= CODE_START_C; startCode++) {</span>
+<span class="fc" id="L188">            float variance = patternMatchVariance(counters, CODE_PATTERNS[startCode],</span>
+                MAX_INDIVIDUAL_VARIANCE);
+<span class="fc bfc" id="L190" title="All 2 branches covered.">            if (variance &lt; bestVariance) {</span>
+<span class="fc" id="L191">              bestVariance = variance;</span>
+<span class="fc" id="L192">              bestMatch = startCode;</span>
+            }
+          }
+          // Look for whitespace before start pattern, &gt;= 50% of width of start pattern
+<span class="fc bfc" id="L196" title="All 2 branches covered.">          if (bestMatch &gt;= 0 &amp;&amp;</span>
+<span class="fc bfc" id="L197" title="All 2 branches covered.">              row.isRange(Math.max(0, patternStart - (i - patternStart) / 2), patternStart, false)) {</span>
+<span class="fc" id="L198">            return new int[]{patternStart, i, bestMatch};</span>
+          }
+<span class="fc" id="L200">          patternStart += counters[0] + counters[1];</span>
+<span class="fc" id="L201">          System.arraycopy(counters, 2, counters, 0, counterPosition - 1);</span>
+<span class="fc" id="L202">          counters[counterPosition - 1] = 0;</span>
+<span class="fc" id="L203">          counters[counterPosition] = 0;</span>
+<span class="fc" id="L204">          counterPosition--;</span>
+<span class="fc" id="L205">        } else {</span>
+<span class="fc" id="L206">          counterPosition++;</span>
+        }
+<span class="fc" id="L208">        counters[counterPosition] = 1;</span>
+<span class="fc bfc" id="L209" title="All 2 branches covered.">        isWhite = !isWhite;</span>
+      }
+    }
+<span class="fc" id="L212">    throw NotFoundException.getNotFoundInstance();</span>
+  }
+
+  private static int decodeCode(BitArray row, int[] counters, int rowOffset)
+      throws NotFoundException {
+<span class="fc" id="L217">    recordPattern(row, rowOffset, counters);</span>
+<span class="fc" id="L218">    float bestVariance = MAX_AVG_VARIANCE; // worst variance we'll accept</span>
+<span class="fc" id="L219">    int bestMatch = -1;</span>
+<span class="fc bfc" id="L220" title="All 2 branches covered.">    for (int d = 0; d &lt; CODE_PATTERNS.length; d++) {</span>
+<span class="fc" id="L221">      int[] pattern = CODE_PATTERNS[d];</span>
+<span class="fc" id="L222">      float variance = patternMatchVariance(counters, pattern, MAX_INDIVIDUAL_VARIANCE);</span>
+<span class="fc bfc" id="L223" title="All 2 branches covered.">      if (variance &lt; bestVariance) {</span>
+<span class="fc" id="L224">        bestVariance = variance;</span>
+<span class="fc" id="L225">        bestMatch = d;</span>
+      }
+    }
+    // TODO We're overlooking the fact that the STOP pattern has 7 values, not 6.
+<span class="fc bfc" id="L229" title="All 2 branches covered.">    if (bestMatch &gt;= 0) {</span>
+<span class="fc" id="L230">      return bestMatch;</span>
+    } else {
+<span class="fc" id="L232">      throw NotFoundException.getNotFoundInstance();</span>
+    }
+  }
+
+  @Override
+  public Result decodeRow(int rowNumber, BitArray row, Map&lt;DecodeHintType,?&gt; hints)
+      throws NotFoundException, FormatException, ChecksumException {
+
+<span class="pc bpc" id="L240" title="1 of 4 branches missed.">    boolean convertFNC1 = hints != null &amp;&amp; hints.containsKey(DecodeHintType.ASSUME_GS1);</span>
+
+<span class="fc" id="L242">    int symbologyModifier = 0;</span>
+
+<span class="fc" id="L244">    int[] startPatternInfo = findStartPattern(row);</span>
+<span class="fc" id="L245">    int startCode = startPatternInfo[2];</span>
+
+<span class="fc" id="L247">    List&lt;Byte&gt; rawCodes = new ArrayList&lt;&gt;(20);</span>
+<span class="fc" id="L248">    rawCodes.add((byte) startCode);</span>
+
+    int codeSet;
+<span class="pc bpc" id="L251" title="1 of 4 branches missed.">    switch (startCode) {</span>
+      case CODE_START_A:
+<span class="fc" id="L253">        codeSet = CODE_CODE_A;</span>
+<span class="fc" id="L254">        break;</span>
+      case CODE_START_B:
+<span class="fc" id="L256">        codeSet = CODE_CODE_B;</span>
+<span class="fc" id="L257">        break;</span>
+      case CODE_START_C:
+<span class="fc" id="L259">        codeSet = CODE_CODE_C;</span>
+<span class="fc" id="L260">        break;</span>
+      default:
+<span class="nc" id="L262">        throw FormatException.getFormatInstance();</span>
+    }
+
+<span class="fc" id="L265">    boolean done = false;</span>
+<span class="fc" id="L266">    boolean isNextShifted = false;</span>
+
+<span class="fc" id="L268">    StringBuilder result = new StringBuilder(20);</span>
+
+<span class="fc" id="L270">    int lastStart = startPatternInfo[0];</span>
+<span class="fc" id="L271">    int nextStart = startPatternInfo[1];</span>
+<span class="fc" id="L272">    int[] counters = new int[6];</span>
+
+<span class="fc" id="L274">    int lastCode = 0;</span>
+<span class="fc" id="L275">    int code = 0;</span>
+<span class="fc" id="L276">    int checksumTotal = startCode;</span>
+<span class="fc" id="L277">    int multiplier = 0;</span>
+<span class="fc" id="L278">    boolean lastCharacterWasPrintable = true;</span>
+<span class="fc" id="L279">    boolean upperMode = false;</span>
+<span class="fc" id="L280">    boolean shiftUpperMode = false;</span>
+
+<span class="fc bfc" id="L282" title="All 2 branches covered.">    while (!done) {</span>
+
+<span class="fc" id="L284">      boolean unshift = isNextShifted;</span>
+<span class="fc" id="L285">      isNextShifted = false;</span>
+
+      // Save off last code
+<span class="fc" id="L288">      lastCode = code;</span>
+
+      // Decode another code from image
+<span class="fc" id="L291">      code = decodeCode(row, counters, nextStart);</span>
+
+<span class="fc" id="L293">      rawCodes.add((byte) code);</span>
+
+      // Remember whether the last code was printable or not (excluding CODE_STOP)
+<span class="fc bfc" id="L296" title="All 2 branches covered.">      if (code != CODE_STOP) {</span>
+<span class="fc" id="L297">        lastCharacterWasPrintable = true;</span>
+      }
+
+      // Add to checksum computation (if not CODE_STOP of course)
+<span class="fc bfc" id="L301" title="All 2 branches covered.">      if (code != CODE_STOP) {</span>
+<span class="fc" id="L302">        multiplier++;</span>
+<span class="fc" id="L303">        checksumTotal += multiplier * code;</span>
+      }
+
+      // Advance to where the next code will to start
+<span class="fc" id="L307">      lastStart = nextStart;</span>
+<span class="fc bfc" id="L308" title="All 2 branches covered.">      for (int counter : counters) {</span>
+<span class="fc" id="L309">        nextStart += counter;</span>
+      }
+
+      // Take care of illegal start codes
+<span class="fc bfc" id="L313" title="All 2 branches covered.">      switch (code) {</span>
+        case CODE_START_A:
+        case CODE_START_B:
+        case CODE_START_C:
+<span class="fc" id="L317">          throw FormatException.getFormatInstance();</span>
+      }
+
+<span class="pc bpc" id="L320" title="1 of 4 branches missed.">      switch (codeSet) {</span>
+
+        case CODE_CODE_A:
+<span class="fc bfc" id="L323" title="All 2 branches covered.">          if (code &lt; 64) {</span>
+<span class="fc bfc" id="L324" title="All 2 branches covered.">            if (shiftUpperMode == upperMode) {</span>
+<span class="fc" id="L325">              result.append((char) (' ' + code));</span>
+            } else {
+<span class="fc" id="L327">              result.append((char) (' ' + code + 128));</span>
+            }
+<span class="fc" id="L329">            shiftUpperMode = false;</span>
+<span class="fc bfc" id="L330" title="All 2 branches covered.">          } else if (code &lt; 96) {</span>
+<span class="pc bpc" id="L331" title="1 of 2 branches missed.">            if (shiftUpperMode == upperMode) {</span>
+<span class="fc" id="L332">              result.append((char) (code - 64));</span>
+            } else {
+<span class="nc" id="L334">              result.append((char) (code + 64));</span>
+            }
+<span class="fc" id="L336">            shiftUpperMode = false;</span>
+          } else {
+            // Don't let CODE_STOP, which always appears, affect whether whether we think the last
+            // code was printable or not.
+<span class="fc bfc" id="L340" title="All 2 branches covered.">            if (code != CODE_STOP) {</span>
+<span class="fc" id="L341">              lastCharacterWasPrintable = false;</span>
+            }
+<span class="pc bpc" id="L343" title="1 of 9 branches missed.">            switch (code) {</span>
+              case CODE_FNC_1:
+<span class="fc bfc" id="L345" title="All 2 branches covered.">                if (result.length() == 0) { // FNC1 at first or second character determines the symbology</span>
+<span class="fc" id="L346">                  symbologyModifier = 1;</span>
+<span class="pc bpc" id="L347" title="1 of 2 branches missed.">                } else if (result.length() == 1) {</span>
+<span class="fc" id="L348">                  symbologyModifier = 2;</span>
+                }
+<span class="pc bpc" id="L350" title="1 of 2 branches missed.">                if (convertFNC1) {</span>
+<span class="nc bnc" id="L351" title="All 2 branches missed.">                  if (result.length() == 0) {</span>
+                    // GS1 specification 5.4.3.7. and 5.4.6.4. If the first char after the start code
+                    // is FNC1 then this is GS1-128. We add the symbology identifier.
+<span class="nc" id="L354">                    result.append(&quot;]C1&quot;);</span>
+                  } else {
+                    // GS1 specification 5.4.7.5. Every subsequent FNC1 is returned as ASCII 29 (GS)
+<span class="nc" id="L357">                    result.append((char) 29);</span>
+                  }
+                }
+                break;
+              case CODE_FNC_2:
+<span class="fc" id="L362">                symbologyModifier = 4;</span>
+<span class="fc" id="L363">                break;</span>
+              case CODE_FNC_3:
+                // do nothing?
+<span class="fc" id="L366">                break;</span>
+              case CODE_FNC_4_A:
+<span class="pc bpc" id="L368" title="2 of 4 branches missed.">                if (!upperMode &amp;&amp; shiftUpperMode) {</span>
+<span class="nc" id="L369">                  upperMode = true;</span>
+<span class="nc" id="L370">                  shiftUpperMode = false;</span>
+<span class="pc bpc" id="L371" title="3 of 4 branches missed.">                } else if (upperMode &amp;&amp; shiftUpperMode) {</span>
+<span class="nc" id="L372">                  upperMode = false;</span>
+<span class="nc" id="L373">                  shiftUpperMode = false;</span>
+                } else {
+<span class="fc" id="L375">                  shiftUpperMode = true;</span>
+                }
+<span class="fc" id="L377">                break;</span>
+              case CODE_SHIFT:
+<span class="fc" id="L379">                isNextShifted = true;</span>
+<span class="fc" id="L380">                codeSet = CODE_CODE_B;</span>
+<span class="fc" id="L381">                break;</span>
+              case CODE_CODE_B:
+<span class="fc" id="L383">                codeSet = CODE_CODE_B;</span>
+<span class="fc" id="L384">                break;</span>
+              case CODE_CODE_C:
+<span class="fc" id="L386">                codeSet = CODE_CODE_C;</span>
+<span class="fc" id="L387">                break;</span>
+              case CODE_STOP:
+<span class="fc" id="L389">                done = true;</span>
+                break;
+            }
+          }
+<span class="fc" id="L393">          break;</span>
+        case CODE_CODE_B:
+<span class="fc bfc" id="L395" title="All 2 branches covered.">          if (code &lt; 96) {</span>
+<span class="fc bfc" id="L396" title="All 2 branches covered.">            if (shiftUpperMode == upperMode) {</span>
+<span class="fc" id="L397">              result.append((char) (' ' + code));</span>
+            } else {
+<span class="fc" id="L399">              result.append((char) (' ' + code + 128));</span>
+            }
+<span class="fc" id="L401">            shiftUpperMode = false;</span>
+          } else {
+<span class="fc bfc" id="L403" title="All 2 branches covered.">            if (code != CODE_STOP) {</span>
+<span class="fc" id="L404">              lastCharacterWasPrintable = false;</span>
+            }
+<span class="pc bpc" id="L406" title="1 of 9 branches missed.">            switch (code) {</span>
+              case CODE_FNC_1:
+<span class="fc bfc" id="L408" title="All 2 branches covered.">                if (result.length() == 0) { // FNC1 at first or second character determines the symbology</span>
+<span class="fc" id="L409">                  symbologyModifier = 1;</span>
+<span class="fc bfc" id="L410" title="All 2 branches covered.">                } else if (result.length() == 1) {</span>
+<span class="fc" id="L411">                  symbologyModifier = 2;</span>
+                }
+<span class="pc bpc" id="L413" title="1 of 2 branches missed.">                if (convertFNC1) {</span>
+<span class="nc bnc" id="L414" title="All 2 branches missed.">                  if (result.length() == 0) {</span>
+                    // GS1 specification 5.4.3.7. and 5.4.6.4. If the first char after the start code
+                    // is FNC1 then this is GS1-128. We add the symbology identifier.
+<span class="nc" id="L417">                    result.append(&quot;]C1&quot;);</span>
+                  } else {
+                    // GS1 specification 5.4.7.5. Every subsequent FNC1 is returned as ASCII 29 (GS)
+<span class="nc" id="L420">                    result.append((char) 29);</span>
+                  }
+                }
+                break;
+              case CODE_FNC_2:
+<span class="fc" id="L425">                symbologyModifier = 4;</span>
+<span class="fc" id="L426">                break;</span>
+              case CODE_FNC_3:
+                // do nothing?
+<span class="fc" id="L429">                break;</span>
+              case CODE_FNC_4_B:
+<span class="fc bfc" id="L431" title="All 4 branches covered.">                if (!upperMode &amp;&amp; shiftUpperMode) {</span>
+<span class="fc" id="L432">                  upperMode = true;</span>
+<span class="fc" id="L433">                  shiftUpperMode = false;</span>
+<span class="fc bfc" id="L434" title="All 4 branches covered.">                } else if (upperMode &amp;&amp; shiftUpperMode) {</span>
+<span class="fc" id="L435">                  upperMode = false;</span>
+<span class="fc" id="L436">                  shiftUpperMode = false;</span>
+                } else {
+<span class="fc" id="L438">                  shiftUpperMode = true;</span>
+                }
+<span class="fc" id="L440">                break;</span>
+              case CODE_SHIFT:
+<span class="fc" id="L442">                isNextShifted = true;</span>
+<span class="fc" id="L443">                codeSet = CODE_CODE_A;</span>
+<span class="fc" id="L444">                break;</span>
+              case CODE_CODE_A:
+<span class="fc" id="L446">                codeSet = CODE_CODE_A;</span>
+<span class="fc" id="L447">                break;</span>
+              case CODE_CODE_C:
+<span class="fc" id="L449">                codeSet = CODE_CODE_C;</span>
+<span class="fc" id="L450">                break;</span>
+              case CODE_STOP:
+<span class="fc" id="L452">                done = true;</span>
+                break;
+            }
+          }
+<span class="fc" id="L456">          break;</span>
+        case CODE_CODE_C:
+<span class="fc bfc" id="L458" title="All 2 branches covered.">          if (code &lt; 100) {</span>
+<span class="fc bfc" id="L459" title="All 2 branches covered.">            if (code &lt; 10) {</span>
+<span class="fc" id="L460">              result.append('0');</span>
+            }
+<span class="fc" id="L462">            result.append(code);</span>
+          } else {
+<span class="fc bfc" id="L464" title="All 2 branches covered.">            if (code != CODE_STOP) {</span>
+<span class="fc" id="L465">              lastCharacterWasPrintable = false;</span>
+            }
+<span class="pc bpc" id="L467" title="1 of 5 branches missed.">            switch (code) {</span>
+              case CODE_FNC_1:
+<span class="fc bfc" id="L469" title="All 2 branches covered.">                if (result.length() == 0) { // FNC1 at first or second character determines the symbology</span>
+<span class="fc" id="L470">                  symbologyModifier = 1;</span>
+<span class="pc bpc" id="L471" title="1 of 2 branches missed.">                } else if (result.length() == 1) {</span>
+<span class="nc" id="L472">                  symbologyModifier = 2;</span>
+                }
+<span class="pc bpc" id="L474" title="1 of 2 branches missed.">                if (convertFNC1) {</span>
+<span class="nc bnc" id="L475" title="All 2 branches missed.">                  if (result.length() == 0) {</span>
+                    // GS1 specification 5.4.3.7. and 5.4.6.4. If the first char after the start code
+                    // is FNC1 then this is GS1-128. We add the symbology identifier.
+<span class="nc" id="L478">                    result.append(&quot;]C1&quot;);</span>
+                  } else {
+                    // GS1 specification 5.4.7.5. Every subsequent FNC1 is returned as ASCII 29 (GS)
+<span class="nc" id="L481">                    result.append((char) 29);</span>
+                  }
+                }
+                break;
+              case CODE_CODE_A:
+<span class="fc" id="L486">                codeSet = CODE_CODE_A;</span>
+<span class="fc" id="L487">                break;</span>
+              case CODE_CODE_B:
+<span class="fc" id="L489">                codeSet = CODE_CODE_B;</span>
+<span class="fc" id="L490">                break;</span>
+              case CODE_STOP:
+<span class="fc" id="L492">                done = true;</span>
+                break;
+            }
+          }
+          break;
+      }
+
+      // Unshift back to another code set if we were shifted
+<span class="fc bfc" id="L500" title="All 2 branches covered.">      if (unshift) {</span>
+<span class="fc bfc" id="L501" title="All 2 branches covered.">        codeSet = codeSet == CODE_CODE_A ? CODE_CODE_B : CODE_CODE_A;</span>
+      }
+
+<span class="fc" id="L504">    }</span>
+
+<span class="fc" id="L506">    int lastPatternSize = nextStart - lastStart;</span>
+
+    // Check for ample whitespace following pattern, but, to do this we first need to remember that
+    // we fudged decoding CODE_STOP since it actually has 7 bars, not 6. There is a black bar left
+    // to read off. Would be slightly better to properly read. Here we just skip it:
+<span class="fc" id="L511">    nextStart = row.getNextUnset(nextStart);</span>
+<span class="fc bfc" id="L512" title="All 2 branches covered.">    if (!row.isRange(nextStart,</span>
+<span class="fc" id="L513">                     Math.min(row.getSize(), nextStart + (nextStart - lastStart) / 2),</span>
+                     false)) {
+<span class="fc" id="L515">      throw NotFoundException.getNotFoundInstance();</span>
+    }
+
+    // Pull out from sum the value of the penultimate check code
+<span class="fc" id="L519">    checksumTotal -= multiplier * lastCode;</span>
+    // lastCode is the checksum then:
+<span class="fc bfc" id="L521" title="All 2 branches covered.">    if (checksumTotal % 103 != lastCode) {</span>
+<span class="fc" id="L522">      throw ChecksumException.getChecksumInstance();</span>
+    }
+
+    // Need to pull out the check digits from string
+<span class="fc" id="L526">    int resultLength = result.length();</span>
+<span class="pc bpc" id="L527" title="1 of 2 branches missed.">    if (resultLength == 0) {</span>
+      // false positive
+<span class="nc" id="L529">      throw NotFoundException.getNotFoundInstance();</span>
+    }
+
+    // Only bother if the result had at least one character, and if the checksum digit happened to
+    // be a printable character. If it was just interpreted as a control code, nothing to remove.
+<span class="pc bpc" id="L534" title="1 of 4 branches missed.">    if (resultLength &gt; 0 &amp;&amp; lastCharacterWasPrintable) {</span>
+<span class="fc bfc" id="L535" title="All 2 branches covered.">      if (codeSet == CODE_CODE_C) {</span>
+<span class="fc" id="L536">        result.delete(resultLength - 2, resultLength);</span>
+      } else {
+<span class="fc" id="L538">        result.delete(resultLength - 1, resultLength);</span>
+      }
+    }
+
+<span class="fc" id="L542">    float left = (startPatternInfo[1] + startPatternInfo[0]) / 2.0f;</span>
+<span class="fc" id="L543">    float right = lastStart + lastPatternSize / 2.0f;</span>
+
+<span class="fc" id="L545">    int rawCodesSize = rawCodes.size();</span>
+<span class="fc" id="L546">    byte[] rawBytes = new byte[rawCodesSize];</span>
+<span class="fc bfc" id="L547" title="All 2 branches covered.">    for (int i = 0; i &lt; rawCodesSize; i++) {</span>
+<span class="fc" id="L548">      rawBytes[i] = rawCodes.get(i);</span>
+    }
+<span class="fc" id="L550">    Result resultObject = new Result(</span>
+<span class="fc" id="L551">        result.toString(),</span>
+        rawBytes,
+        new ResultPoint[]{
+            new ResultPoint(left, rowNumber),
+            new ResultPoint(right, rowNumber)},
+        BarcodeFormat.CODE_128);
+<span class="fc" id="L557">    resultObject.putMetadata(ResultMetadataType.SYMBOLOGY_IDENTIFIER, &quot;]C&quot; + symbologyModifier);</span>
+<span class="fc" id="L558">    return resultObject;</span>
+
+  }
+
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.11.202310140853</span></div></body></html>

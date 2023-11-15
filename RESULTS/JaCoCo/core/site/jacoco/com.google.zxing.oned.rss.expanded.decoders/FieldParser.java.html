@@ -1,0 +1,308 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>FieldParser.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">ZXing Core</a> &gt; <a href="index.source.html" class="el_package">com.google.zxing.oned.rss.expanded.decoders</a> &gt; <span class="el_source">FieldParser.java</span></div><h1>FieldParser.java</h1><pre class="source lang-java linenums">/*
+ * Copyright (C) 2010 ZXing authors
+ *
+ * Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an &quot;AS IS&quot; BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+/*
+ * These authors would like to acknowledge the Spanish Ministry of Industry,
+ * Tourism and Trade, for the support in the project TSI020301-2008-2
+ * &quot;PIRAmIDE: Personalizable Interactions with Resources on AmI-enabled
+ * Mobile Dynamic Environments&quot;, led by Treelogic
+ * ( http://www.treelogic.com/ ):
+ *
+ *   http://www.piramidepse.com/
+ */
+
+package com.google.zxing.oned.rss.expanded.decoders;
+
+import com.google.zxing.NotFoundException;
+
+import java.util.HashMap;
+import java.util.Map;
+
+/**
+ * @author Pablo Orduña, University of Deusto (pablo.orduna@deusto.es)
+ * @author Eduardo Castillejo, University of Deusto (eduardo.castillejo@deusto.es)
+ */
+final class FieldParser {
+
+<span class="fc" id="L40">  private static final Map&lt;String,DataLength&gt; TWO_DIGIT_DATA_LENGTH = new HashMap&lt;&gt;();</span>
+  static {
+<span class="fc" id="L42">    TWO_DIGIT_DATA_LENGTH.put(&quot;00&quot;, DataLength.fixed(18));</span>
+<span class="fc" id="L43">    TWO_DIGIT_DATA_LENGTH.put(&quot;01&quot;, DataLength.fixed(14));</span>
+<span class="fc" id="L44">    TWO_DIGIT_DATA_LENGTH.put(&quot;02&quot;, DataLength.fixed(14));</span>
+<span class="fc" id="L45">    TWO_DIGIT_DATA_LENGTH.put(&quot;10&quot;, DataLength.variable(20));</span>
+<span class="fc" id="L46">    TWO_DIGIT_DATA_LENGTH.put(&quot;11&quot;, DataLength.fixed(6));</span>
+<span class="fc" id="L47">    TWO_DIGIT_DATA_LENGTH.put(&quot;12&quot;, DataLength.fixed(6));</span>
+<span class="fc" id="L48">    TWO_DIGIT_DATA_LENGTH.put(&quot;13&quot;, DataLength.fixed(6));</span>
+<span class="fc" id="L49">    TWO_DIGIT_DATA_LENGTH.put(&quot;15&quot;, DataLength.fixed(6));</span>
+<span class="fc" id="L50">    TWO_DIGIT_DATA_LENGTH.put(&quot;16&quot;, DataLength.fixed(6));</span>
+<span class="fc" id="L51">    TWO_DIGIT_DATA_LENGTH.put(&quot;17&quot;, DataLength.fixed(6));</span>
+<span class="fc" id="L52">    TWO_DIGIT_DATA_LENGTH.put(&quot;20&quot;, DataLength.fixed(2));</span>
+<span class="fc" id="L53">    TWO_DIGIT_DATA_LENGTH.put(&quot;21&quot;, DataLength.variable(20));</span>
+<span class="fc" id="L54">    TWO_DIGIT_DATA_LENGTH.put(&quot;22&quot;, DataLength.variable(29)); // limited to 20 in latest versions of spec</span>
+<span class="fc" id="L55">    TWO_DIGIT_DATA_LENGTH.put(&quot;30&quot;, DataLength.variable(8));</span>
+<span class="fc" id="L56">    TWO_DIGIT_DATA_LENGTH.put(&quot;37&quot;, DataLength.variable(8));</span>
+    //internal company codes
+<span class="fc bfc" id="L58" title="All 2 branches covered.">    for (int i = 90; i &lt;= 99; i++) {</span>
+<span class="fc" id="L59">      TWO_DIGIT_DATA_LENGTH.put(String.valueOf(i), DataLength.variable(30));</span>
+    }
+  }
+
+<span class="fc" id="L63">  private static final Map&lt;String,DataLength&gt; THREE_DIGIT_DATA_LENGTH = new HashMap&lt;&gt;();</span>
+  static {
+<span class="fc" id="L65">    THREE_DIGIT_DATA_LENGTH.put(&quot;235&quot;, DataLength.variable(28));</span>
+<span class="fc" id="L66">    THREE_DIGIT_DATA_LENGTH.put(&quot;240&quot;, DataLength.variable(30));</span>
+<span class="fc" id="L67">    THREE_DIGIT_DATA_LENGTH.put(&quot;241&quot;, DataLength.variable(30));</span>
+<span class="fc" id="L68">    THREE_DIGIT_DATA_LENGTH.put(&quot;242&quot;, DataLength.variable(6));</span>
+<span class="fc" id="L69">    THREE_DIGIT_DATA_LENGTH.put(&quot;243&quot;, DataLength.variable(20));</span>
+<span class="fc" id="L70">    THREE_DIGIT_DATA_LENGTH.put(&quot;250&quot;, DataLength.variable(30));</span>
+<span class="fc" id="L71">    THREE_DIGIT_DATA_LENGTH.put(&quot;251&quot;, DataLength.variable(30));</span>
+<span class="fc" id="L72">    THREE_DIGIT_DATA_LENGTH.put(&quot;253&quot;, DataLength.variable(30));</span>
+<span class="fc" id="L73">    THREE_DIGIT_DATA_LENGTH.put(&quot;254&quot;, DataLength.variable(20));</span>
+<span class="fc" id="L74">    THREE_DIGIT_DATA_LENGTH.put(&quot;255&quot;, DataLength.variable(25));</span>
+<span class="fc" id="L75">    THREE_DIGIT_DATA_LENGTH.put(&quot;400&quot;, DataLength.variable(30));</span>
+<span class="fc" id="L76">    THREE_DIGIT_DATA_LENGTH.put(&quot;401&quot;, DataLength.variable(30));</span>
+<span class="fc" id="L77">    THREE_DIGIT_DATA_LENGTH.put(&quot;402&quot;, DataLength.fixed(17));</span>
+<span class="fc" id="L78">    THREE_DIGIT_DATA_LENGTH.put(&quot;403&quot;, DataLength.variable(30));</span>
+<span class="fc" id="L79">    THREE_DIGIT_DATA_LENGTH.put(&quot;410&quot;, DataLength.fixed(13));</span>
+<span class="fc" id="L80">    THREE_DIGIT_DATA_LENGTH.put(&quot;411&quot;, DataLength.fixed(13));</span>
+<span class="fc" id="L81">    THREE_DIGIT_DATA_LENGTH.put(&quot;412&quot;, DataLength.fixed(13));</span>
+<span class="fc" id="L82">    THREE_DIGIT_DATA_LENGTH.put(&quot;413&quot;, DataLength.fixed(13));</span>
+<span class="fc" id="L83">    THREE_DIGIT_DATA_LENGTH.put(&quot;414&quot;, DataLength.fixed(13));</span>
+<span class="fc" id="L84">    THREE_DIGIT_DATA_LENGTH.put(&quot;415&quot;, DataLength.fixed(13));</span>
+<span class="fc" id="L85">    THREE_DIGIT_DATA_LENGTH.put(&quot;416&quot;, DataLength.fixed(13));</span>
+<span class="fc" id="L86">    THREE_DIGIT_DATA_LENGTH.put(&quot;417&quot;, DataLength.fixed(13));</span>
+<span class="fc" id="L87">    THREE_DIGIT_DATA_LENGTH.put(&quot;420&quot;, DataLength.variable(20));</span>
+<span class="fc" id="L88">    THREE_DIGIT_DATA_LENGTH.put(&quot;421&quot;, DataLength.variable(15)); // limited to 12 in latest versions of spec</span>
+<span class="fc" id="L89">    THREE_DIGIT_DATA_LENGTH.put(&quot;422&quot;, DataLength.fixed(3));</span>
+<span class="fc" id="L90">    THREE_DIGIT_DATA_LENGTH.put(&quot;423&quot;, DataLength.variable(15));</span>
+<span class="fc" id="L91">    THREE_DIGIT_DATA_LENGTH.put(&quot;424&quot;, DataLength.fixed(3));</span>
+<span class="fc" id="L92">    THREE_DIGIT_DATA_LENGTH.put(&quot;425&quot;, DataLength.variable(15));</span>
+<span class="fc" id="L93">    THREE_DIGIT_DATA_LENGTH.put(&quot;426&quot;, DataLength.fixed(3));</span>
+<span class="fc" id="L94">    THREE_DIGIT_DATA_LENGTH.put(&quot;427&quot;, DataLength.variable(3));</span>
+<span class="fc" id="L95">    THREE_DIGIT_DATA_LENGTH.put(&quot;710&quot;, DataLength.variable(20));</span>
+<span class="fc" id="L96">    THREE_DIGIT_DATA_LENGTH.put(&quot;711&quot;, DataLength.variable(20));</span>
+<span class="fc" id="L97">    THREE_DIGIT_DATA_LENGTH.put(&quot;712&quot;, DataLength.variable(20));</span>
+<span class="fc" id="L98">    THREE_DIGIT_DATA_LENGTH.put(&quot;713&quot;, DataLength.variable(20));</span>
+<span class="fc" id="L99">    THREE_DIGIT_DATA_LENGTH.put(&quot;714&quot;, DataLength.variable(20));</span>
+<span class="fc" id="L100">    THREE_DIGIT_DATA_LENGTH.put(&quot;715&quot;, DataLength.variable(20));</span>
+  }
+
+<span class="fc" id="L103">  private static final Map&lt;String,DataLength&gt; THREE_DIGIT_PLUS_DIGIT_DATA_LENGTH = new HashMap&lt;&gt;();</span>
+  static {
+<span class="fc bfc" id="L105" title="All 2 branches covered.">    for (int i = 310; i &lt;= 316; i++) {</span>
+<span class="fc" id="L106">      THREE_DIGIT_PLUS_DIGIT_DATA_LENGTH.put(String.valueOf(i), DataLength.fixed(6));</span>
+    }
+<span class="fc bfc" id="L108" title="All 2 branches covered.">    for (int i = 320; i &lt;= 337; i++) {</span>
+<span class="fc" id="L109">      THREE_DIGIT_PLUS_DIGIT_DATA_LENGTH.put(String.valueOf(i), DataLength.fixed(6));</span>
+    }
+<span class="fc bfc" id="L111" title="All 2 branches covered.">    for (int i = 340; i &lt;= 357; i++) {</span>
+<span class="fc" id="L112">      THREE_DIGIT_PLUS_DIGIT_DATA_LENGTH.put(String.valueOf(i), DataLength.fixed(6));</span>
+    }
+<span class="fc bfc" id="L114" title="All 2 branches covered.">    for (int i = 360; i &lt;= 369; i++) {</span>
+<span class="fc" id="L115">      THREE_DIGIT_PLUS_DIGIT_DATA_LENGTH.put(String.valueOf(i), DataLength.fixed(6));</span>
+    }
+<span class="fc" id="L117">    THREE_DIGIT_PLUS_DIGIT_DATA_LENGTH.put(&quot;390&quot;, DataLength.variable(15));</span>
+<span class="fc" id="L118">    THREE_DIGIT_PLUS_DIGIT_DATA_LENGTH.put(&quot;391&quot;, DataLength.variable(18));</span>
+<span class="fc" id="L119">    THREE_DIGIT_PLUS_DIGIT_DATA_LENGTH.put(&quot;392&quot;, DataLength.variable(15));</span>
+<span class="fc" id="L120">    THREE_DIGIT_PLUS_DIGIT_DATA_LENGTH.put(&quot;393&quot;, DataLength.variable(18));</span>
+<span class="fc" id="L121">    THREE_DIGIT_PLUS_DIGIT_DATA_LENGTH.put(&quot;394&quot;, DataLength.fixed(4));</span>
+<span class="fc" id="L122">    THREE_DIGIT_PLUS_DIGIT_DATA_LENGTH.put(&quot;395&quot;, DataLength.fixed(6));</span>
+<span class="fc" id="L123">    THREE_DIGIT_PLUS_DIGIT_DATA_LENGTH.put(&quot;703&quot;, DataLength.variable(30));</span>
+<span class="fc" id="L124">    THREE_DIGIT_PLUS_DIGIT_DATA_LENGTH.put(&quot;723&quot;, DataLength.variable(30));</span>
+  }
+
+<span class="fc" id="L127">  private static final Map&lt;String,DataLength&gt; FOUR_DIGIT_DATA_LENGTH = new HashMap&lt;&gt;();</span>
+  static {
+<span class="fc" id="L129">    FOUR_DIGIT_DATA_LENGTH.put(&quot;4300&quot;, DataLength.variable(35));</span>
+<span class="fc" id="L130">    FOUR_DIGIT_DATA_LENGTH.put(&quot;4301&quot;, DataLength.variable(35));</span>
+<span class="fc" id="L131">    FOUR_DIGIT_DATA_LENGTH.put(&quot;4302&quot;, DataLength.variable(70));</span>
+<span class="fc" id="L132">    FOUR_DIGIT_DATA_LENGTH.put(&quot;4303&quot;, DataLength.variable(70));</span>
+<span class="fc" id="L133">    FOUR_DIGIT_DATA_LENGTH.put(&quot;4304&quot;, DataLength.variable(70));</span>
+<span class="fc" id="L134">    FOUR_DIGIT_DATA_LENGTH.put(&quot;4305&quot;, DataLength.variable(70));</span>
+<span class="fc" id="L135">    FOUR_DIGIT_DATA_LENGTH.put(&quot;4306&quot;, DataLength.variable(70));</span>
+<span class="fc" id="L136">    FOUR_DIGIT_DATA_LENGTH.put(&quot;4307&quot;, DataLength.fixed(2));</span>
+<span class="fc" id="L137">    FOUR_DIGIT_DATA_LENGTH.put(&quot;4308&quot;, DataLength.variable(30));</span>
+<span class="fc" id="L138">    FOUR_DIGIT_DATA_LENGTH.put(&quot;4309&quot;, DataLength.fixed(20));</span>
+<span class="fc" id="L139">    FOUR_DIGIT_DATA_LENGTH.put(&quot;4310&quot;, DataLength.variable(35));</span>
+<span class="fc" id="L140">    FOUR_DIGIT_DATA_LENGTH.put(&quot;4311&quot;, DataLength.variable(35));</span>
+<span class="fc" id="L141">    FOUR_DIGIT_DATA_LENGTH.put(&quot;4312&quot;, DataLength.variable(70));</span>
+<span class="fc" id="L142">    FOUR_DIGIT_DATA_LENGTH.put(&quot;4313&quot;, DataLength.variable(70));</span>
+<span class="fc" id="L143">    FOUR_DIGIT_DATA_LENGTH.put(&quot;4314&quot;, DataLength.variable(70));</span>
+<span class="fc" id="L144">    FOUR_DIGIT_DATA_LENGTH.put(&quot;4315&quot;, DataLength.variable(70));</span>
+<span class="fc" id="L145">    FOUR_DIGIT_DATA_LENGTH.put(&quot;4316&quot;, DataLength.variable(70));</span>
+<span class="fc" id="L146">    FOUR_DIGIT_DATA_LENGTH.put(&quot;4317&quot;, DataLength.fixed(2));</span>
+<span class="fc" id="L147">    FOUR_DIGIT_DATA_LENGTH.put(&quot;4318&quot;, DataLength.variable(20));</span>
+<span class="fc" id="L148">    FOUR_DIGIT_DATA_LENGTH.put(&quot;4319&quot;, DataLength.variable(30));</span>
+<span class="fc" id="L149">    FOUR_DIGIT_DATA_LENGTH.put(&quot;4320&quot;, DataLength.variable(35));</span>
+<span class="fc" id="L150">    FOUR_DIGIT_DATA_LENGTH.put(&quot;4321&quot;, DataLength.fixed(1));</span>
+<span class="fc" id="L151">    FOUR_DIGIT_DATA_LENGTH.put(&quot;4322&quot;, DataLength.fixed(1));</span>
+<span class="fc" id="L152">    FOUR_DIGIT_DATA_LENGTH.put(&quot;4323&quot;, DataLength.fixed(1));</span>
+<span class="fc" id="L153">    FOUR_DIGIT_DATA_LENGTH.put(&quot;4324&quot;, DataLength.fixed(10));</span>
+<span class="fc" id="L154">    FOUR_DIGIT_DATA_LENGTH.put(&quot;4325&quot;, DataLength.fixed(10));</span>
+<span class="fc" id="L155">    FOUR_DIGIT_DATA_LENGTH.put(&quot;4326&quot;, DataLength.fixed(6));</span>
+<span class="fc" id="L156">    FOUR_DIGIT_DATA_LENGTH.put(&quot;7001&quot;, DataLength.fixed(13));</span>
+<span class="fc" id="L157">    FOUR_DIGIT_DATA_LENGTH.put(&quot;7002&quot;, DataLength.variable(30));</span>
+<span class="fc" id="L158">    FOUR_DIGIT_DATA_LENGTH.put(&quot;7003&quot;, DataLength.fixed(10));</span>
+<span class="fc" id="L159">    FOUR_DIGIT_DATA_LENGTH.put(&quot;7004&quot;, DataLength.variable(4));</span>
+<span class="fc" id="L160">    FOUR_DIGIT_DATA_LENGTH.put(&quot;7005&quot;, DataLength.variable(12));</span>
+<span class="fc" id="L161">    FOUR_DIGIT_DATA_LENGTH.put(&quot;7006&quot;, DataLength.fixed(6));</span>
+<span class="fc" id="L162">    FOUR_DIGIT_DATA_LENGTH.put(&quot;7007&quot;, DataLength.variable(12));</span>
+<span class="fc" id="L163">    FOUR_DIGIT_DATA_LENGTH.put(&quot;7008&quot;, DataLength.variable(3));</span>
+<span class="fc" id="L164">    FOUR_DIGIT_DATA_LENGTH.put(&quot;7009&quot;, DataLength.variable(10));</span>
+<span class="fc" id="L165">    FOUR_DIGIT_DATA_LENGTH.put(&quot;7010&quot;, DataLength.variable(2));</span>
+<span class="fc" id="L166">    FOUR_DIGIT_DATA_LENGTH.put(&quot;7011&quot;, DataLength.variable(10));</span>
+<span class="fc" id="L167">    FOUR_DIGIT_DATA_LENGTH.put(&quot;7020&quot;, DataLength.variable(20));</span>
+<span class="fc" id="L168">    FOUR_DIGIT_DATA_LENGTH.put(&quot;7021&quot;, DataLength.variable(20));</span>
+<span class="fc" id="L169">    FOUR_DIGIT_DATA_LENGTH.put(&quot;7022&quot;, DataLength.variable(20));</span>
+<span class="fc" id="L170">    FOUR_DIGIT_DATA_LENGTH.put(&quot;7023&quot;, DataLength.variable(30));</span>
+<span class="fc" id="L171">    FOUR_DIGIT_DATA_LENGTH.put(&quot;7040&quot;, DataLength.fixed(4));</span>
+<span class="fc" id="L172">    FOUR_DIGIT_DATA_LENGTH.put(&quot;7240&quot;, DataLength.variable(20));</span>
+<span class="fc" id="L173">    FOUR_DIGIT_DATA_LENGTH.put(&quot;8001&quot;, DataLength.fixed(14));</span>
+<span class="fc" id="L174">    FOUR_DIGIT_DATA_LENGTH.put(&quot;8002&quot;, DataLength.variable(20));</span>
+<span class="fc" id="L175">    FOUR_DIGIT_DATA_LENGTH.put(&quot;8003&quot;, DataLength.variable(30));</span>
+<span class="fc" id="L176">    FOUR_DIGIT_DATA_LENGTH.put(&quot;8004&quot;, DataLength.variable(30));</span>
+<span class="fc" id="L177">    FOUR_DIGIT_DATA_LENGTH.put(&quot;8005&quot;, DataLength.fixed(6));</span>
+<span class="fc" id="L178">    FOUR_DIGIT_DATA_LENGTH.put(&quot;8006&quot;, DataLength.fixed(18));</span>
+<span class="fc" id="L179">    FOUR_DIGIT_DATA_LENGTH.put(&quot;8007&quot;, DataLength.variable(34));</span>
+<span class="fc" id="L180">    FOUR_DIGIT_DATA_LENGTH.put(&quot;8008&quot;, DataLength.variable(12));</span>
+<span class="fc" id="L181">    FOUR_DIGIT_DATA_LENGTH.put(&quot;8009&quot;, DataLength.variable(50));</span>
+<span class="fc" id="L182">    FOUR_DIGIT_DATA_LENGTH.put(&quot;8010&quot;, DataLength.variable(30));</span>
+<span class="fc" id="L183">    FOUR_DIGIT_DATA_LENGTH.put(&quot;8011&quot;, DataLength.variable(12));</span>
+<span class="fc" id="L184">    FOUR_DIGIT_DATA_LENGTH.put(&quot;8012&quot;, DataLength.variable(20));</span>
+<span class="fc" id="L185">    FOUR_DIGIT_DATA_LENGTH.put(&quot;8013&quot;, DataLength.variable(25));</span>
+<span class="fc" id="L186">    FOUR_DIGIT_DATA_LENGTH.put(&quot;8017&quot;, DataLength.fixed(18));</span>
+<span class="fc" id="L187">    FOUR_DIGIT_DATA_LENGTH.put(&quot;8018&quot;, DataLength.fixed(18));</span>
+<span class="fc" id="L188">    FOUR_DIGIT_DATA_LENGTH.put(&quot;8019&quot;, DataLength.variable(10));</span>
+<span class="fc" id="L189">    FOUR_DIGIT_DATA_LENGTH.put(&quot;8020&quot;, DataLength.variable(25));</span>
+<span class="fc" id="L190">    FOUR_DIGIT_DATA_LENGTH.put(&quot;8026&quot;, DataLength.fixed(18));</span>
+<span class="fc" id="L191">    FOUR_DIGIT_DATA_LENGTH.put(&quot;8100&quot;, DataLength.fixed(6)); // removed from latest versions of spec</span>
+<span class="fc" id="L192">    FOUR_DIGIT_DATA_LENGTH.put(&quot;8101&quot;, DataLength.fixed(10)); // removed from latest versions of spec</span>
+<span class="fc" id="L193">    FOUR_DIGIT_DATA_LENGTH.put(&quot;8102&quot;, DataLength.fixed(2)); // removed from latest versions of spec</span>
+<span class="fc" id="L194">    FOUR_DIGIT_DATA_LENGTH.put(&quot;8110&quot;, DataLength.variable(70));</span>
+<span class="fc" id="L195">    FOUR_DIGIT_DATA_LENGTH.put(&quot;8111&quot;, DataLength.fixed(4));</span>
+<span class="fc" id="L196">    FOUR_DIGIT_DATA_LENGTH.put(&quot;8112&quot;, DataLength.variable(70));</span>
+<span class="fc" id="L197">    FOUR_DIGIT_DATA_LENGTH.put(&quot;8200&quot;, DataLength.variable(70));</span>
+<span class="fc" id="L198">  }</span>
+
+  private FieldParser() {
+  }
+
+  static String parseFieldsInGeneralPurpose(String rawInformation) throws NotFoundException {
+<span class="fc bfc" id="L204" title="All 2 branches covered.">    if (rawInformation.isEmpty()) {</span>
+<span class="fc" id="L205">      return null;</span>
+    }
+
+    // Processing 2-digit AIs
+
+<span class="pc bpc" id="L210" title="1 of 2 branches missed.">    if (rawInformation.length() &lt; 2) {</span>
+<span class="nc" id="L211">      throw NotFoundException.getNotFoundInstance();</span>
+    }
+
+<span class="fc" id="L214">    DataLength twoDigitDataLength = TWO_DIGIT_DATA_LENGTH.get(rawInformation.substring(0, 2));</span>
+<span class="fc bfc" id="L215" title="All 2 branches covered.">    if (twoDigitDataLength != null) {</span>
+<span class="fc bfc" id="L216" title="All 2 branches covered.">      if (twoDigitDataLength.variable) {</span>
+<span class="fc" id="L217">        return processVariableAI(2, twoDigitDataLength.length, rawInformation);</span>
+      }
+<span class="fc" id="L219">      return processFixedAI(2, twoDigitDataLength.length, rawInformation);</span>
+    }
+
+<span class="pc bpc" id="L222" title="1 of 2 branches missed.">    if (rawInformation.length() &lt; 3) {</span>
+<span class="nc" id="L223">      throw NotFoundException.getNotFoundInstance();</span>
+    }
+
+<span class="fc" id="L226">    String firstThreeDigits = rawInformation.substring(0, 3);</span>
+<span class="fc" id="L227">    DataLength threeDigitDataLength = THREE_DIGIT_DATA_LENGTH.get(firstThreeDigits);</span>
+<span class="fc bfc" id="L228" title="All 2 branches covered.">    if (threeDigitDataLength != null) {</span>
+<span class="fc bfc" id="L229" title="All 2 branches covered.">      if (threeDigitDataLength.variable) {</span>
+<span class="fc" id="L230">        return processVariableAI(3, threeDigitDataLength.length, rawInformation);</span>
+      }
+<span class="fc" id="L232">      return processFixedAI(3, threeDigitDataLength.length, rawInformation);</span>
+    }
+
+<span class="pc bpc" id="L235" title="1 of 2 branches missed.">    if (rawInformation.length() &lt; 4) {</span>
+<span class="nc" id="L236">      throw NotFoundException.getNotFoundInstance();</span>
+    }
+
+<span class="fc" id="L239">    DataLength threeDigitPlusDigitDataLength = THREE_DIGIT_PLUS_DIGIT_DATA_LENGTH.get(firstThreeDigits);</span>
+<span class="fc bfc" id="L240" title="All 2 branches covered.">    if (threeDigitPlusDigitDataLength != null) {</span>
+<span class="pc bpc" id="L241" title="1 of 2 branches missed.">      if (threeDigitPlusDigitDataLength.variable) {</span>
+<span class="nc" id="L242">        return processVariableAI(4, threeDigitPlusDigitDataLength.length, rawInformation);</span>
+      }
+<span class="fc" id="L244">      return processFixedAI(4, threeDigitPlusDigitDataLength.length, rawInformation);</span>
+    }
+
+<span class="fc" id="L247">    DataLength firstFourDigitLength = FOUR_DIGIT_DATA_LENGTH.get(rawInformation.substring(0, 4));</span>
+<span class="fc bfc" id="L248" title="All 2 branches covered.">    if (firstFourDigitLength != null) {</span>
+<span class="pc bpc" id="L249" title="1 of 2 branches missed.">      if (firstFourDigitLength.variable) {</span>
+<span class="fc" id="L250">        return processVariableAI(4, firstFourDigitLength.length, rawInformation);</span>
+      }
+<span class="nc" id="L252">      return processFixedAI(4, firstFourDigitLength.length, rawInformation);</span>
+    }
+
+<span class="fc" id="L255">    throw NotFoundException.getNotFoundInstance();</span>
+  }
+
+  private static String processFixedAI(int aiSize, int fieldSize, String rawInformation) throws NotFoundException {
+<span class="pc bpc" id="L259" title="1 of 2 branches missed.">    if (rawInformation.length() &lt; aiSize) {</span>
+<span class="nc" id="L260">      throw NotFoundException.getNotFoundInstance();</span>
+    }
+
+<span class="fc" id="L263">    String ai = rawInformation.substring(0, aiSize);</span>
+
+<span class="pc bpc" id="L265" title="1 of 2 branches missed.">    if (rawInformation.length() &lt; aiSize + fieldSize) {</span>
+<span class="nc" id="L266">      throw NotFoundException.getNotFoundInstance();</span>
+    }
+
+<span class="fc" id="L269">    String field = rawInformation.substring(aiSize, aiSize + fieldSize);</span>
+<span class="fc" id="L270">    String remaining = rawInformation.substring(aiSize + fieldSize);</span>
+<span class="fc" id="L271">    String result = '(' + ai + ')' + field;</span>
+<span class="fc" id="L272">    String parsedAI = parseFieldsInGeneralPurpose(remaining);</span>
+<span class="fc bfc" id="L273" title="All 2 branches covered.">    return parsedAI == null ? result : result + parsedAI;</span>
+  }
+
+  private static String processVariableAI(int aiSize, int variableFieldSize, String rawInformation)
+      throws NotFoundException {
+<span class="fc" id="L278">    String ai = rawInformation.substring(0, aiSize);</span>
+<span class="fc" id="L279">    int maxSize = Math.min(rawInformation.length(), aiSize + variableFieldSize);</span>
+<span class="fc" id="L280">    String field = rawInformation.substring(aiSize, maxSize);</span>
+<span class="fc" id="L281">    String remaining = rawInformation.substring(maxSize);</span>
+<span class="fc" id="L282">    String result = '(' + ai + ')' + field;</span>
+<span class="fc" id="L283">    String parsedAI = parseFieldsInGeneralPurpose(remaining);</span>
+<span class="pc bpc" id="L284" title="1 of 2 branches missed.">    return parsedAI == null ? result : result + parsedAI;</span>
+  }
+
+  private static final class DataLength {
+
+    final boolean variable;
+    final int length;
+
+<span class="fc" id="L292">    private DataLength(boolean variable, int length) {</span>
+<span class="fc" id="L293">      this.variable = variable;</span>
+<span class="fc" id="L294">      this.length = length;</span>
+<span class="fc" id="L295">    }</span>
+
+    static DataLength fixed(int length) {
+<span class="fc" id="L298">      return new DataLength(false, length);</span>
+    }
+
+    static DataLength variable(int length) {
+<span class="fc" id="L302">      return new DataLength(true, length);</span>
+    }
+
+  }
+
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.11.202310140853</span></div></body></html>

@@ -1,0 +1,508 @@
+
+
+
+<!DOCTYPE html>
+<html id="htmlId">
+<head>
+  <meta http-equiv="Content-Type" content="text/html;charset=windows-1252"> 
+  <title>Coverage Report > Encoder</title>
+  <style type="text/css">
+    @import "../../css/coverage.css";
+    @import "../../css/idea.min.css";
+  </style>
+  <script type="text/javascript" src="../../js/highlight.min.js"></script>
+  <script type="text/javascript" src="../../js/highlightjs-line-numbers.min.js"></script>
+</head>
+
+<body>
+<div class="content">
+<div class="breadCrumbs">
+Current scope:     <a href="../../index.html">all classes</a>
+    <span class="separator">|</span>
+    <a href="../index.html">com.google.zxing.aztec.encoder</a>
+</div>
+
+<h1>Coverage Summary for Class: Encoder (com.google.zxing.aztec.encoder)</h1>
+
+<table class="coverageStats">
+<tr>
+  <th class="name">Class</th>
+<th class="coverageStat 
+">
+  Class, %
+</th>
+<th class="coverageStat 
+">
+  Method, %
+</th>
+<th class="coverageStat 
+">
+  Line, %
+</th>
+</tr>
+<tr>
+  <td class="name">Encoder</td>
+<td class="coverageStat">
+  <span class="percent">
+    100%
+  </span>
+  <span class="absValue">
+    (1/1)
+  </span>
+</td>
+<td class="coverageStat">
+  <span class="percent">
+    80%
+  </span>
+  <span class="absValue">
+    (12/15)
+  </span>
+</td>
+<td class="coverageStat">
+  <span class="percent">
+    97.2%
+  </span>
+  <span class="absValue">
+    (171/176)
+  </span>
+</td>
+</tr>
+
+</table>
+
+<br/>
+<br/>
+
+
+<pre>
+<code class="sourceCode" id="sourceCode">&nbsp;/*
+&nbsp; * Copyright 2013 ZXing authors
+&nbsp; *
+&nbsp; * Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
+&nbsp; * you may not use this file except in compliance with the License.
+&nbsp; * You may obtain a copy of the License at
+&nbsp; *
+&nbsp; *      http://www.apache.org/licenses/LICENSE-2.0
+&nbsp; *
+&nbsp; * Unless required by applicable law or agreed to in writing, software
+&nbsp; * distributed under the License is distributed on an &quot;AS IS&quot; BASIS,
+&nbsp; * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+&nbsp; * See the License for the specific language governing permissions and
+&nbsp; * limitations under the License.
+&nbsp; */
+&nbsp;
+&nbsp;package com.google.zxing.aztec.encoder;
+&nbsp;
+&nbsp;import com.google.zxing.common.BitArray;
+&nbsp;import com.google.zxing.common.BitMatrix;
+&nbsp;import com.google.zxing.common.reedsolomon.GenericGF;
+&nbsp;import com.google.zxing.common.reedsolomon.ReedSolomonEncoder;
+&nbsp;
+&nbsp;import java.nio.charset.Charset;
+&nbsp;import java.nio.charset.StandardCharsets;
+&nbsp;
+&nbsp;/**
+&nbsp; * Generates Aztec 2D barcodes.
+&nbsp; *
+&nbsp; * @author Rustam Abdullaev
+&nbsp; */
+&nbsp;public final class Encoder {
+&nbsp;
+&nbsp;  public static final int DEFAULT_EC_PERCENT = 33; // default minimal percentage of error check words
+&nbsp;  public static final int DEFAULT_AZTEC_LAYERS = 0;
+&nbsp;  private static final int MAX_NB_BITS = 32;
+&nbsp;  private static final int MAX_NB_BITS_COMPACT = 4;
+&nbsp;
+<b class="fc">&nbsp;  private static final int[] WORD_SIZE = {</b>
+&nbsp;    4, 6, 6, 8, 8, 8, 8, 8, 8, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10,
+&nbsp;    12, 12, 12, 12, 12, 12, 12, 12, 12, 12
+&nbsp;  };
+&nbsp;
+&nbsp;  private Encoder() {
+&nbsp;  }
+&nbsp;
+&nbsp;  /**
+&nbsp;   * Encodes the given string content as an Aztec symbol (without ECI code)
+&nbsp;   *
+&nbsp;   * @param data input data string; must be encodable as ISO/IEC 8859-1 (Latin-1)
+&nbsp;   * @return Aztec symbol matrix with metadata
+&nbsp;   */
+&nbsp;  public static AztecCode encode(String data) {
+<b class="nc">&nbsp;    return encode(data.getBytes(StandardCharsets.ISO_8859_1));</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  /**
+&nbsp;   * Encodes the given string content as an Aztec symbol (without ECI code)
+&nbsp;   *
+&nbsp;   * @param data input data string; must be encodable as ISO/IEC 8859-1 (Latin-1)
+&nbsp;   * @param minECCPercent minimal percentage of error check words (According to ISO/IEC 24778:2008,
+&nbsp;   *                      a minimum of 23% + 3 words is recommended)
+&nbsp;   * @param userSpecifiedLayers if non-zero, a user-specified value for the number of layers
+&nbsp;   * @return Aztec symbol matrix with metadata
+&nbsp;   */
+&nbsp;  public static AztecCode encode(String data, int minECCPercent, int userSpecifiedLayers) {
+<b class="fc">&nbsp;    return encode(data.getBytes(StandardCharsets.ISO_8859_1), minECCPercent, userSpecifiedLayers, null);</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  /**
+&nbsp;   * Encodes the given string content as an Aztec symbol
+&nbsp;   *
+&nbsp;   * @param data input data string
+&nbsp;   * @param minECCPercent minimal percentage of error check words (According to ISO/IEC 24778:2008,
+&nbsp;   *                      a minimum of 23% + 3 words is recommended)
+&nbsp;   * @param userSpecifiedLayers if non-zero, a user-specified value for the number of layers
+&nbsp;   * @param charset character set in which to encode string using ECI; if null, no ECI code
+&nbsp;   *                will be inserted, and the string must be encodable as ISO/IEC 8859-1
+&nbsp;   *                (Latin-1), the default encoding of the symbol.
+&nbsp;   * @return Aztec symbol matrix with metadata
+&nbsp;   */
+&nbsp;  public static AztecCode encode(String data, int minECCPercent, int userSpecifiedLayers, Charset charset) {
+<b class="fc">&nbsp;    byte[] bytes = data.getBytes(null != charset ? charset : StandardCharsets.ISO_8859_1);</b>
+<b class="fc">&nbsp;    return encode(bytes, minECCPercent, userSpecifiedLayers, charset);</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  /**
+&nbsp;   * Encodes the given binary content as an Aztec symbol (without ECI code)
+&nbsp;   *
+&nbsp;   * @param data input data string
+&nbsp;   * @return Aztec symbol matrix with metadata
+&nbsp;   */
+&nbsp;  public static AztecCode encode(byte[] data) {
+<b class="nc">&nbsp;    return encode(data, DEFAULT_EC_PERCENT, DEFAULT_AZTEC_LAYERS, null);</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  /**
+&nbsp;   * Encodes the given binary content as an Aztec symbol (without ECI code)
+&nbsp;   *
+&nbsp;   * @param data input data string
+&nbsp;   * @param minECCPercent minimal percentage of error check words (According to ISO/IEC 24778:2008,
+&nbsp;   *                      a minimum of 23% + 3 words is recommended)
+&nbsp;   * @param userSpecifiedLayers if non-zero, a user-specified value for the number of layers
+&nbsp;   * @return Aztec symbol matrix with metadata
+&nbsp;   */
+&nbsp;  public static AztecCode encode(byte[] data, int minECCPercent, int userSpecifiedLayers) {
+<b class="nc">&nbsp;    return encode(data, minECCPercent, userSpecifiedLayers, null);</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  /**
+&nbsp;   * Encodes the given binary content as an Aztec symbol
+&nbsp;   *
+&nbsp;   * @param data input data string
+&nbsp;   * @param minECCPercent minimal percentage of error check words (According to ISO/IEC 24778:2008,
+&nbsp;   *                      a minimum of 23% + 3 words is recommended)
+&nbsp;   * @param userSpecifiedLayers if non-zero, a user-specified value for the number of layers
+&nbsp;   * @param charset character set to mark using ECI; if null, no ECI code will be inserted, and the
+&nbsp;   *                default encoding of ISO/IEC 8859-1 will be assuming by readers.
+&nbsp;   * @return Aztec symbol matrix with metadata
+&nbsp;   */
+&nbsp;  public static AztecCode encode(byte[] data, int minECCPercent, int userSpecifiedLayers, Charset charset) {
+&nbsp;    // High-level encode
+<b class="fc">&nbsp;    BitArray bits = new HighLevelEncoder(data, charset).encode();</b>
+&nbsp;
+&nbsp;    // stuff bits and choose symbol size
+<b class="fc">&nbsp;    int eccBits = bits.getSize() * minECCPercent / 100 + 11;</b>
+<b class="fc">&nbsp;    int totalSizeBits = bits.getSize() + eccBits;</b>
+&nbsp;    boolean compact;
+&nbsp;    int layers;
+&nbsp;    int totalBitsInLayer;
+&nbsp;    int wordSize;
+&nbsp;    BitArray stuffedBits;
+<b class="fc">&nbsp;    if (userSpecifiedLayers != DEFAULT_AZTEC_LAYERS) {</b>
+<b class="fc">&nbsp;      compact = userSpecifiedLayers &lt; 0;</b>
+<b class="fc">&nbsp;      layers = Math.abs(userSpecifiedLayers);</b>
+<b class="fc">&nbsp;      if (layers &gt; (compact ? MAX_NB_BITS_COMPACT : MAX_NB_BITS)) {</b>
+<b class="fc">&nbsp;        throw new IllegalArgumentException(</b>
+<b class="fc">&nbsp;            String.format(&quot;Illegal value %s for layers&quot;, userSpecifiedLayers));</b>
+&nbsp;      }
+<b class="fc">&nbsp;      totalBitsInLayer = totalBitsInLayer(layers, compact);</b>
+<b class="fc">&nbsp;      wordSize = WORD_SIZE[layers];</b>
+<b class="fc">&nbsp;      int usableBitsInLayers = totalBitsInLayer - (totalBitsInLayer % wordSize);</b>
+<b class="fc">&nbsp;      stuffedBits = stuffBits(bits, wordSize);</b>
+<b class="fc">&nbsp;      if (stuffedBits.getSize() + eccBits &gt; usableBitsInLayers) {</b>
+<b class="fc">&nbsp;        throw new IllegalArgumentException(&quot;Data to large for user specified layer&quot;);</b>
+&nbsp;      }
+<b class="fc">&nbsp;      if (compact &amp;&amp; stuffedBits.getSize() &gt; wordSize * 64) {</b>
+&nbsp;        // Compact format only allows 64 data words, though C4 can hold more words than that
+<b class="fc">&nbsp;        throw new IllegalArgumentException(&quot;Data to large for user specified layer&quot;);</b>
+&nbsp;      }
+<b class="fc">&nbsp;    } else {</b>
+<b class="fc">&nbsp;      wordSize = 0;</b>
+<b class="fc">&nbsp;      stuffedBits = null;</b>
+&nbsp;      // We look at the possible table sizes in the order Compact1, Compact2, Compact3,
+&nbsp;      // Compact4, Normal4,...  Normal(i) for i &lt; 4 isn&#39;t typically used since Compact(i+1)
+&nbsp;      // is the same size, but has more data.
+<b class="fc">&nbsp;      for (int i = 0; ; i++) {</b>
+<b class="fc">&nbsp;        if (i &gt; MAX_NB_BITS) {</b>
+<b class="nc">&nbsp;          throw new IllegalArgumentException(&quot;Data too large for an Aztec code&quot;);</b>
+&nbsp;        }
+<b class="fc">&nbsp;        compact = i &lt;= 3;</b>
+<b class="fc">&nbsp;        layers = compact ? i + 1 : i;</b>
+<b class="fc">&nbsp;        totalBitsInLayer = totalBitsInLayer(layers, compact);</b>
+<b class="fc">&nbsp;        if (totalSizeBits &gt; totalBitsInLayer) {</b>
+<b class="fc">&nbsp;          continue;</b>
+&nbsp;        }
+&nbsp;        // [Re]stuff the bits if this is the first opportunity, or if the
+&nbsp;        // wordSize has changed
+<b class="fc">&nbsp;        if (stuffedBits == null || wordSize != WORD_SIZE[layers]) {</b>
+<b class="fc">&nbsp;          wordSize = WORD_SIZE[layers];</b>
+<b class="fc">&nbsp;          stuffedBits = stuffBits(bits, wordSize);</b>
+&nbsp;        }
+<b class="fc">&nbsp;        int usableBitsInLayers = totalBitsInLayer - (totalBitsInLayer % wordSize);</b>
+<b class="fc">&nbsp;        if (compact &amp;&amp; stuffedBits.getSize() &gt; wordSize * 64) {</b>
+&nbsp;          // Compact format only allows 64 data words, though C4 can hold more words than that
+<b class="fc">&nbsp;          continue;</b>
+&nbsp;        }
+<b class="fc">&nbsp;        if (stuffedBits.getSize() + eccBits &lt;= usableBitsInLayers) {</b>
+<b class="fc">&nbsp;          break;</b>
+&nbsp;        }
+&nbsp;      }
+&nbsp;    }
+<b class="fc">&nbsp;    BitArray messageBits = generateCheckWords(stuffedBits, totalBitsInLayer, wordSize);</b>
+&nbsp;
+&nbsp;    // generate mode message
+<b class="fc">&nbsp;    int messageSizeInWords = stuffedBits.getSize() / wordSize;</b>
+<b class="fc">&nbsp;    BitArray modeMessage = generateModeMessage(compact, layers, messageSizeInWords);</b>
+&nbsp;
+&nbsp;    // allocate symbol
+<b class="fc">&nbsp;    int baseMatrixSize = (compact ? 11 : 14) + layers * 4; // not including alignment lines</b>
+<b class="fc">&nbsp;    int[] alignmentMap = new int[baseMatrixSize];</b>
+&nbsp;    int matrixSize;
+<b class="fc">&nbsp;    if (compact) {</b>
+&nbsp;      // no alignment marks in compact mode, alignmentMap is a no-op
+<b class="fc">&nbsp;      matrixSize = baseMatrixSize;</b>
+<b class="fc">&nbsp;      for (int i = 0; i &lt; alignmentMap.length; i++) {</b>
+<b class="fc">&nbsp;        alignmentMap[i] = i;</b>
+&nbsp;      }
+&nbsp;    } else {
+<b class="fc">&nbsp;      matrixSize = baseMatrixSize + 1 + 2 * ((baseMatrixSize / 2 - 1) / 15);</b>
+<b class="fc">&nbsp;      int origCenter = baseMatrixSize / 2;</b>
+<b class="fc">&nbsp;      int center = matrixSize / 2;</b>
+<b class="fc">&nbsp;      for (int i = 0; i &lt; origCenter; i++) {</b>
+<b class="fc">&nbsp;        int newOffset = i + i / 15;</b>
+<b class="fc">&nbsp;        alignmentMap[origCenter - i - 1] = center - newOffset - 1;</b>
+<b class="fc">&nbsp;        alignmentMap[origCenter + i] = center + newOffset + 1;</b>
+&nbsp;      }
+&nbsp;    }
+<b class="fc">&nbsp;    BitMatrix matrix = new BitMatrix(matrixSize);</b>
+&nbsp;
+&nbsp;    // draw data bits
+<b class="fc">&nbsp;    for (int i = 0, rowOffset = 0; i &lt; layers; i++) {</b>
+<b class="fc">&nbsp;      int rowSize = (layers - i) * 4 + (compact ? 9 : 12);</b>
+<b class="fc">&nbsp;      for (int j = 0; j &lt; rowSize; j++) {</b>
+<b class="fc">&nbsp;        int columnOffset = j * 2;</b>
+<b class="fc">&nbsp;        for (int k = 0; k &lt; 2; k++) {</b>
+<b class="fc">&nbsp;          if (messageBits.get(rowOffset + columnOffset + k)) {</b>
+<b class="fc">&nbsp;            matrix.set(alignmentMap[i * 2 + k], alignmentMap[i * 2 + j]);</b>
+&nbsp;          }
+<b class="fc">&nbsp;          if (messageBits.get(rowOffset + rowSize * 2 + columnOffset + k)) {</b>
+<b class="fc">&nbsp;            matrix.set(alignmentMap[i * 2 + j], alignmentMap[baseMatrixSize - 1 - i * 2 - k]);</b>
+&nbsp;          }
+<b class="fc">&nbsp;          if (messageBits.get(rowOffset + rowSize * 4 + columnOffset + k)) {</b>
+<b class="fc">&nbsp;            matrix.set(alignmentMap[baseMatrixSize - 1 - i * 2 - k], alignmentMap[baseMatrixSize - 1 - i * 2 - j]);</b>
+&nbsp;          }
+<b class="fc">&nbsp;          if (messageBits.get(rowOffset + rowSize * 6 + columnOffset + k)) {</b>
+<b class="fc">&nbsp;            matrix.set(alignmentMap[baseMatrixSize - 1 - i * 2 - j], alignmentMap[i * 2 + k]);</b>
+&nbsp;          }
+&nbsp;        }
+&nbsp;      }
+<b class="fc">&nbsp;      rowOffset += rowSize * 8;</b>
+&nbsp;    }
+&nbsp;
+&nbsp;    // draw mode message
+<b class="fc">&nbsp;    drawModeMessage(matrix, compact, matrixSize, modeMessage);</b>
+&nbsp;
+&nbsp;    // draw alignment marks
+<b class="fc">&nbsp;    if (compact) {</b>
+<b class="fc">&nbsp;      drawBullsEye(matrix, matrixSize / 2, 5);</b>
+&nbsp;    } else {
+<b class="fc">&nbsp;      drawBullsEye(matrix, matrixSize / 2, 7);</b>
+<b class="fc">&nbsp;      for (int i = 0, j = 0; i &lt; baseMatrixSize / 2 - 1; i += 15, j += 16) {</b>
+<b class="fc">&nbsp;        for (int k = (matrixSize / 2) &amp; 1; k &lt; matrixSize; k += 2) {</b>
+<b class="fc">&nbsp;          matrix.set(matrixSize / 2 - j, k);</b>
+<b class="fc">&nbsp;          matrix.set(matrixSize / 2 + j, k);</b>
+<b class="fc">&nbsp;          matrix.set(k, matrixSize / 2 - j);</b>
+<b class="fc">&nbsp;          matrix.set(k, matrixSize / 2 + j);</b>
+&nbsp;        }
+&nbsp;      }
+&nbsp;    }
+&nbsp;
+<b class="fc">&nbsp;    AztecCode aztec = new AztecCode();</b>
+<b class="fc">&nbsp;    aztec.setCompact(compact);</b>
+<b class="fc">&nbsp;    aztec.setSize(matrixSize);</b>
+<b class="fc">&nbsp;    aztec.setLayers(layers);</b>
+<b class="fc">&nbsp;    aztec.setCodeWords(messageSizeInWords);</b>
+<b class="fc">&nbsp;    aztec.setMatrix(matrix);</b>
+<b class="fc">&nbsp;    return aztec;</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  private static void drawBullsEye(BitMatrix matrix, int center, int size) {
+<b class="fc">&nbsp;    for (int i = 0; i &lt; size; i += 2) {</b>
+<b class="fc">&nbsp;      for (int j = center - i; j &lt;= center + i; j++) {</b>
+<b class="fc">&nbsp;        matrix.set(j, center - i);</b>
+<b class="fc">&nbsp;        matrix.set(j, center + i);</b>
+<b class="fc">&nbsp;        matrix.set(center - i, j);</b>
+<b class="fc">&nbsp;        matrix.set(center + i, j);</b>
+&nbsp;      }
+&nbsp;    }
+<b class="fc">&nbsp;    matrix.set(center - size, center - size);</b>
+<b class="fc">&nbsp;    matrix.set(center - size + 1, center - size);</b>
+<b class="fc">&nbsp;    matrix.set(center - size, center - size + 1);</b>
+<b class="fc">&nbsp;    matrix.set(center + size, center - size);</b>
+<b class="fc">&nbsp;    matrix.set(center + size, center - size + 1);</b>
+<b class="fc">&nbsp;    matrix.set(center + size, center + size - 1);</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  static BitArray generateModeMessage(boolean compact, int layers, int messageSizeInWords) {
+<b class="fc">&nbsp;    BitArray modeMessage = new BitArray();</b>
+<b class="fc">&nbsp;    if (compact) {</b>
+<b class="fc">&nbsp;      modeMessage.appendBits(layers - 1, 2);</b>
+<b class="fc">&nbsp;      modeMessage.appendBits(messageSizeInWords - 1, 6);</b>
+<b class="fc">&nbsp;      modeMessage = generateCheckWords(modeMessage, 28, 4);</b>
+&nbsp;    } else {
+<b class="fc">&nbsp;      modeMessage.appendBits(layers - 1, 5);</b>
+<b class="fc">&nbsp;      modeMessage.appendBits(messageSizeInWords - 1, 11);</b>
+<b class="fc">&nbsp;      modeMessage = generateCheckWords(modeMessage, 40, 4);</b>
+&nbsp;    }
+<b class="fc">&nbsp;    return modeMessage;</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  private static void drawModeMessage(BitMatrix matrix, boolean compact, int matrixSize, BitArray modeMessage) {
+<b class="fc">&nbsp;    int center = matrixSize / 2;</b>
+<b class="fc">&nbsp;    if (compact) {</b>
+<b class="fc">&nbsp;      for (int i = 0; i &lt; 7; i++) {</b>
+<b class="fc">&nbsp;        int offset = center - 3 + i;</b>
+<b class="fc">&nbsp;        if (modeMessage.get(i)) {</b>
+<b class="fc">&nbsp;          matrix.set(offset, center - 5);</b>
+&nbsp;        }
+<b class="fc">&nbsp;        if (modeMessage.get(i + 7)) {</b>
+<b class="fc">&nbsp;          matrix.set(center + 5, offset);</b>
+&nbsp;        }
+<b class="fc">&nbsp;        if (modeMessage.get(20 - i)) {</b>
+<b class="fc">&nbsp;          matrix.set(offset, center + 5);</b>
+&nbsp;        }
+<b class="fc">&nbsp;        if (modeMessage.get(27 - i)) {</b>
+<b class="fc">&nbsp;          matrix.set(center - 5, offset);</b>
+&nbsp;        }
+&nbsp;      }
+&nbsp;    } else {
+<b class="fc">&nbsp;      for (int i = 0; i &lt; 10; i++) {</b>
+<b class="fc">&nbsp;        int offset = center - 5 + i + i / 5;</b>
+<b class="fc">&nbsp;        if (modeMessage.get(i)) {</b>
+<b class="fc">&nbsp;          matrix.set(offset, center - 7);</b>
+&nbsp;        }
+<b class="fc">&nbsp;        if (modeMessage.get(i + 10)) {</b>
+<b class="fc">&nbsp;          matrix.set(center + 7, offset);</b>
+&nbsp;        }
+<b class="fc">&nbsp;        if (modeMessage.get(29 - i)) {</b>
+<b class="fc">&nbsp;          matrix.set(offset, center + 7);</b>
+&nbsp;        }
+<b class="fc">&nbsp;        if (modeMessage.get(39 - i)) {</b>
+<b class="fc">&nbsp;          matrix.set(center - 7, offset);</b>
+&nbsp;        }
+&nbsp;      }
+&nbsp;    }
+&nbsp;  }
+&nbsp;
+&nbsp;  private static BitArray generateCheckWords(BitArray bitArray, int totalBits, int wordSize) {
+&nbsp;    // bitArray is guaranteed to be a multiple of the wordSize, so no padding needed
+<b class="fc">&nbsp;    int messageSizeInWords = bitArray.getSize() / wordSize;</b>
+<b class="fc">&nbsp;    ReedSolomonEncoder rs = new ReedSolomonEncoder(getGF(wordSize));</b>
+<b class="fc">&nbsp;    int totalWords = totalBits / wordSize;</b>
+<b class="fc">&nbsp;    int[] messageWords = bitsToWords(bitArray, wordSize, totalWords);</b>
+<b class="fc">&nbsp;    rs.encode(messageWords, totalWords - messageSizeInWords);</b>
+<b class="fc">&nbsp;    int startPad = totalBits % wordSize;</b>
+<b class="fc">&nbsp;    BitArray messageBits = new BitArray();</b>
+<b class="fc">&nbsp;    messageBits.appendBits(0, startPad);</b>
+<b class="fc">&nbsp;    for (int messageWord : messageWords) {</b>
+<b class="fc">&nbsp;      messageBits.appendBits(messageWord, wordSize);</b>
+&nbsp;    }
+<b class="fc">&nbsp;    return messageBits;</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  private static int[] bitsToWords(BitArray stuffedBits, int wordSize, int totalWords) {
+<b class="fc">&nbsp;    int[] message = new int[totalWords];</b>
+&nbsp;    int i;
+&nbsp;    int n;
+<b class="fc">&nbsp;    for (i = 0, n = stuffedBits.getSize() / wordSize; i &lt; n; i++) {</b>
+<b class="fc">&nbsp;      int value = 0;</b>
+<b class="fc">&nbsp;      for (int j = 0; j &lt; wordSize; j++) {</b>
+<b class="fc">&nbsp;        value |= stuffedBits.get(i * wordSize + j) ? (1 &lt;&lt; wordSize - j - 1) : 0;</b>
+&nbsp;      }
+<b class="fc">&nbsp;      message[i] = value;</b>
+&nbsp;    }
+<b class="fc">&nbsp;    return message;</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  private static GenericGF getGF(int wordSize) {
+<b class="fc">&nbsp;    switch (wordSize) {</b>
+&nbsp;      case 4:
+<b class="fc">&nbsp;        return GenericGF.AZTEC_PARAM;</b>
+&nbsp;      case 6:
+<b class="fc">&nbsp;        return GenericGF.AZTEC_DATA_6;</b>
+&nbsp;      case 8:
+<b class="fc">&nbsp;        return GenericGF.AZTEC_DATA_8;</b>
+&nbsp;      case 10:
+<b class="fc">&nbsp;        return GenericGF.AZTEC_DATA_10;</b>
+&nbsp;      case 12:
+<b class="fc">&nbsp;        return GenericGF.AZTEC_DATA_12;</b>
+&nbsp;      default:
+<b class="nc">&nbsp;        throw new IllegalArgumentException(&quot;Unsupported word size &quot; + wordSize);</b>
+&nbsp;    }
+&nbsp;  }
+&nbsp;
+&nbsp;  static BitArray stuffBits(BitArray bits, int wordSize) {
+<b class="fc">&nbsp;    BitArray out = new BitArray();</b>
+&nbsp;
+<b class="fc">&nbsp;    int n = bits.getSize();</b>
+<b class="fc">&nbsp;    int mask = (1 &lt;&lt; wordSize) - 2;</b>
+<b class="fc">&nbsp;    for (int i = 0; i &lt; n; i += wordSize) {</b>
+<b class="fc">&nbsp;      int word = 0;</b>
+<b class="fc">&nbsp;      for (int j = 0; j &lt; wordSize; j++) {</b>
+<b class="fc">&nbsp;        if (i + j &gt;= n || bits.get(i + j)) {</b>
+<b class="fc">&nbsp;          word |= 1 &lt;&lt; (wordSize - 1 - j);</b>
+&nbsp;        }
+&nbsp;      }
+<b class="fc">&nbsp;      if ((word &amp; mask) == mask) {</b>
+<b class="fc">&nbsp;        out.appendBits(word &amp; mask, wordSize);</b>
+<b class="fc">&nbsp;        i--;</b>
+<b class="fc">&nbsp;      } else if ((word &amp; mask) == 0) {</b>
+<b class="fc">&nbsp;        out.appendBits(word | 1, wordSize);</b>
+<b class="fc">&nbsp;        i--;</b>
+&nbsp;      } else {
+<b class="fc">&nbsp;        out.appendBits(word, wordSize);</b>
+&nbsp;      }
+&nbsp;    }
+<b class="fc">&nbsp;    return out;</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  private static int totalBitsInLayer(int layers, boolean compact) {
+<b class="fc">&nbsp;    return ((compact ? 88 : 112) + 16 * layers) * layers;</b>
+&nbsp;  }
+&nbsp;}
+</code>
+</pre>
+</div>
+
+<script type="text/javascript">
+(function() {
+    var msie = false, msie9 = false;
+    /*@cc_on
+      msie = true;
+      @if (@_jscript_version >= 9)
+        msie9 = true;
+      @end
+    @*/
+
+    if (!msie || msie && msie9) {
+      hljs.highlightAll()
+      hljs.initLineNumbersOnLoad();
+    }
+})();
+</script>
+
+<div class="footer">
+    
+    <div style="float:right;">generated on 2023-11-12 23:26</div>
+</div>
+</body>
+</html>

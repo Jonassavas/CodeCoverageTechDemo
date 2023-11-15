@@ -1,0 +1,340 @@
+
+
+
+<!DOCTYPE html>
+<html id="htmlId">
+<head>
+  <meta http-equiv="Content-Type" content="text/html;charset=windows-1252"> 
+  <title>Coverage Report > SymbolInfo</title>
+  <style type="text/css">
+    @import "../../css/coverage.css";
+    @import "../../css/idea.min.css";
+  </style>
+  <script type="text/javascript" src="../../js/highlight.min.js"></script>
+  <script type="text/javascript" src="../../js/highlightjs-line-numbers.min.js"></script>
+</head>
+
+<body>
+<div class="content">
+<div class="breadCrumbs">
+Current scope:     <a href="../../index.html">all classes</a>
+    <span class="separator">|</span>
+    <a href="../index.html">com.google.zxing.datamatrix.encoder</a>
+</div>
+
+<h1>Coverage Summary for Class: SymbolInfo (com.google.zxing.datamatrix.encoder)</h1>
+
+<table class="coverageStats">
+<tr>
+  <th class="name">Class</th>
+<th class="coverageStat 
+">
+  Class, %
+</th>
+<th class="coverageStat 
+">
+  Method, %
+</th>
+<th class="coverageStat 
+">
+  Line, %
+</th>
+</tr>
+<tr>
+  <td class="name">SymbolInfo</td>
+<td class="coverageStat">
+  <span class="percent">
+    100%
+  </span>
+  <span class="absValue">
+    (1/1)
+  </span>
+</td>
+<td class="coverageStat">
+  <span class="percent">
+    77.3%
+  </span>
+  <span class="absValue">
+    (17/22)
+  </span>
+</td>
+<td class="coverageStat">
+  <span class="percent">
+    80.6%
+  </span>
+  <span class="absValue">
+    (50/62)
+  </span>
+</td>
+</tr>
+
+</table>
+
+<br/>
+<br/>
+
+
+<pre>
+<code class="sourceCode" id="sourceCode">&nbsp;/*
+&nbsp; * Copyright 2006 Jeremias Maerki
+&nbsp; *
+&nbsp; * Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
+&nbsp; * you may not use this file except in compliance with the License.
+&nbsp; * You may obtain a copy of the License at
+&nbsp; *
+&nbsp; *      http://www.apache.org/licenses/LICENSE-2.0
+&nbsp; *
+&nbsp; * Unless required by applicable law or agreed to in writing, software
+&nbsp; * distributed under the License is distributed on an &quot;AS IS&quot; BASIS,
+&nbsp; * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+&nbsp; * See the License for the specific language governing permissions and
+&nbsp; * limitations under the License.
+&nbsp; */
+&nbsp;
+&nbsp;package com.google.zxing.datamatrix.encoder;
+&nbsp;
+&nbsp;import com.google.zxing.Dimension;
+&nbsp;
+&nbsp;/**
+&nbsp; * Symbol info table for DataMatrix.
+&nbsp; *
+&nbsp; * @version $Id$
+&nbsp; */
+&nbsp;public class SymbolInfo {
+&nbsp;
+<b class="fc">&nbsp;  static final SymbolInfo[] PROD_SYMBOLS = {</b>
+&nbsp;    new SymbolInfo(false, 3, 5, 8, 8, 1),
+&nbsp;    new SymbolInfo(false, 5, 7, 10, 10, 1),
+&nbsp;      /*rect*/new SymbolInfo(true, 5, 7, 16, 6, 1),
+&nbsp;    new SymbolInfo(false, 8, 10, 12, 12, 1),
+&nbsp;      /*rect*/new SymbolInfo(true, 10, 11, 14, 6, 2),
+&nbsp;    new SymbolInfo(false, 12, 12, 14, 14, 1),
+&nbsp;      /*rect*/new SymbolInfo(true, 16, 14, 24, 10, 1),
+&nbsp;
+&nbsp;    new SymbolInfo(false, 18, 14, 16, 16, 1),
+&nbsp;    new SymbolInfo(false, 22, 18, 18, 18, 1),
+&nbsp;      /*rect*/new SymbolInfo(true, 22, 18, 16, 10, 2),
+&nbsp;    new SymbolInfo(false, 30, 20, 20, 20, 1),
+&nbsp;      /*rect*/new SymbolInfo(true, 32, 24, 16, 14, 2),
+&nbsp;    new SymbolInfo(false, 36, 24, 22, 22, 1),
+&nbsp;    new SymbolInfo(false, 44, 28, 24, 24, 1),
+&nbsp;      /*rect*/new SymbolInfo(true, 49, 28, 22, 14, 2),
+&nbsp;
+&nbsp;    new SymbolInfo(false, 62, 36, 14, 14, 4),
+&nbsp;    new SymbolInfo(false, 86, 42, 16, 16, 4),
+&nbsp;    new SymbolInfo(false, 114, 48, 18, 18, 4),
+&nbsp;    new SymbolInfo(false, 144, 56, 20, 20, 4),
+&nbsp;    new SymbolInfo(false, 174, 68, 22, 22, 4),
+&nbsp;
+&nbsp;    new SymbolInfo(false, 204, 84, 24, 24, 4, 102, 42),
+&nbsp;    new SymbolInfo(false, 280, 112, 14, 14, 16, 140, 56),
+&nbsp;    new SymbolInfo(false, 368, 144, 16, 16, 16, 92, 36),
+&nbsp;    new SymbolInfo(false, 456, 192, 18, 18, 16, 114, 48),
+&nbsp;    new SymbolInfo(false, 576, 224, 20, 20, 16, 144, 56),
+&nbsp;    new SymbolInfo(false, 696, 272, 22, 22, 16, 174, 68),
+&nbsp;    new SymbolInfo(false, 816, 336, 24, 24, 16, 136, 56),
+&nbsp;    new SymbolInfo(false, 1050, 408, 18, 18, 36, 175, 68),
+&nbsp;    new SymbolInfo(false, 1304, 496, 20, 20, 36, 163, 62),
+&nbsp;    new DataMatrixSymbolInfo144(),
+&nbsp;  };
+&nbsp;
+<b class="fc">&nbsp;  private static SymbolInfo[] symbols = PROD_SYMBOLS;</b>
+&nbsp;
+&nbsp;  private final boolean rectangular;
+&nbsp;  private final int dataCapacity;
+&nbsp;  private final int errorCodewords;
+&nbsp;  public final int matrixWidth;
+&nbsp;  public final int matrixHeight;
+&nbsp;  private final int dataRegions;
+&nbsp;  private final int rsBlockData;
+&nbsp;  private final int rsBlockError;
+&nbsp;
+&nbsp;  /**
+&nbsp;   * Overrides the symbol info set used by this class. Used for testing purposes.
+&nbsp;   *
+&nbsp;   * @param override the symbol info set to use
+&nbsp;   */
+&nbsp;  public static void overrideSymbolSet(SymbolInfo[] override) {
+<b class="fc">&nbsp;    symbols = override;</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  public SymbolInfo(boolean rectangular, int dataCapacity, int errorCodewords,
+&nbsp;                    int matrixWidth, int matrixHeight, int dataRegions) {
+<b class="fc">&nbsp;    this(rectangular, dataCapacity, errorCodewords, matrixWidth, matrixHeight, dataRegions,</b>
+&nbsp;         dataCapacity, errorCodewords);
+&nbsp;  }
+&nbsp;
+&nbsp;  SymbolInfo(boolean rectangular, int dataCapacity, int errorCodewords,
+&nbsp;             int matrixWidth, int matrixHeight, int dataRegions,
+<b class="fc">&nbsp;             int rsBlockData, int rsBlockError) {</b>
+<b class="fc">&nbsp;    this.rectangular = rectangular;</b>
+<b class="fc">&nbsp;    this.dataCapacity = dataCapacity;</b>
+<b class="fc">&nbsp;    this.errorCodewords = errorCodewords;</b>
+<b class="fc">&nbsp;    this.matrixWidth = matrixWidth;</b>
+<b class="fc">&nbsp;    this.matrixHeight = matrixHeight;</b>
+<b class="fc">&nbsp;    this.dataRegions = dataRegions;</b>
+<b class="fc">&nbsp;    this.rsBlockData = rsBlockData;</b>
+<b class="fc">&nbsp;    this.rsBlockError = rsBlockError;</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  public static SymbolInfo lookup(int dataCodewords) {
+<b class="fc">&nbsp;    return lookup(dataCodewords, SymbolShapeHint.FORCE_NONE, true);</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  public static SymbolInfo lookup(int dataCodewords, SymbolShapeHint shape) {
+<b class="fc">&nbsp;    return lookup(dataCodewords, shape, true);</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  public static SymbolInfo lookup(int dataCodewords, boolean allowRectangular, boolean fail) {
+<b class="nc">&nbsp;    SymbolShapeHint shape = allowRectangular</b>
+<b class="nc">&nbsp;        ? SymbolShapeHint.FORCE_NONE : SymbolShapeHint.FORCE_SQUARE;</b>
+<b class="nc">&nbsp;    return lookup(dataCodewords, shape, fail);</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  private static SymbolInfo lookup(int dataCodewords, SymbolShapeHint shape, boolean fail) {
+<b class="fc">&nbsp;    return lookup(dataCodewords, shape, null, null, fail);</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  public static SymbolInfo lookup(int dataCodewords,
+&nbsp;                                  SymbolShapeHint shape,
+&nbsp;                                  Dimension minSize,
+&nbsp;                                  Dimension maxSize,
+&nbsp;                                  boolean fail) {
+<b class="fc">&nbsp;    for (SymbolInfo symbol : symbols) {</b>
+<b class="fc">&nbsp;      if (shape == SymbolShapeHint.FORCE_SQUARE &amp;&amp; symbol.rectangular) {</b>
+<b class="fc">&nbsp;        continue;</b>
+&nbsp;      }
+<b class="fc">&nbsp;      if (shape == SymbolShapeHint.FORCE_RECTANGLE &amp;&amp; !symbol.rectangular) {</b>
+<b class="fc">&nbsp;        continue;</b>
+&nbsp;      }
+<b class="fc">&nbsp;      if (minSize != null</b>
+<b class="fc">&nbsp;          &amp;&amp; (symbol.getSymbolWidth() &lt; minSize.getWidth()</b>
+<b class="fc">&nbsp;          || symbol.getSymbolHeight() &lt; minSize.getHeight())) {</b>
+<b class="fc">&nbsp;        continue;</b>
+&nbsp;      }
+<b class="fc">&nbsp;      if (maxSize != null</b>
+<b class="fc">&nbsp;          &amp;&amp; (symbol.getSymbolWidth() &gt; maxSize.getWidth()</b>
+<b class="fc">&nbsp;          || symbol.getSymbolHeight() &gt; maxSize.getHeight())) {</b>
+<b class="nc">&nbsp;        continue;</b>
+&nbsp;      }
+<b class="fc">&nbsp;      if (dataCodewords &lt;= symbol.dataCapacity) {</b>
+<b class="fc">&nbsp;        return symbol;</b>
+&nbsp;      }
+&nbsp;    }
+<b class="fc">&nbsp;    if (fail) {</b>
+<b class="fc">&nbsp;      throw new IllegalArgumentException(</b>
+&nbsp;          &quot;Can&#39;t find a symbol arrangement that matches the message. Data codewords: &quot;
+&nbsp;              + dataCodewords);
+&nbsp;    }
+<b class="fc">&nbsp;    return null;</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  private int getHorizontalDataRegions() {
+<b class="fc">&nbsp;    switch (dataRegions) {</b>
+&nbsp;      case 1:
+<b class="fc">&nbsp;        return 1;</b>
+&nbsp;      case 2:
+&nbsp;      case 4:
+<b class="fc">&nbsp;        return 2;</b>
+&nbsp;      case 16:
+<b class="fc">&nbsp;        return 4;</b>
+&nbsp;      case 36:
+<b class="fc">&nbsp;        return 6;</b>
+&nbsp;      default:
+<b class="nc">&nbsp;        throw new IllegalStateException(&quot;Cannot handle this number of data regions&quot;);</b>
+&nbsp;    }
+&nbsp;  }
+&nbsp;
+&nbsp;  private int getVerticalDataRegions() {
+<b class="fc">&nbsp;    switch (dataRegions) {</b>
+&nbsp;      case 1:
+&nbsp;      case 2:
+<b class="fc">&nbsp;        return 1;</b>
+&nbsp;      case 4:
+<b class="fc">&nbsp;        return 2;</b>
+&nbsp;      case 16:
+<b class="fc">&nbsp;        return 4;</b>
+&nbsp;      case 36:
+<b class="fc">&nbsp;        return 6;</b>
+&nbsp;      default:
+<b class="nc">&nbsp;        throw new IllegalStateException(&quot;Cannot handle this number of data regions&quot;);</b>
+&nbsp;    }
+&nbsp;  }
+&nbsp;
+&nbsp;  public final int getSymbolDataWidth() {
+<b class="fc">&nbsp;    return getHorizontalDataRegions() * matrixWidth;</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  public final int getSymbolDataHeight() {
+<b class="fc">&nbsp;    return getVerticalDataRegions() * matrixHeight;</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  public final int getSymbolWidth() {
+<b class="fc">&nbsp;    return getSymbolDataWidth() + (getHorizontalDataRegions() * 2);</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  public final int getSymbolHeight() {
+<b class="fc">&nbsp;    return getSymbolDataHeight() + (getVerticalDataRegions() * 2);</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  public int getCodewordCount() {
+<b class="nc">&nbsp;    return dataCapacity + errorCodewords;</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  public int getInterleavedBlockCount() {
+<b class="fc">&nbsp;    return dataCapacity / rsBlockData;</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  public final int getDataCapacity() {
+<b class="fc">&nbsp;    return dataCapacity;</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  public final int getErrorCodewords() {
+<b class="fc">&nbsp;    return errorCodewords;</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  public int getDataLengthForInterleavedBlock(int index) {
+<b class="nc">&nbsp;    return rsBlockData;</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  public final int getErrorLengthForInterleavedBlock(int index) {
+<b class="nc">&nbsp;    return rsBlockError;</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  @Override
+&nbsp;  public final String toString() {
+<b class="nc">&nbsp;    return (rectangular ? &quot;Rectangular Symbol:&quot; : &quot;Square Symbol:&quot;) +</b>
+&nbsp;        &quot; data region &quot; + matrixWidth + &#39;x&#39; + matrixHeight +
+<b class="nc">&nbsp;        &quot;, symbol size &quot; + getSymbolWidth() + &#39;x&#39; + getSymbolHeight() +</b>
+<b class="nc">&nbsp;        &quot;, symbol data size &quot; + getSymbolDataWidth() + &#39;x&#39; + getSymbolDataHeight() +</b>
+&nbsp;        &quot;, codewords &quot; + dataCapacity + &#39;+&#39; + errorCodewords;
+&nbsp;  }
+&nbsp;
+&nbsp;}
+</code>
+</pre>
+</div>
+
+<script type="text/javascript">
+(function() {
+    var msie = false, msie9 = false;
+    /*@cc_on
+      msie = true;
+      @if (@_jscript_version >= 9)
+        msie9 = true;
+      @end
+    @*/
+
+    if (!msie || msie && msie9) {
+      hljs.highlightAll()
+      hljs.initLineNumbersOnLoad();
+    }
+})();
+</script>
+
+<div class="footer">
+    
+    <div style="float:right;">generated on 2023-11-12 23:26</div>
+</div>
+</body>
+</html>

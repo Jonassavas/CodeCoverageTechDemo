@@ -1,0 +1,581 @@
+
+
+
+<!DOCTYPE html>
+<html id="htmlId">
+<head>
+  <meta http-equiv="Content-Type" content="text/html;charset=windows-1252"> 
+  <title>Coverage Report > MatrixUtil</title>
+  <style type="text/css">
+    @import "../../css/coverage.css";
+    @import "../../css/idea.min.css";
+  </style>
+  <script type="text/javascript" src="../../js/highlight.min.js"></script>
+  <script type="text/javascript" src="../../js/highlightjs-line-numbers.min.js"></script>
+</head>
+
+<body>
+<div class="content">
+<div class="breadCrumbs">
+Current scope:     <a href="../../index.html">all classes</a>
+    <span class="separator">|</span>
+    <a href="../index.html">com.google.zxing.qrcode.encoder</a>
+</div>
+
+<h1>Coverage Summary for Class: MatrixUtil (com.google.zxing.qrcode.encoder)</h1>
+
+<table class="coverageStats">
+<tr>
+  <th class="name">Class</th>
+<th class="coverageStat 
+">
+  Class, %
+</th>
+<th class="coverageStat 
+">
+  Method, %
+</th>
+<th class="coverageStat 
+">
+  Line, %
+</th>
+</tr>
+<tr>
+  <td class="name">MatrixUtil</td>
+<td class="coverageStat">
+  <span class="percent">
+    100%
+  </span>
+  <span class="absValue">
+    (1/1)
+  </span>
+</td>
+<td class="coverageStat">
+  <span class="percent">
+    100%
+  </span>
+  <span class="absValue">
+    (20/20)
+  </span>
+</td>
+<td class="coverageStat">
+  <span class="percent">
+    94%
+  </span>
+  <span class="absValue">
+    (125/133)
+  </span>
+</td>
+</tr>
+
+</table>
+
+<br/>
+<br/>
+
+
+<pre>
+<code class="sourceCode" id="sourceCode">&nbsp;/*
+&nbsp; * Copyright 2008 ZXing authors
+&nbsp; *
+&nbsp; * Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
+&nbsp; * you may not use this file except in compliance with the License.
+&nbsp; * You may obtain a copy of the License at
+&nbsp; *
+&nbsp; *      http://www.apache.org/licenses/LICENSE-2.0
+&nbsp; *
+&nbsp; * Unless required by applicable law or agreed to in writing, software
+&nbsp; * distributed under the License is distributed on an &quot;AS IS&quot; BASIS,
+&nbsp; * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+&nbsp; * See the License for the specific language governing permissions and
+&nbsp; * limitations under the License.
+&nbsp; */
+&nbsp;
+&nbsp;package com.google.zxing.qrcode.encoder;
+&nbsp;
+&nbsp;import com.google.zxing.WriterException;
+&nbsp;import com.google.zxing.common.BitArray;
+&nbsp;import com.google.zxing.qrcode.decoder.ErrorCorrectionLevel;
+&nbsp;import com.google.zxing.qrcode.decoder.Version;
+&nbsp;
+&nbsp;/**
+&nbsp; * @author satorux@google.com (Satoru Takabayashi) - creator
+&nbsp; * @author dswitkin@google.com (Daniel Switkin) - ported from C++
+&nbsp; */
+&nbsp;final class MatrixUtil {
+&nbsp;
+<b class="fc">&nbsp;  private static final int[][] POSITION_DETECTION_PATTERN = {</b>
+&nbsp;      {1, 1, 1, 1, 1, 1, 1},
+&nbsp;      {1, 0, 0, 0, 0, 0, 1},
+&nbsp;      {1, 0, 1, 1, 1, 0, 1},
+&nbsp;      {1, 0, 1, 1, 1, 0, 1},
+&nbsp;      {1, 0, 1, 1, 1, 0, 1},
+&nbsp;      {1, 0, 0, 0, 0, 0, 1},
+&nbsp;      {1, 1, 1, 1, 1, 1, 1},
+&nbsp;  };
+&nbsp;
+<b class="fc">&nbsp;  private static final int[][] POSITION_ADJUSTMENT_PATTERN = {</b>
+&nbsp;      {1, 1, 1, 1, 1},
+&nbsp;      {1, 0, 0, 0, 1},
+&nbsp;      {1, 0, 1, 0, 1},
+&nbsp;      {1, 0, 0, 0, 1},
+&nbsp;      {1, 1, 1, 1, 1},
+&nbsp;  };
+&nbsp;
+&nbsp;  // From Appendix E. Table 1, JIS0510X:2004 (p 71). The table was double-checked by komatsu.
+<b class="fc">&nbsp;  private static final int[][] POSITION_ADJUSTMENT_PATTERN_COORDINATE_TABLE = {</b>
+&nbsp;      {-1, -1, -1, -1,  -1,  -1,  -1},  // Version 1
+&nbsp;      { 6, 18, -1, -1,  -1,  -1,  -1},  // Version 2
+&nbsp;      { 6, 22, -1, -1,  -1,  -1,  -1},  // Version 3
+&nbsp;      { 6, 26, -1, -1,  -1,  -1,  -1},  // Version 4
+&nbsp;      { 6, 30, -1, -1,  -1,  -1,  -1},  // Version 5
+&nbsp;      { 6, 34, -1, -1,  -1,  -1,  -1},  // Version 6
+&nbsp;      { 6, 22, 38, -1,  -1,  -1,  -1},  // Version 7
+&nbsp;      { 6, 24, 42, -1,  -1,  -1,  -1},  // Version 8
+&nbsp;      { 6, 26, 46, -1,  -1,  -1,  -1},  // Version 9
+&nbsp;      { 6, 28, 50, -1,  -1,  -1,  -1},  // Version 10
+&nbsp;      { 6, 30, 54, -1,  -1,  -1,  -1},  // Version 11
+&nbsp;      { 6, 32, 58, -1,  -1,  -1,  -1},  // Version 12
+&nbsp;      { 6, 34, 62, -1,  -1,  -1,  -1},  // Version 13
+&nbsp;      { 6, 26, 46, 66,  -1,  -1,  -1},  // Version 14
+&nbsp;      { 6, 26, 48, 70,  -1,  -1,  -1},  // Version 15
+&nbsp;      { 6, 26, 50, 74,  -1,  -1,  -1},  // Version 16
+&nbsp;      { 6, 30, 54, 78,  -1,  -1,  -1},  // Version 17
+&nbsp;      { 6, 30, 56, 82,  -1,  -1,  -1},  // Version 18
+&nbsp;      { 6, 30, 58, 86,  -1,  -1,  -1},  // Version 19
+&nbsp;      { 6, 34, 62, 90,  -1,  -1,  -1},  // Version 20
+&nbsp;      { 6, 28, 50, 72,  94,  -1,  -1},  // Version 21
+&nbsp;      { 6, 26, 50, 74,  98,  -1,  -1},  // Version 22
+&nbsp;      { 6, 30, 54, 78, 102,  -1,  -1},  // Version 23
+&nbsp;      { 6, 28, 54, 80, 106,  -1,  -1},  // Version 24
+&nbsp;      { 6, 32, 58, 84, 110,  -1,  -1},  // Version 25
+&nbsp;      { 6, 30, 58, 86, 114,  -1,  -1},  // Version 26
+&nbsp;      { 6, 34, 62, 90, 118,  -1,  -1},  // Version 27
+&nbsp;      { 6, 26, 50, 74,  98, 122,  -1},  // Version 28
+&nbsp;      { 6, 30, 54, 78, 102, 126,  -1},  // Version 29
+&nbsp;      { 6, 26, 52, 78, 104, 130,  -1},  // Version 30
+&nbsp;      { 6, 30, 56, 82, 108, 134,  -1},  // Version 31
+&nbsp;      { 6, 34, 60, 86, 112, 138,  -1},  // Version 32
+&nbsp;      { 6, 30, 58, 86, 114, 142,  -1},  // Version 33
+&nbsp;      { 6, 34, 62, 90, 118, 146,  -1},  // Version 34
+&nbsp;      { 6, 30, 54, 78, 102, 126, 150},  // Version 35
+&nbsp;      { 6, 24, 50, 76, 102, 128, 154},  // Version 36
+&nbsp;      { 6, 28, 54, 80, 106, 132, 158},  // Version 37
+&nbsp;      { 6, 32, 58, 84, 110, 136, 162},  // Version 38
+&nbsp;      { 6, 26, 54, 82, 110, 138, 166},  // Version 39
+&nbsp;      { 6, 30, 58, 86, 114, 142, 170},  // Version 40
+&nbsp;  };
+&nbsp;
+&nbsp;  // Type info cells at the left top corner.
+<b class="fc">&nbsp;  private static final int[][] TYPE_INFO_COORDINATES = {</b>
+&nbsp;      {8, 0},
+&nbsp;      {8, 1},
+&nbsp;      {8, 2},
+&nbsp;      {8, 3},
+&nbsp;      {8, 4},
+&nbsp;      {8, 5},
+&nbsp;      {8, 7},
+&nbsp;      {8, 8},
+&nbsp;      {7, 8},
+&nbsp;      {5, 8},
+&nbsp;      {4, 8},
+&nbsp;      {3, 8},
+&nbsp;      {2, 8},
+&nbsp;      {1, 8},
+&nbsp;      {0, 8},
+&nbsp;  };
+&nbsp;
+&nbsp;  // From Appendix D in JISX0510:2004 (p. 67)
+&nbsp;  private static final int VERSION_INFO_POLY = 0x1f25;  // 1 1111 0010 0101
+&nbsp;
+&nbsp;  // From Appendix C in JISX0510:2004 (p.65).
+&nbsp;  private static final int TYPE_INFO_POLY = 0x537;
+&nbsp;  private static final int TYPE_INFO_MASK_PATTERN = 0x5412;
+&nbsp;
+&nbsp;  private MatrixUtil() {
+&nbsp;    // do nothing
+&nbsp;  }
+&nbsp;
+&nbsp;  // Set all cells to -1.  -1 means that the cell is empty (not set yet).
+&nbsp;  //
+&nbsp;  // JAVAPORT: We shouldn&#39;t need to do this at all. The code should be rewritten to begin encoding
+&nbsp;  // with the ByteMatrix initialized all to zero.
+&nbsp;  static void clearMatrix(ByteMatrix matrix) {
+<b class="fc">&nbsp;    matrix.clear((byte) -1);</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  // Build 2D matrix of QR Code from &quot;dataBits&quot; with &quot;ecLevel&quot;, &quot;version&quot; and &quot;getMaskPattern&quot;. On
+&nbsp;  // success, store the result in &quot;matrix&quot; and return true.
+&nbsp;  static void buildMatrix(BitArray dataBits,
+&nbsp;                          ErrorCorrectionLevel ecLevel,
+&nbsp;                          Version version,
+&nbsp;                          int maskPattern,
+&nbsp;                          ByteMatrix matrix) throws WriterException {
+<b class="fc">&nbsp;    clearMatrix(matrix);</b>
+<b class="fc">&nbsp;    embedBasicPatterns(version, matrix);</b>
+&nbsp;    // Type information appear with any version.
+<b class="fc">&nbsp;    embedTypeInfo(ecLevel, maskPattern, matrix);</b>
+&nbsp;    // Version info appear if version &gt;= 7.
+<b class="fc">&nbsp;    maybeEmbedVersionInfo(version, matrix);</b>
+&nbsp;    // Data should be embedded at end.
+<b class="fc">&nbsp;    embedDataBits(dataBits, maskPattern, matrix);</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  // Embed basic patterns. On success, modify the matrix and return true.
+&nbsp;  // The basic patterns are:
+&nbsp;  // - Position detection patterns
+&nbsp;  // - Timing patterns
+&nbsp;  // - Dark dot at the left bottom corner
+&nbsp;  // - Position adjustment patterns, if need be
+&nbsp;  static void embedBasicPatterns(Version version, ByteMatrix matrix) throws WriterException {
+&nbsp;    // Let&#39;s get started with embedding big squares at corners.
+<b class="fc">&nbsp;    embedPositionDetectionPatternsAndSeparators(matrix);</b>
+&nbsp;    // Then, embed the dark dot at the left bottom corner.
+<b class="fc">&nbsp;    embedDarkDotAtLeftBottomCorner(matrix);</b>
+&nbsp;
+&nbsp;    // Position adjustment patterns appear if version &gt;= 2.
+<b class="fc">&nbsp;    maybeEmbedPositionAdjustmentPatterns(version, matrix);</b>
+&nbsp;    // Timing patterns should be embedded after position adj. patterns.
+<b class="fc">&nbsp;    embedTimingPatterns(matrix);</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  // Embed type information. On success, modify the matrix.
+&nbsp;  static void embedTypeInfo(ErrorCorrectionLevel ecLevel, int maskPattern, ByteMatrix matrix)
+&nbsp;      throws WriterException {
+<b class="fc">&nbsp;    BitArray typeInfoBits = new BitArray();</b>
+<b class="fc">&nbsp;    makeTypeInfoBits(ecLevel, maskPattern, typeInfoBits);</b>
+&nbsp;
+<b class="fc">&nbsp;    for (int i = 0; i &lt; typeInfoBits.getSize(); ++i) {</b>
+&nbsp;      // Place bits in LSB to MSB order.  LSB (least significant bit) is the last value in
+&nbsp;      // &quot;typeInfoBits&quot;.
+<b class="fc">&nbsp;      boolean bit = typeInfoBits.get(typeInfoBits.getSize() - 1 - i);</b>
+&nbsp;
+&nbsp;      // Type info bits at the left top corner. See 8.9 of JISX0510:2004 (p.46).
+<b class="fc">&nbsp;      int[] coordinates = TYPE_INFO_COORDINATES[i];</b>
+<b class="fc">&nbsp;      int x1 = coordinates[0];</b>
+<b class="fc">&nbsp;      int y1 = coordinates[1];</b>
+<b class="fc">&nbsp;      matrix.set(x1, y1, bit);</b>
+&nbsp;
+&nbsp;      int x2;
+&nbsp;      int y2;
+<b class="fc">&nbsp;      if (i &lt; 8) {</b>
+&nbsp;        // Right top corner.
+<b class="fc">&nbsp;        x2 = matrix.getWidth() - i - 1;</b>
+<b class="fc">&nbsp;        y2 = 8;</b>
+&nbsp;      } else {
+&nbsp;        // Left bottom corner.
+<b class="fc">&nbsp;        x2 = 8;</b>
+<b class="fc">&nbsp;        y2 = matrix.getHeight() - 7 + (i - 8);</b>
+&nbsp;      }
+<b class="fc">&nbsp;      matrix.set(x2, y2, bit);</b>
+&nbsp;    }
+&nbsp;  }
+&nbsp;
+&nbsp;  // Embed version information if need be. On success, modify the matrix and return true.
+&nbsp;  // See 8.10 of JISX0510:2004 (p.47) for how to embed version information.
+&nbsp;  static void maybeEmbedVersionInfo(Version version, ByteMatrix matrix) throws WriterException {
+<b class="fc">&nbsp;    if (version.getVersionNumber() &lt; 7) {  // Version info is necessary if version &gt;= 7.</b>
+&nbsp;      return;  // Don&#39;t need version info.
+&nbsp;    }
+<b class="fc">&nbsp;    BitArray versionInfoBits = new BitArray();</b>
+<b class="fc">&nbsp;    makeVersionInfoBits(version, versionInfoBits);</b>
+&nbsp;
+<b class="fc">&nbsp;    int bitIndex = 6 * 3 - 1;  // It will decrease from 17 to 0.</b>
+<b class="fc">&nbsp;    for (int i = 0; i &lt; 6; ++i) {</b>
+<b class="fc">&nbsp;      for (int j = 0; j &lt; 3; ++j) {</b>
+&nbsp;        // Place bits in LSB (least significant bit) to MSB order.
+<b class="fc">&nbsp;        boolean bit = versionInfoBits.get(bitIndex);</b>
+<b class="fc">&nbsp;        bitIndex--;</b>
+&nbsp;        // Left bottom corner.
+<b class="fc">&nbsp;        matrix.set(i, matrix.getHeight() - 11 + j, bit);</b>
+&nbsp;        // Right bottom corner.
+<b class="fc">&nbsp;        matrix.set(matrix.getHeight() - 11 + j, i, bit);</b>
+&nbsp;      }
+&nbsp;    }
+&nbsp;  }
+&nbsp;
+&nbsp;  // Embed &quot;dataBits&quot; using &quot;getMaskPattern&quot;. On success, modify the matrix and return true.
+&nbsp;  // For debugging purposes, it skips masking process if &quot;getMaskPattern&quot; is -1.
+&nbsp;  // See 8.7 of JISX0510:2004 (p.38) for how to embed data bits.
+&nbsp;  static void embedDataBits(BitArray dataBits, int maskPattern, ByteMatrix matrix)
+&nbsp;      throws WriterException {
+<b class="fc">&nbsp;    int bitIndex = 0;</b>
+<b class="fc">&nbsp;    int direction = -1;</b>
+&nbsp;    // Start from the right bottom cell.
+<b class="fc">&nbsp;    int x = matrix.getWidth() - 1;</b>
+<b class="fc">&nbsp;    int y = matrix.getHeight() - 1;</b>
+<b class="fc">&nbsp;    while (x &gt; 0) {</b>
+&nbsp;      // Skip the vertical timing pattern.
+<b class="fc">&nbsp;      if (x == 6) {</b>
+<b class="fc">&nbsp;        x -= 1;</b>
+&nbsp;      }
+<b class="fc">&nbsp;      while (y &gt;= 0 &amp;&amp; y &lt; matrix.getHeight()) {</b>
+<b class="fc">&nbsp;        for (int i = 0; i &lt; 2; ++i) {</b>
+<b class="fc">&nbsp;          int xx = x - i;</b>
+&nbsp;          // Skip the cell if it&#39;s not empty.
+<b class="fc">&nbsp;          if (!isEmpty(matrix.get(xx, y))) {</b>
+<b class="fc">&nbsp;            continue;</b>
+&nbsp;          }
+&nbsp;          boolean bit;
+<b class="fc">&nbsp;          if (bitIndex &lt; dataBits.getSize()) {</b>
+<b class="fc">&nbsp;            bit = dataBits.get(bitIndex);</b>
+<b class="fc">&nbsp;            ++bitIndex;</b>
+&nbsp;          } else {
+&nbsp;            // Padding bit. If there is no bit left, we&#39;ll fill the left cells with 0, as described
+&nbsp;            // in 8.4.9 of JISX0510:2004 (p. 24).
+<b class="fc">&nbsp;            bit = false;</b>
+&nbsp;          }
+&nbsp;
+&nbsp;          // Skip masking if mask_pattern is -1.
+<b class="fc">&nbsp;          if (maskPattern != -1 &amp;&amp; MaskUtil.getDataMaskBit(maskPattern, xx, y)) {</b>
+<b class="fc">&nbsp;            bit = !bit;</b>
+&nbsp;          }
+<b class="fc">&nbsp;          matrix.set(xx, y, bit);</b>
+&nbsp;        }
+<b class="fc">&nbsp;        y += direction;</b>
+&nbsp;      }
+<b class="fc">&nbsp;      direction = -direction;  // Reverse the direction.</b>
+<b class="fc">&nbsp;      y += direction;</b>
+<b class="fc">&nbsp;      x -= 2;  // Move to the left.</b>
+&nbsp;    }
+&nbsp;    // All bits should be consumed.
+<b class="fc">&nbsp;    if (bitIndex != dataBits.getSize()) {</b>
+<b class="nc">&nbsp;      throw new WriterException(&quot;Not all bits consumed: &quot; + bitIndex + &#39;/&#39; + dataBits.getSize());</b>
+&nbsp;    }
+&nbsp;  }
+&nbsp;
+&nbsp;  // Return the position of the most significant bit set (to one) in the &quot;value&quot;. The most
+&nbsp;  // significant bit is position 32. If there is no bit set, return 0. Examples:
+&nbsp;  // - findMSBSet(0) =&gt; 0
+&nbsp;  // - findMSBSet(1) =&gt; 1
+&nbsp;  // - findMSBSet(255) =&gt; 8
+&nbsp;  static int findMSBSet(int value) {
+<b class="fc">&nbsp;    return 32 - Integer.numberOfLeadingZeros(value);</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  // Calculate BCH (Bose-Chaudhuri-Hocquenghem) code for &quot;value&quot; using polynomial &quot;poly&quot;. The BCH
+&nbsp;  // code is used for encoding type information and version information.
+&nbsp;  // Example: Calculation of version information of 7.
+&nbsp;  // f(x) is created from 7.
+&nbsp;  //   - 7 = 000111 in 6 bits
+&nbsp;  //   - f(x) = x^2 + x^1 + x^0
+&nbsp;  // g(x) is given by the standard (p. 67)
+&nbsp;  //   - g(x) = x^12 + x^11 + x^10 + x^9 + x^8 + x^5 + x^2 + 1
+&nbsp;  // Multiply f(x) by x^(18 - 6)
+&nbsp;  //   - f&#39;(x) = f(x) * x^(18 - 6)
+&nbsp;  //   - f&#39;(x) = x^14 + x^13 + x^12
+&nbsp;  // Calculate the remainder of f&#39;(x) / g(x)
+&nbsp;  //         x^2
+&nbsp;  //         __________________________________________________
+&nbsp;  //   g(x) )x^14 + x^13 + x^12
+&nbsp;  //         x^14 + x^13 + x^12 + x^11 + x^10 + x^7 + x^4 + x^2
+&nbsp;  //         --------------------------------------------------
+&nbsp;  //                              x^11 + x^10 + x^7 + x^4 + x^2
+&nbsp;  //
+&nbsp;  // The remainder is x^11 + x^10 + x^7 + x^4 + x^2
+&nbsp;  // Encode it in binary: 110010010100
+&nbsp;  // The return value is 0xc94 (1100 1001 0100)
+&nbsp;  //
+&nbsp;  // Since all coefficients in the polynomials are 1 or 0, we can do the calculation by bit
+&nbsp;  // operations. We don&#39;t care if coefficients are positive or negative.
+&nbsp;  static int calculateBCHCode(int value, int poly) {
+<b class="fc">&nbsp;    if (poly == 0) {</b>
+<b class="nc">&nbsp;      throw new IllegalArgumentException(&quot;0 polynomial&quot;);</b>
+&nbsp;    }
+&nbsp;    // If poly is &quot;1 1111 0010 0101&quot; (version info poly), msbSetInPoly is 13. We&#39;ll subtract 1
+&nbsp;    // from 13 to make it 12.
+<b class="fc">&nbsp;    int msbSetInPoly = findMSBSet(poly);</b>
+<b class="fc">&nbsp;    value &lt;&lt;= msbSetInPoly - 1;</b>
+&nbsp;    // Do the division business using exclusive-or operations.
+<b class="fc">&nbsp;    while (findMSBSet(value) &gt;= msbSetInPoly) {</b>
+<b class="fc">&nbsp;      value ^= poly &lt;&lt; (findMSBSet(value) - msbSetInPoly);</b>
+&nbsp;    }
+&nbsp;    // Now the &quot;value&quot; is the remainder (i.e. the BCH code)
+<b class="fc">&nbsp;    return value;</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  // Make bit vector of type information. On success, store the result in &quot;bits&quot; and return true.
+&nbsp;  // Encode error correction level and mask pattern. See 8.9 of
+&nbsp;  // JISX0510:2004 (p.45) for details.
+&nbsp;  static void makeTypeInfoBits(ErrorCorrectionLevel ecLevel, int maskPattern, BitArray bits)
+&nbsp;      throws WriterException {
+<b class="fc">&nbsp;    if (!QRCode.isValidMaskPattern(maskPattern)) {</b>
+<b class="nc">&nbsp;      throw new WriterException(&quot;Invalid mask pattern&quot;);</b>
+&nbsp;    }
+<b class="fc">&nbsp;    int typeInfo = (ecLevel.getBits() &lt;&lt; 3) | maskPattern;</b>
+<b class="fc">&nbsp;    bits.appendBits(typeInfo, 5);</b>
+&nbsp;
+<b class="fc">&nbsp;    int bchCode = calculateBCHCode(typeInfo, TYPE_INFO_POLY);</b>
+<b class="fc">&nbsp;    bits.appendBits(bchCode, 10);</b>
+&nbsp;
+<b class="fc">&nbsp;    BitArray maskBits = new BitArray();</b>
+<b class="fc">&nbsp;    maskBits.appendBits(TYPE_INFO_MASK_PATTERN, 15);</b>
+<b class="fc">&nbsp;    bits.xor(maskBits);</b>
+&nbsp;
+<b class="fc">&nbsp;    if (bits.getSize() != 15) {  // Just in case.</b>
+<b class="nc">&nbsp;      throw new WriterException(&quot;should not happen but we got: &quot; + bits.getSize());</b>
+&nbsp;    }
+&nbsp;  }
+&nbsp;
+&nbsp;  // Make bit vector of version information. On success, store the result in &quot;bits&quot; and return true.
+&nbsp;  // See 8.10 of JISX0510:2004 (p.45) for details.
+&nbsp;  static void makeVersionInfoBits(Version version, BitArray bits) throws WriterException {
+<b class="fc">&nbsp;    bits.appendBits(version.getVersionNumber(), 6);</b>
+<b class="fc">&nbsp;    int bchCode = calculateBCHCode(version.getVersionNumber(), VERSION_INFO_POLY);</b>
+<b class="fc">&nbsp;    bits.appendBits(bchCode, 12);</b>
+&nbsp;
+<b class="fc">&nbsp;    if (bits.getSize() != 18) {  // Just in case.</b>
+<b class="nc">&nbsp;      throw new WriterException(&quot;should not happen but we got: &quot; + bits.getSize());</b>
+&nbsp;    }
+&nbsp;  }
+&nbsp;
+&nbsp;  // Check if &quot;value&quot; is empty.
+&nbsp;  private static boolean isEmpty(int value) {
+<b class="fc">&nbsp;    return value == -1;</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  private static void embedTimingPatterns(ByteMatrix matrix) {
+&nbsp;    // -8 is for skipping position detection patterns (size 7), and two horizontal/vertical
+&nbsp;    // separation patterns (size 1). Thus, 8 = 7 + 1.
+<b class="fc">&nbsp;    for (int i = 8; i &lt; matrix.getWidth() - 8; ++i) {</b>
+<b class="fc">&nbsp;      int bit = (i + 1) % 2;</b>
+&nbsp;      // Horizontal line.
+<b class="fc">&nbsp;      if (isEmpty(matrix.get(i, 6))) {</b>
+<b class="fc">&nbsp;        matrix.set(i, 6, bit);</b>
+&nbsp;      }
+&nbsp;      // Vertical line.
+<b class="fc">&nbsp;      if (isEmpty(matrix.get(6, i))) {</b>
+<b class="fc">&nbsp;        matrix.set(6, i, bit);</b>
+&nbsp;      }
+&nbsp;    }
+&nbsp;  }
+&nbsp;
+&nbsp;  // Embed the lonely dark dot at left bottom corner. JISX0510:2004 (p.46)
+&nbsp;  private static void embedDarkDotAtLeftBottomCorner(ByteMatrix matrix) throws WriterException {
+<b class="fc">&nbsp;    if (matrix.get(8, matrix.getHeight() - 8) == 0) {</b>
+<b class="nc">&nbsp;      throw new WriterException();</b>
+&nbsp;    }
+<b class="fc">&nbsp;    matrix.set(8, matrix.getHeight() - 8, 1);</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  private static void embedHorizontalSeparationPattern(int xStart,
+&nbsp;                                                       int yStart,
+&nbsp;                                                       ByteMatrix matrix) throws WriterException {
+<b class="fc">&nbsp;    for (int x = 0; x &lt; 8; ++x) {</b>
+<b class="fc">&nbsp;      if (!isEmpty(matrix.get(xStart + x, yStart))) {</b>
+<b class="nc">&nbsp;        throw new WriterException();</b>
+&nbsp;      }
+<b class="fc">&nbsp;      matrix.set(xStart + x, yStart, 0);</b>
+&nbsp;    }
+&nbsp;  }
+&nbsp;
+&nbsp;  private static void embedVerticalSeparationPattern(int xStart,
+&nbsp;                                                     int yStart,
+&nbsp;                                                     ByteMatrix matrix) throws WriterException {
+<b class="fc">&nbsp;    for (int y = 0; y &lt; 7; ++y) {</b>
+<b class="fc">&nbsp;      if (!isEmpty(matrix.get(xStart, yStart + y))) {</b>
+<b class="nc">&nbsp;        throw new WriterException();</b>
+&nbsp;      }
+<b class="fc">&nbsp;      matrix.set(xStart, yStart + y, 0);</b>
+&nbsp;    }
+&nbsp;  }
+&nbsp;
+&nbsp;  private static void embedPositionAdjustmentPattern(int xStart, int yStart, ByteMatrix matrix) {
+<b class="fc">&nbsp;    for (int y = 0; y &lt; 5; ++y) {</b>
+<b class="fc">&nbsp;      int[] patternY = POSITION_ADJUSTMENT_PATTERN[y];</b>
+<b class="fc">&nbsp;      for (int x = 0; x &lt; 5; ++x) {</b>
+<b class="fc">&nbsp;        matrix.set(xStart + x, yStart + y, patternY[x]);</b>
+&nbsp;      }
+&nbsp;    }
+&nbsp;  }
+&nbsp;
+&nbsp;  private static void embedPositionDetectionPattern(int xStart, int yStart, ByteMatrix matrix) {
+<b class="fc">&nbsp;    for (int y = 0; y &lt; 7; ++y) {</b>
+<b class="fc">&nbsp;      int[] patternY = POSITION_DETECTION_PATTERN[y];</b>
+<b class="fc">&nbsp;      for (int x = 0; x &lt; 7; ++x) {</b>
+<b class="fc">&nbsp;        matrix.set(xStart + x, yStart + y, patternY[x]);</b>
+&nbsp;      }
+&nbsp;    }
+&nbsp;  }
+&nbsp;
+&nbsp;  // Embed position detection patterns and surrounding vertical/horizontal separators.
+&nbsp;  private static void embedPositionDetectionPatternsAndSeparators(ByteMatrix matrix) throws WriterException {
+&nbsp;    // Embed three big squares at corners.
+<b class="fc">&nbsp;    int pdpWidth = POSITION_DETECTION_PATTERN[0].length;</b>
+&nbsp;    // Left top corner.
+<b class="fc">&nbsp;    embedPositionDetectionPattern(0, 0, matrix);</b>
+&nbsp;    // Right top corner.
+<b class="fc">&nbsp;    embedPositionDetectionPattern(matrix.getWidth() - pdpWidth, 0, matrix);</b>
+&nbsp;    // Left bottom corner.
+<b class="fc">&nbsp;    embedPositionDetectionPattern(0, matrix.getWidth() - pdpWidth, matrix);</b>
+&nbsp;
+&nbsp;    // Embed horizontal separation patterns around the squares.
+<b class="fc">&nbsp;    int hspWidth = 8;</b>
+&nbsp;    // Left top corner.
+<b class="fc">&nbsp;    embedHorizontalSeparationPattern(0, hspWidth - 1, matrix);</b>
+&nbsp;    // Right top corner.
+<b class="fc">&nbsp;    embedHorizontalSeparationPattern(matrix.getWidth() - hspWidth,</b>
+&nbsp;        hspWidth - 1, matrix);
+&nbsp;    // Left bottom corner.
+<b class="fc">&nbsp;    embedHorizontalSeparationPattern(0, matrix.getWidth() - hspWidth, matrix);</b>
+&nbsp;
+&nbsp;    // Embed vertical separation patterns around the squares.
+<b class="fc">&nbsp;    int vspSize = 7;</b>
+&nbsp;    // Left top corner.
+<b class="fc">&nbsp;    embedVerticalSeparationPattern(vspSize, 0, matrix);</b>
+&nbsp;    // Right top corner.
+<b class="fc">&nbsp;    embedVerticalSeparationPattern(matrix.getHeight() - vspSize - 1, 0, matrix);</b>
+&nbsp;    // Left bottom corner.
+<b class="fc">&nbsp;    embedVerticalSeparationPattern(vspSize, matrix.getHeight() - vspSize,</b>
+&nbsp;        matrix);
+&nbsp;  }
+&nbsp;
+&nbsp;  // Embed position adjustment patterns if need be.
+&nbsp;  private static void maybeEmbedPositionAdjustmentPatterns(Version version, ByteMatrix matrix) {
+<b class="fc">&nbsp;    if (version.getVersionNumber() &lt; 2) {  // The patterns appear if version &gt;= 2</b>
+&nbsp;      return;
+&nbsp;    }
+<b class="fc">&nbsp;    int index = version.getVersionNumber() - 1;</b>
+<b class="fc">&nbsp;    int[] coordinates = POSITION_ADJUSTMENT_PATTERN_COORDINATE_TABLE[index];</b>
+<b class="fc">&nbsp;    for (int y : coordinates) {</b>
+<b class="fc">&nbsp;      if (y &gt;= 0) {</b>
+<b class="fc">&nbsp;        for (int x : coordinates) {</b>
+<b class="fc">&nbsp;          if (x &gt;= 0 &amp;&amp; isEmpty(matrix.get(x, y))) {</b>
+&nbsp;            // If the cell is unset, we embed the position adjustment pattern here.
+&nbsp;            // -2 is necessary since the x/y coordinates point to the center of the pattern, not the
+&nbsp;            // left top corner.
+<b class="fc">&nbsp;            embedPositionAdjustmentPattern(x - 2, y - 2, matrix);</b>
+&nbsp;          }
+&nbsp;        }
+&nbsp;      }
+&nbsp;    }
+&nbsp;  }
+&nbsp;
+&nbsp;}
+</code>
+</pre>
+</div>
+
+<script type="text/javascript">
+(function() {
+    var msie = false, msie9 = false;
+    /*@cc_on
+      msie = true;
+      @if (@_jscript_version >= 9)
+        msie9 = true;
+      @end
+    @*/
+
+    if (!msie || msie && msie9) {
+      hljs.highlightAll()
+      hljs.initLineNumbersOnLoad();
+    }
+})();
+</script>
+
+<div class="footer">
+    
+    <div style="float:right;">generated on 2023-11-12 23:26</div>
+</div>
+</body>
+</html>

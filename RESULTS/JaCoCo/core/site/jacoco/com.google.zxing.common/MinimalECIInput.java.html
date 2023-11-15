@@ -1,0 +1,347 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>MinimalECIInput.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">ZXing Core</a> &gt; <a href="index.source.html" class="el_package">com.google.zxing.common</a> &gt; <span class="el_source">MinimalECIInput.java</span></div><h1>MinimalECIInput.java</h1><pre class="source lang-java linenums">/*
+ * Copyright 2021 ZXing authors
+ *
+ * Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an &quot;AS IS&quot; BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+package com.google.zxing.common;
+
+import java.nio.charset.Charset;
+import java.util.ArrayList;
+import java.util.List;
+
+/**
+ * Class that converts a character string into a sequence of ECIs and bytes
+ *
+ * The implementation uses the Dijkstra algorithm to produce minimal encodings
+ *
+ * @author Alex Geller
+ */
+public class MinimalECIInput implements ECIInput {
+
+  private static final int COST_PER_ECI = 3; // approximated (latch + 2 codewords)
+  private final int[] bytes;
+  private final int fnc1;
+
+ /**
+  * Constructs a minimal input
+  *
+  * @param stringToEncode the character string to encode
+  * @param priorityCharset The preferred {@link Charset}. When the value of the argument is null, the algorithm
+  *   chooses charsets that leads to a minimal representation. Otherwise the algorithm will use the priority
+  *   charset to encode any character in the input that can be encoded by it if the charset is among the
+  *   supported charsets.
+  * @param fnc1 denotes the character in the input that represents the FNC1 character or -1 if this is not GS1
+  *   input.
+  */
+<span class="fc" id="L47">  public MinimalECIInput(String stringToEncode, Charset priorityCharset, int fnc1) {</span>
+<span class="fc" id="L48">    this.fnc1 = fnc1;</span>
+<span class="fc" id="L49">    ECIEncoderSet encoderSet = new ECIEncoderSet(stringToEncode, priorityCharset, fnc1);</span>
+<span class="fc bfc" id="L50" title="All 2 branches covered.">    if (encoderSet.length() == 1) { //optimization for the case when all can be encoded without ECI in ISO-8859-1</span>
+<span class="fc" id="L51">      bytes = new int[stringToEncode.length()];</span>
+<span class="fc bfc" id="L52" title="All 2 branches covered.">      for (int i = 0; i &lt; bytes.length; i++) {</span>
+<span class="fc" id="L53">        char c = stringToEncode.charAt(i);</span>
+<span class="pc bpc" id="L54" title="1 of 2 branches missed.">        bytes[i] = c == fnc1 ? 1000 : (int) c;</span>
+      }
+    } else {
+<span class="fc" id="L57">      bytes = encodeMinimally(stringToEncode, encoderSet, fnc1);</span>
+    }
+<span class="fc" id="L59">  }</span>
+
+  public int getFNC1Character() {
+<span class="fc" id="L62">    return fnc1;</span>
+  }
+
+ /**
+  * Returns the length of this input.  The length is the number
+  * of {@code byte}s, FNC1 characters or ECIs in the sequence.
+  *
+  * @return  the number of {@code char}s in this sequence
+  */
+  public int length() {
+<span class="fc" id="L72">    return bytes.length;</span>
+  }
+
+  public boolean haveNCharacters(int index, int n) {
+<span class="fc bfc" id="L76" title="All 2 branches covered.">    if (index + n - 1 &gt;= bytes.length) {</span>
+<span class="fc" id="L77">      return false;</span>
+    }
+<span class="fc bfc" id="L79" title="All 2 branches covered.">    for (int i = 0; i &lt; n; i++) {</span>
+<span class="fc bfc" id="L80" title="All 2 branches covered.">      if (isECI(index + i)) {</span>
+<span class="fc" id="L81">        return false;</span>
+      }
+    }
+<span class="fc" id="L84">    return true;</span>
+  }
+
+ /**
+  * Returns the {@code byte} value at the specified index.  An index ranges from zero
+  * to {@code length() - 1}.  The first {@code byte} value of the sequence is at
+  * index zero, the next at index one, and so on, as for array
+  * indexing.
+  *
+  * @param   index the index of the {@code byte} value to be returned
+  *
+  * @return  the specified {@code byte} value as character or the FNC1 character
+  *
+  * @throws  IndexOutOfBoundsException
+  *          if the {@code index} argument is negative or not less than
+  *          {@code length()}
+  * @throws  IllegalArgumentException
+  *          if the value at the {@code index} argument is an ECI (@see #isECI)
+  */
+  public char charAt(int index) {
+<span class="pc bpc" id="L104" title="2 of 4 branches missed.">    if (index &lt; 0 || index &gt;= length()) {</span>
+<span class="nc" id="L105">      throw new IndexOutOfBoundsException(&quot;&quot; + index);</span>
+    }
+<span class="pc bpc" id="L107" title="1 of 2 branches missed.">    if (isECI(index)) {</span>
+<span class="nc" id="L108">      throw new IllegalArgumentException(&quot;value at &quot; + index + &quot; is not a character but an ECI&quot;);</span>
+    }
+<span class="pc bpc" id="L110" title="1 of 2 branches missed.">    return isFNC1(index) ? (char) fnc1 : (char) bytes[index];</span>
+  }
+
+ /**
+  * Returns a {@code CharSequence} that is a subsequence of this sequence.
+  * The subsequence starts with the {@code char} value at the specified index and
+  * ends with the {@code char} value at index {@code end - 1}.  The length
+  * (in {@code char}s) of the
+  * returned sequence is {@code end - start}, so if {@code start == end}
+  * then an empty sequence is returned.
+  *
+  * @param   start   the start index, inclusive
+  * @param   end     the end index, exclusive
+  *
+  * @return  the specified subsequence
+  *
+  * @throws  IndexOutOfBoundsException
+  *          if {@code start} or {@code end} are negative,
+  *          if {@code end} is greater than {@code length()},
+  *          or if {@code start} is greater than {@code end}
+  * @throws  IllegalArgumentException
+  *          if a value in the range {@code start}-{@code end} is an ECI (@see #isECI)
+  */
+  public CharSequence subSequence(int start, int end) {
+<span class="nc bnc" id="L134" title="All 6 branches missed.">    if (start &lt; 0 || start &gt; end || end &gt; length()) {</span>
+<span class="nc" id="L135">      throw new IndexOutOfBoundsException(&quot;&quot; + start);</span>
+    }
+<span class="nc" id="L137">    StringBuilder result = new StringBuilder();</span>
+<span class="nc bnc" id="L138" title="All 2 branches missed.">    for (int i = start; i &lt; end; i++) {</span>
+<span class="nc bnc" id="L139" title="All 2 branches missed.">      if (isECI(i)) {</span>
+<span class="nc" id="L140">        throw new IllegalArgumentException(&quot;value at &quot; + i + &quot; is not a character but an ECI&quot;);</span>
+      }
+<span class="nc" id="L142">      result.append(charAt(i));</span>
+    }
+<span class="nc" id="L144">    return result;</span>
+  }
+
+ /**
+  * Determines if a value is an ECI
+  *
+  * @param   index the index of the value
+  *
+  * @return  true if the value at position {@code index} is an ECI
+  *
+  * @throws  IndexOutOfBoundsException
+  *          if the {@code index} argument is negative or not less than
+  *          {@code length()}
+  */
+  public boolean isECI(int index) {
+<span class="pc bpc" id="L159" title="2 of 4 branches missed.">    if (index &lt; 0 || index &gt;= length()) {</span>
+<span class="nc" id="L160">      throw new IndexOutOfBoundsException(&quot;&quot; + index);</span>
+    }
+<span class="pc bpc" id="L162" title="1 of 4 branches missed.">    return bytes[index] &gt; 255 &amp;&amp; bytes[index] &lt;= 999;</span>
+  }
+
+ /**
+  * Determines if a value is the FNC1 character
+  *
+  * @param   index the index of the value
+  *
+  * @return  true if the value at position {@code index} is the FNC1 character
+  *
+  * @throws  IndexOutOfBoundsException
+  *          if the {@code index} argument is negative or not less than
+  *          {@code length()}
+  */
+  public boolean isFNC1(int index) {
+<span class="pc bpc" id="L177" title="2 of 4 branches missed.">    if (index &lt; 0 || index &gt;= length()) {</span>
+<span class="nc" id="L178">      throw new IndexOutOfBoundsException(&quot;&quot; + index);</span>
+    }
+<span class="pc bpc" id="L180" title="1 of 2 branches missed.">    return bytes[index] == 1000;</span>
+  }
+
+ /**
+  * Returns the {@code int} ECI value at the specified index.  An index ranges from zero
+  * to {@code length() - 1}.  The first {@code byte} value of the sequence is at
+  * index zero, the next at index one, and so on, as for array
+  * indexing.
+  *
+  * @param   index the index of the {@code int} value to be returned
+  *
+  * @return  the specified {@code int} ECI value.
+  *          The ECI specified the encoding of all bytes with a higher index until the
+  *          next ECI or until the end of the input if no other ECI follows.
+  *
+  * @throws  IndexOutOfBoundsException
+  *          if the {@code index} argument is negative or not less than
+  *          {@code length()}
+  * @throws  IllegalArgumentException
+  *          if the value at the {@code index} argument is not an ECI (@see #isECI)
+  */
+  public int getECIValue(int index) {
+<span class="pc bpc" id="L202" title="2 of 4 branches missed.">    if (index &lt; 0 || index &gt;= length()) {</span>
+<span class="nc" id="L203">      throw new IndexOutOfBoundsException(&quot;&quot; + index);</span>
+    }
+<span class="pc bpc" id="L205" title="1 of 2 branches missed.">    if (!isECI(index)) {</span>
+<span class="nc" id="L206">      throw new IllegalArgumentException(&quot;value at &quot; + index + &quot; is not an ECI but a character&quot;);</span>
+    }
+<span class="fc" id="L208">    return bytes[index] - 256;</span>
+  }
+
+  @Override
+  public String toString() {
+<span class="nc" id="L213">    StringBuilder result = new StringBuilder();</span>
+<span class="nc bnc" id="L214" title="All 2 branches missed.">    for (int i = 0; i &lt; length(); i++) {</span>
+<span class="nc bnc" id="L215" title="All 2 branches missed.">      if (i &gt; 0) {</span>
+<span class="nc" id="L216">        result.append(&quot;, &quot;);</span>
+      }
+<span class="nc bnc" id="L218" title="All 2 branches missed.">      if (isECI(i)) {</span>
+<span class="nc" id="L219">        result.append(&quot;ECI(&quot;);</span>
+<span class="nc" id="L220">        result.append(getECIValue(i));</span>
+<span class="nc" id="L221">        result.append(')');</span>
+<span class="nc bnc" id="L222" title="All 2 branches missed.">      } else if (charAt(i) &lt; 128) {</span>
+<span class="nc" id="L223">        result.append('\'');</span>
+<span class="nc" id="L224">        result.append(charAt(i));</span>
+<span class="nc" id="L225">        result.append('\'');</span>
+      } else {
+<span class="nc" id="L227">        result.append((int) charAt(i));</span>
+      }
+    }
+<span class="nc" id="L230">    return result.toString();</span>
+  }
+  static void addEdge(InputEdge[][] edges, int to, InputEdge edge) {
+<span class="fc bfc" id="L233" title="All 2 branches covered.">    if (edges[to][edge.encoderIndex] == null ||</span>
+<span class="fc bfc" id="L234" title="All 2 branches covered.">        edges[to][edge.encoderIndex].cachedTotalSize &gt; edge.cachedTotalSize) {</span>
+<span class="fc" id="L235">      edges[to][edge.encoderIndex] = edge;</span>
+    }
+<span class="fc" id="L237">  }</span>
+
+  static void addEdges(String stringToEncode,
+                       ECIEncoderSet encoderSet,
+                       InputEdge[][] edges,
+                       int from,
+                       InputEdge previous,
+                       int fnc1) {
+
+<span class="fc" id="L246">    char ch = stringToEncode.charAt(from);</span>
+
+<span class="fc" id="L248">    int start = 0;</span>
+<span class="fc" id="L249">    int end = encoderSet.length();</span>
+<span class="pc bpc" id="L250" title="2 of 6 branches missed.">    if (encoderSet.getPriorityEncoderIndex() &gt;= 0 &amp;&amp; (ch == fnc1 || encoderSet.canEncode(ch,</span>
+<span class="fc" id="L251">        encoderSet.getPriorityEncoderIndex()))) {</span>
+<span class="fc" id="L252">      start = encoderSet.getPriorityEncoderIndex();</span>
+<span class="fc" id="L253">      end = start + 1;</span>
+    }
+
+<span class="fc bfc" id="L256" title="All 2 branches covered.">    for (int i = start; i &lt; end; i++) {</span>
+<span class="pc bpc" id="L257" title="1 of 4 branches missed.">      if (ch == fnc1 || encoderSet.canEncode(ch,i)) {</span>
+<span class="fc" id="L258">        addEdge(edges, from + 1, new InputEdge(ch, encoderSet, i, previous, fnc1));</span>
+      }
+    }
+<span class="fc" id="L261">  }</span>
+
+  static int[] encodeMinimally(String stringToEncode, ECIEncoderSet encoderSet, int fnc1) {
+<span class="fc" id="L264">    int inputLength = stringToEncode.length();</span>
+
+    // Array that represents vertices. There is a vertex for every character and encoding.
+<span class="fc" id="L267">    InputEdge[][] edges = new InputEdge[inputLength + 1][encoderSet.length()];</span>
+<span class="fc" id="L268">    addEdges(stringToEncode, encoderSet, edges, 0, null, fnc1);</span>
+
+<span class="fc bfc" id="L270" title="All 2 branches covered.">    for (int i = 1; i &lt;= inputLength; i++) {</span>
+<span class="fc bfc" id="L271" title="All 2 branches covered.">      for (int j = 0; j &lt; encoderSet.length(); j++) {</span>
+<span class="fc bfc" id="L272" title="All 4 branches covered.">        if (edges[i][j] != null &amp;&amp; i &lt; inputLength) {</span>
+<span class="fc" id="L273">          addEdges(stringToEncode, encoderSet, edges, i, edges[i][j], fnc1);</span>
+        }
+      }
+      //optimize memory by removing edges that have been passed.
+<span class="fc bfc" id="L277" title="All 2 branches covered.">      for (int j = 0; j &lt; encoderSet.length(); j++) {</span>
+<span class="fc" id="L278">        edges[i - 1][j] = null;</span>
+      }
+    }
+<span class="fc" id="L281">    int minimalJ = -1;</span>
+<span class="fc" id="L282">    int minimalSize = Integer.MAX_VALUE;</span>
+<span class="fc bfc" id="L283" title="All 2 branches covered.">    for (int j = 0; j &lt; encoderSet.length(); j++) {</span>
+<span class="fc bfc" id="L284" title="All 2 branches covered.">      if (edges[inputLength][j] != null) {</span>
+<span class="fc" id="L285">        InputEdge edge = edges[inputLength][j];</span>
+<span class="fc bfc" id="L286" title="All 2 branches covered.">        if (edge.cachedTotalSize &lt; minimalSize) {</span>
+<span class="fc" id="L287">          minimalSize = edge.cachedTotalSize;</span>
+<span class="fc" id="L288">          minimalJ = j;</span>
+        }
+      }
+    }
+<span class="pc bpc" id="L292" title="1 of 2 branches missed.">    if (minimalJ &lt; 0) {</span>
+<span class="nc" id="L293">      throw new IllegalStateException(&quot;Failed to encode \&quot;&quot; + stringToEncode + &quot;\&quot;&quot;);</span>
+    }
+<span class="fc" id="L295">    List&lt;Integer&gt; intsAL = new ArrayList&lt;&gt;();</span>
+<span class="fc" id="L296">    InputEdge current = edges[inputLength][minimalJ];</span>
+<span class="fc bfc" id="L297" title="All 2 branches covered.">    while (current != null) {</span>
+<span class="pc bpc" id="L298" title="1 of 2 branches missed.">      if (current.isFNC1()) {</span>
+<span class="nc" id="L299">        intsAL.add(0, 1000);</span>
+      } else {
+<span class="fc" id="L301">        byte[] bytes = encoderSet.encode(current.c,current.encoderIndex);</span>
+<span class="fc bfc" id="L302" title="All 2 branches covered.">        for (int i = bytes.length - 1; i &gt;= 0; i--) {</span>
+<span class="fc" id="L303">          intsAL.add(0, (bytes[i] &amp; 0xFF));</span>
+        }
+      }
+<span class="fc bfc" id="L306" title="All 2 branches covered.">      int previousEncoderIndex = current.previous == null ? 0 : current.previous.encoderIndex;</span>
+<span class="fc bfc" id="L307" title="All 2 branches covered.">      if (previousEncoderIndex != current.encoderIndex) {</span>
+<span class="fc" id="L308">        intsAL.add(0,256 + encoderSet.getECIValue(current.encoderIndex));</span>
+      }
+<span class="fc" id="L310">      current = current.previous;</span>
+<span class="fc" id="L311">    }</span>
+<span class="fc" id="L312">    int[] ints = new int[intsAL.size()];</span>
+<span class="fc bfc" id="L313" title="All 2 branches covered.">    for (int i = 0; i &lt; ints.length; i++) {</span>
+<span class="fc" id="L314">      ints[i] = intsAL.get(i);</span>
+    }
+<span class="fc" id="L316">    return ints;</span>
+  }
+
+  private static final class InputEdge {
+    private final char c;
+    private final int encoderIndex; //the encoding of this edge
+    private final InputEdge previous;
+    private final int cachedTotalSize;
+
+<span class="fc" id="L325">    private InputEdge(char c, ECIEncoderSet encoderSet, int encoderIndex, InputEdge previous, int fnc1) {</span>
+<span class="pc bpc" id="L326" title="1 of 2 branches missed.">      this.c = c == fnc1 ? 1000 : c;</span>
+<span class="fc" id="L327">      this.encoderIndex = encoderIndex;</span>
+<span class="fc" id="L328">      this.previous = previous;</span>
+
+<span class="pc bpc" id="L330" title="1 of 2 branches missed.">      int size = this.c == 1000 ? 1 : encoderSet.encode(c, encoderIndex).length;</span>
+<span class="fc bfc" id="L331" title="All 2 branches covered.">      int previousEncoderIndex = previous == null ? 0 : previous.encoderIndex;</span>
+<span class="fc bfc" id="L332" title="All 2 branches covered.">      if (previousEncoderIndex != encoderIndex) {</span>
+<span class="fc" id="L333">        size += COST_PER_ECI;</span>
+      }
+<span class="fc bfc" id="L335" title="All 2 branches covered.">      if (previous != null) {</span>
+<span class="fc" id="L336">        size += previous.cachedTotalSize;</span>
+      }
+<span class="fc" id="L338">      this.cachedTotalSize = size;</span>
+<span class="fc" id="L339">    }</span>
+
+    boolean isFNC1() {
+<span class="pc bpc" id="L342" title="1 of 2 branches missed.">      return c == 1000;</span>
+    }
+
+  }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.11.202310140853</span></div></body></html>

@@ -1,0 +1,423 @@
+
+
+
+<!DOCTYPE html>
+<html id="htmlId">
+<head>
+  <meta http-equiv="Content-Type" content="text/html;charset=windows-1252"> 
+  <title>Coverage Report > MultiFinderPatternFinder</title>
+  <style type="text/css">
+    @import "../../css/coverage.css";
+    @import "../../css/idea.min.css";
+  </style>
+  <script type="text/javascript" src="../../js/highlight.min.js"></script>
+  <script type="text/javascript" src="../../js/highlightjs-line-numbers.min.js"></script>
+</head>
+
+<body>
+<div class="content">
+<div class="breadCrumbs">
+Current scope:     <a href="../../index.html">all classes</a>
+    <span class="separator">|</span>
+    <a href="../index.html">com.google.zxing.multi.qrcode.detector</a>
+</div>
+
+<h1>Coverage Summary for Class: MultiFinderPatternFinder (com.google.zxing.multi.qrcode.detector)</h1>
+
+<table class="coverageStats">
+
+<tr>
+  <th class="name">Class</th>
+<th class="coverageStat 
+">
+  Method, %
+</th>
+<th class="coverageStat 
+">
+  Line, %
+</th>
+</tr>
+<tr>
+  <td class="name">MultiFinderPatternFinder</td>
+<td class="coverageStat">
+  <span class="percent">
+    100%
+  </span>
+  <span class="absValue">
+    (4/4)
+  </span>
+</td>
+<td class="coverageStat">
+  <span class="percent">
+    89.2%
+  </span>
+  <span class="absValue">
+    (83/93)
+  </span>
+</td>
+</tr>
+  <tr>
+    <td class="name">MultiFinderPatternFinder$1</td>
+  </tr>
+  <tr>
+    <td class="name">MultiFinderPatternFinder$ModuleSizeComparator</td>
+<td class="coverageStat">
+  <span class="percent">
+    100%
+  </span>
+  <span class="absValue">
+    (2/2)
+  </span>
+</td>
+<td class="coverageStat">
+  <span class="percent">
+    100%
+  </span>
+  <span class="absValue">
+    (3/3)
+  </span>
+</td>
+  </tr>
+<tr>
+  <td class="name"><strong>Total</strong></td>
+<td class="coverageStat">
+  <span class="percent">
+    100%
+  </span>
+  <span class="absValue">
+    (6/6)
+  </span>
+</td>
+<td class="coverageStat">
+  <span class="percent">
+    89.6%
+  </span>
+  <span class="absValue">
+    (86/96)
+  </span>
+</td>
+</tr>
+</table>
+
+<br/>
+<br/>
+
+
+<pre>
+<code class="sourceCode" id="sourceCode">&nbsp;/*
+&nbsp; * Copyright 2009 ZXing authors
+&nbsp; *
+&nbsp; * Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
+&nbsp; * you may not use this file except in compliance with the License.
+&nbsp; * You may obtain a copy of the License at
+&nbsp; *
+&nbsp; *      http://www.apache.org/licenses/LICENSE-2.0
+&nbsp; *
+&nbsp; * Unless required by applicable law or agreed to in writing, software
+&nbsp; * distributed under the License is distributed on an &quot;AS IS&quot; BASIS,
+&nbsp; * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+&nbsp; * See the License for the specific language governing permissions and
+&nbsp; * limitations under the License.
+&nbsp; */
+&nbsp;
+&nbsp;package com.google.zxing.multi.qrcode.detector;
+&nbsp;
+&nbsp;import com.google.zxing.DecodeHintType;
+&nbsp;import com.google.zxing.NotFoundException;
+&nbsp;import com.google.zxing.ResultPoint;
+&nbsp;import com.google.zxing.ResultPointCallback;
+&nbsp;import com.google.zxing.common.BitMatrix;
+&nbsp;import com.google.zxing.qrcode.detector.FinderPattern;
+&nbsp;import com.google.zxing.qrcode.detector.FinderPatternFinder;
+&nbsp;import com.google.zxing.qrcode.detector.FinderPatternInfo;
+&nbsp;
+&nbsp;import java.io.Serializable;
+&nbsp;import java.util.ArrayList;
+&nbsp;import java.util.Collections;
+&nbsp;import java.util.Comparator;
+&nbsp;import java.util.List;
+&nbsp;import java.util.Map;
+&nbsp;
+&nbsp;/**
+&nbsp; * &lt;p&gt;This class attempts to find finder patterns in a QR Code. Finder patterns are the square
+&nbsp; * markers at three corners of a QR Code.&lt;/p&gt;
+&nbsp; *
+&nbsp; * &lt;p&gt;This class is thread-safe but not reentrant. Each thread must allocate its own object.
+&nbsp; *
+&nbsp; * &lt;p&gt;In contrast to {@link FinderPatternFinder}, this class will return an array of all possible
+&nbsp; * QR code locations in the image.&lt;/p&gt;
+&nbsp; *
+&nbsp; * &lt;p&gt;Use the TRY_HARDER hint to ask for a more thorough detection.&lt;/p&gt;
+&nbsp; *
+&nbsp; * @author Sean Owen
+&nbsp; * @author Hannes Erven
+&nbsp; */
+&nbsp;public final class MultiFinderPatternFinder extends FinderPatternFinder {
+&nbsp;
+<b class="fc">&nbsp;  private static final FinderPatternInfo[] EMPTY_RESULT_ARRAY = new FinderPatternInfo[0];</b>
+<b class="fc">&nbsp;  private static final FinderPattern[] EMPTY_FP_ARRAY = new FinderPattern[0];</b>
+<b class="fc">&nbsp;  private static final FinderPattern[][] EMPTY_FP_2D_ARRAY = new FinderPattern[0][];</b>
+&nbsp;
+&nbsp;  // TODO MIN_MODULE_COUNT and MAX_MODULE_COUNT would be great hints to ask the user for
+&nbsp;  // since it limits the number of regions to decode
+&nbsp;
+&nbsp;  // max. legal count of modules per QR code edge (177)
+&nbsp;  private static final float MAX_MODULE_COUNT_PER_EDGE = 180;
+&nbsp;  // min. legal count per modules per QR code edge (11)
+&nbsp;  private static final float MIN_MODULE_COUNT_PER_EDGE = 9;
+&nbsp;
+&nbsp;  /**
+&nbsp;   * More or less arbitrary cutoff point for determining if two finder patterns might belong
+&nbsp;   * to the same code if they differ less than DIFF_MODSIZE_CUTOFF_PERCENT percent in their
+&nbsp;   * estimated modules sizes.
+&nbsp;   */
+&nbsp;  private static final float DIFF_MODSIZE_CUTOFF_PERCENT = 0.05f;
+&nbsp;
+&nbsp;  /**
+&nbsp;   * More or less arbitrary cutoff point for determining if two finder patterns might belong
+&nbsp;   * to the same code if they differ less than DIFF_MODSIZE_CUTOFF pixels/module in their
+&nbsp;   * estimated modules sizes.
+&nbsp;   */
+&nbsp;  private static final float DIFF_MODSIZE_CUTOFF = 0.5f;
+&nbsp;
+&nbsp;
+&nbsp;  /**
+&nbsp;   * A comparator that orders FinderPatterns by their estimated module size.
+&nbsp;   */
+<b class="fc">&nbsp;  private static final class ModuleSizeComparator implements Comparator&lt;FinderPattern&gt;, Serializable {</b>
+&nbsp;    @Override
+&nbsp;    public int compare(FinderPattern center1, FinderPattern center2) {
+<b class="fc">&nbsp;      float value = center2.getEstimatedModuleSize() - center1.getEstimatedModuleSize();</b>
+<b class="fc">&nbsp;      return value &lt; 0.0 ? -1 : value &gt; 0.0 ? 1 : 0;</b>
+&nbsp;    }
+&nbsp;  }
+&nbsp;
+&nbsp;  public MultiFinderPatternFinder(BitMatrix image, ResultPointCallback resultPointCallback) {
+<b class="fc">&nbsp;    super(image, resultPointCallback);</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  /**
+&nbsp;   * @return the 3 best {@link FinderPattern}s from our list of candidates. The &quot;best&quot; are
+&nbsp;   *         those that have been detected at least 2 times, and whose module
+&nbsp;   *         size differs from the average among those patterns the least
+&nbsp;   * @throws NotFoundException if 3 such finder patterns do not exist
+&nbsp;   */
+&nbsp;  private FinderPattern[][] selectMultipleBestPatterns() throws NotFoundException {
+<b class="fc">&nbsp;    List&lt;FinderPattern&gt; possibleCenters = new ArrayList&lt;&gt;();</b>
+<b class="fc">&nbsp;    for (FinderPattern fp : getPossibleCenters()) {</b>
+<b class="fc">&nbsp;      if (fp.getCount() &gt;= 2) {</b>
+<b class="fc">&nbsp;        possibleCenters.add(fp);</b>
+&nbsp;      }
+<b class="fc">&nbsp;    }</b>
+<b class="fc">&nbsp;    int size = possibleCenters.size();</b>
+&nbsp;
+<b class="fc">&nbsp;    if (size &lt; 3) {</b>
+&nbsp;      // Couldn&#39;t find enough finder patterns
+<b class="nc">&nbsp;      throw NotFoundException.getNotFoundInstance();</b>
+&nbsp;    }
+&nbsp;
+&nbsp;    /*
+&nbsp;     * Begin HE modifications to safely detect multiple codes of equal size
+&nbsp;     */
+<b class="fc">&nbsp;    if (size == 3) {</b>
+<b class="nc">&nbsp;      return new FinderPattern[][] { possibleCenters.toArray(EMPTY_FP_ARRAY) };</b>
+&nbsp;    }
+&nbsp;
+&nbsp;    // Sort by estimated module size to speed up the upcoming checks
+<b class="fc">&nbsp;    Collections.sort(possibleCenters, new ModuleSizeComparator());</b>
+&nbsp;
+&nbsp;    /*
+&nbsp;     * Now lets start: build a list of tuples of three finder locations that
+&nbsp;     *  - feature similar module sizes
+&nbsp;     *  - are placed in a distance so the estimated module count is within the QR specification
+&nbsp;     *  - have similar distance between upper left/right and left top/bottom finder patterns
+&nbsp;     *  - form a triangle with 90° angle (checked by comparing top right/bottom left distance
+&nbsp;     *    with pythagoras)
+&nbsp;     *
+&nbsp;     * Note: we allow each point to be used for more than one code region: this might seem
+&nbsp;     * counterintuitive at first, but the performance penalty is not that big. At this point,
+&nbsp;     * we cannot make a good quality decision whether the three finders actually represent
+&nbsp;     * a QR code, or are just by chance laid out so it looks like there might be a QR code there.
+&nbsp;     * So, if the layout seems right, lets have the decoder try to decode.
+&nbsp;     */
+&nbsp;
+<b class="fc">&nbsp;    List&lt;FinderPattern[]&gt; results = new ArrayList&lt;&gt;(); // holder for the results</b>
+&nbsp;
+<b class="fc">&nbsp;    for (int i1 = 0; i1 &lt; (size - 2); i1++) {</b>
+<b class="fc">&nbsp;      FinderPattern p1 = possibleCenters.get(i1);</b>
+<b class="fc">&nbsp;      if (p1 == null) {</b>
+<b class="nc">&nbsp;        continue;</b>
+&nbsp;      }
+&nbsp;
+<b class="fc">&nbsp;      for (int i2 = i1 + 1; i2 &lt; (size - 1); i2++) {</b>
+<b class="fc">&nbsp;        FinderPattern p2 = possibleCenters.get(i2);</b>
+<b class="fc">&nbsp;        if (p2 == null) {</b>
+<b class="nc">&nbsp;          continue;</b>
+&nbsp;        }
+&nbsp;
+&nbsp;        // Compare the expected module sizes; if they are really off, skip
+<b class="fc">&nbsp;        float vModSize12 = (p1.getEstimatedModuleSize() - p2.getEstimatedModuleSize()) /</b>
+<b class="fc">&nbsp;            Math.min(p1.getEstimatedModuleSize(), p2.getEstimatedModuleSize());</b>
+<b class="fc">&nbsp;        float vModSize12A = Math.abs(p1.getEstimatedModuleSize() - p2.getEstimatedModuleSize());</b>
+<b class="fc">&nbsp;        if (vModSize12A &gt; DIFF_MODSIZE_CUTOFF &amp;&amp; vModSize12 &gt;= DIFF_MODSIZE_CUTOFF_PERCENT) {</b>
+&nbsp;          // break, since elements are ordered by the module size deviation there cannot be
+&nbsp;          // any more interesting elements for the given p1.
+<b class="fc">&nbsp;          break;</b>
+&nbsp;        }
+&nbsp;
+<b class="fc">&nbsp;        for (int i3 = i2 + 1; i3 &lt; size; i3++) {</b>
+<b class="fc">&nbsp;          FinderPattern p3 = possibleCenters.get(i3);</b>
+<b class="fc">&nbsp;          if (p3 == null) {</b>
+<b class="nc">&nbsp;            continue;</b>
+&nbsp;          }
+&nbsp;
+&nbsp;          // Compare the expected module sizes; if they are really off, skip
+<b class="fc">&nbsp;          float vModSize23 = (p2.getEstimatedModuleSize() - p3.getEstimatedModuleSize()) /</b>
+<b class="fc">&nbsp;              Math.min(p2.getEstimatedModuleSize(), p3.getEstimatedModuleSize());</b>
+<b class="fc">&nbsp;          float vModSize23A = Math.abs(p2.getEstimatedModuleSize() - p3.getEstimatedModuleSize());</b>
+<b class="fc">&nbsp;          if (vModSize23A &gt; DIFF_MODSIZE_CUTOFF &amp;&amp; vModSize23 &gt;= DIFF_MODSIZE_CUTOFF_PERCENT) {</b>
+&nbsp;            // break, since elements are ordered by the module size deviation there cannot be
+&nbsp;            // any more interesting elements for the given p1.
+<b class="fc">&nbsp;            break;</b>
+&nbsp;          }
+&nbsp;
+<b class="fc">&nbsp;          FinderPattern[] test = {p1, p2, p3};</b>
+<b class="fc">&nbsp;          ResultPoint.orderBestPatterns(test);</b>
+&nbsp;
+&nbsp;          // Calculate the distances: a = topleft-bottomleft, b=topleft-topright, c = diagonal
+<b class="fc">&nbsp;          FinderPatternInfo info = new FinderPatternInfo(test);</b>
+<b class="fc">&nbsp;          float dA = ResultPoint.distance(info.getTopLeft(), info.getBottomLeft());</b>
+<b class="fc">&nbsp;          float dC = ResultPoint.distance(info.getTopRight(), info.getBottomLeft());</b>
+<b class="fc">&nbsp;          float dB = ResultPoint.distance(info.getTopLeft(), info.getTopRight());</b>
+&nbsp;
+&nbsp;          // Check the sizes
+<b class="fc">&nbsp;          float estimatedModuleCount = (dA + dB) / (p1.getEstimatedModuleSize() * 2.0f);</b>
+<b class="fc">&nbsp;          if (estimatedModuleCount &gt; MAX_MODULE_COUNT_PER_EDGE ||</b>
+&nbsp;              estimatedModuleCount &lt; MIN_MODULE_COUNT_PER_EDGE) {
+<b class="nc">&nbsp;            continue;</b>
+&nbsp;          }
+&nbsp;
+&nbsp;          // Calculate the difference of the edge lengths in percent
+<b class="fc">&nbsp;          float vABBC = Math.abs((dA - dB) / Math.min(dA, dB));</b>
+<b class="fc">&nbsp;          if (vABBC &gt;= 0.1f) {</b>
+<b class="fc">&nbsp;            continue;</b>
+&nbsp;          }
+&nbsp;
+&nbsp;          // Calculate the diagonal length by assuming a 90° angle at topleft
+<b class="fc">&nbsp;          float dCpy = (float) Math.sqrt((double) dA * dA + (double) dB * dB);</b>
+&nbsp;          // Compare to the real distance in %
+<b class="fc">&nbsp;          float vPyC = Math.abs((dC - dCpy) / Math.min(dC, dCpy));</b>
+&nbsp;
+<b class="fc">&nbsp;          if (vPyC &gt;= 0.1f) {</b>
+<b class="fc">&nbsp;            continue;</b>
+&nbsp;          }
+&nbsp;
+&nbsp;          // All tests passed!
+<b class="fc">&nbsp;          results.add(test);</b>
+&nbsp;        }
+&nbsp;      }
+&nbsp;    }
+&nbsp;
+<b class="fc">&nbsp;    if (!results.isEmpty()) {</b>
+<b class="fc">&nbsp;      return results.toArray(EMPTY_FP_2D_ARRAY);</b>
+&nbsp;    }
+&nbsp;
+&nbsp;    // Nothing found!
+<b class="nc">&nbsp;    throw NotFoundException.getNotFoundInstance();</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  public FinderPatternInfo[] findMulti(Map&lt;DecodeHintType,?&gt; hints) throws NotFoundException {
+<b class="fc">&nbsp;    boolean tryHarder = hints != null &amp;&amp; hints.containsKey(DecodeHintType.TRY_HARDER);</b>
+<b class="fc">&nbsp;    BitMatrix image = getImage();</b>
+<b class="fc">&nbsp;    int maxI = image.getHeight();</b>
+<b class="fc">&nbsp;    int maxJ = image.getWidth();</b>
+&nbsp;    // We are looking for black/white/black/white/black modules in
+&nbsp;    // 1:1:3:1:1 ratio; this tracks the number of such modules seen so far
+&nbsp;
+&nbsp;    // Let&#39;s assume that the maximum version QR Code we support takes up 1/4 the height of the
+&nbsp;    // image, and then account for the center being 3 modules in size. This gives the smallest
+&nbsp;    // number of pixels the center could be, so skip this often. When trying harder, look for all
+&nbsp;    // QR versions regardless of how dense they are.
+<b class="fc">&nbsp;    int iSkip = (3 * maxI) / (4 * MAX_MODULES);</b>
+<b class="fc">&nbsp;    if (iSkip &lt; MIN_SKIP || tryHarder) {</b>
+<b class="nc">&nbsp;      iSkip = MIN_SKIP;</b>
+&nbsp;    }
+&nbsp;
+<b class="fc">&nbsp;    int[] stateCount = new int[5];</b>
+<b class="fc">&nbsp;    for (int i = iSkip - 1; i &lt; maxI; i += iSkip) {</b>
+&nbsp;      // Get a row of black/white values
+<b class="fc">&nbsp;      doClearCounts(stateCount);</b>
+<b class="fc">&nbsp;      int currentState = 0;</b>
+<b class="fc">&nbsp;      for (int j = 0; j &lt; maxJ; j++) {</b>
+<b class="fc">&nbsp;        if (image.get(j, i)) {</b>
+&nbsp;          // Black pixel
+<b class="fc">&nbsp;          if ((currentState &amp; 1) == 1) { // Counting white pixels</b>
+<b class="fc">&nbsp;            currentState++;</b>
+&nbsp;          }
+<b class="fc">&nbsp;          stateCount[currentState]++;</b>
+&nbsp;        } else { // White pixel
+<b class="fc">&nbsp;          if ((currentState &amp; 1) == 0) { // Counting black pixels</b>
+<b class="fc">&nbsp;            if (currentState == 4) { // A winner?</b>
+<b class="fc">&nbsp;              if (foundPatternCross(stateCount) &amp;&amp; handlePossibleCenter(stateCount, i, j)) { // Yes</b>
+&nbsp;                // Clear state to start looking again
+<b class="fc">&nbsp;                currentState = 0;</b>
+<b class="fc">&nbsp;                doClearCounts(stateCount);</b>
+&nbsp;              } else { // No, shift counts back by two
+<b class="fc">&nbsp;                doShiftCounts2(stateCount);</b>
+<b class="fc">&nbsp;                currentState = 3;</b>
+&nbsp;              }
+&nbsp;            } else {
+<b class="fc">&nbsp;              stateCount[++currentState]++;</b>
+&nbsp;            }
+&nbsp;          } else { // Counting white pixels
+<b class="fc">&nbsp;            stateCount[currentState]++;</b>
+&nbsp;          }
+&nbsp;        }
+&nbsp;      } // for j=...
+&nbsp;
+<b class="fc">&nbsp;      if (foundPatternCross(stateCount)) {</b>
+<b class="nc">&nbsp;        handlePossibleCenter(stateCount, i, maxJ);</b>
+&nbsp;      }
+&nbsp;    } // for i=iSkip-1 ...
+<b class="fc">&nbsp;    FinderPattern[][] patternInfo = selectMultipleBestPatterns();</b>
+<b class="fc">&nbsp;    List&lt;FinderPatternInfo&gt; result = new ArrayList&lt;&gt;();</b>
+<b class="fc">&nbsp;    for (FinderPattern[] pattern : patternInfo) {</b>
+<b class="fc">&nbsp;      ResultPoint.orderBestPatterns(pattern);</b>
+<b class="fc">&nbsp;      result.add(new FinderPatternInfo(pattern));</b>
+&nbsp;    }
+&nbsp;
+<b class="fc">&nbsp;    if (result.isEmpty()) {</b>
+<b class="nc">&nbsp;      return EMPTY_RESULT_ARRAY;</b>
+&nbsp;    } else {
+<b class="fc">&nbsp;      return result.toArray(EMPTY_RESULT_ARRAY);</b>
+&nbsp;    }
+&nbsp;  }
+&nbsp;
+&nbsp;}
+</code>
+</pre>
+</div>
+
+<script type="text/javascript">
+(function() {
+    var msie = false, msie9 = false;
+    /*@cc_on
+      msie = true;
+      @if (@_jscript_version >= 9)
+        msie9 = true;
+      @end
+    @*/
+
+    if (!msie || msie && msie9) {
+      hljs.highlightAll()
+      hljs.initLineNumbersOnLoad();
+    }
+})();
+</script>
+
+<div class="footer">
+    
+    <div style="float:right;">generated on 2023-11-12 23:26</div>
+</div>
+</body>
+</html>

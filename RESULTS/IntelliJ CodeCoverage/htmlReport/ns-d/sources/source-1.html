@@ -1,0 +1,487 @@
+
+
+
+<!DOCTYPE html>
+<html id="htmlId">
+<head>
+  <meta http-equiv="Content-Type" content="text/html;charset=windows-1252"> 
+  <title>Coverage Report > Detector</title>
+  <style type="text/css">
+    @import "../../css/coverage.css";
+    @import "../../css/idea.min.css";
+  </style>
+  <script type="text/javascript" src="../../js/highlight.min.js"></script>
+  <script type="text/javascript" src="../../js/highlightjs-line-numbers.min.js"></script>
+</head>
+
+<body>
+<div class="content">
+<div class="breadCrumbs">
+Current scope:     <a href="../../index.html">all classes</a>
+    <span class="separator">|</span>
+    <a href="../index.html">com.google.zxing.datamatrix.detector</a>
+</div>
+
+<h1>Coverage Summary for Class: Detector (com.google.zxing.datamatrix.detector)</h1>
+
+<table class="coverageStats">
+<tr>
+  <th class="name">Class</th>
+<th class="coverageStat 
+">
+  Class, %
+</th>
+<th class="coverageStat 
+">
+  Method, %
+</th>
+<th class="coverageStat 
+">
+  Line, %
+</th>
+</tr>
+<tr>
+  <td class="name">Detector</td>
+<td class="coverageStat">
+  <span class="percent">
+    100%
+  </span>
+  <span class="absValue">
+    (1/1)
+  </span>
+</td>
+<td class="coverageStat">
+  <span class="percent">
+    100%
+  </span>
+  <span class="absValue">
+    (11/11)
+  </span>
+</td>
+<td class="coverageStat">
+  <span class="percent">
+    99.4%
+  </span>
+  <span class="absValue">
+    (180/181)
+  </span>
+</td>
+</tr>
+
+</table>
+
+<br/>
+<br/>
+
+
+<pre>
+<code class="sourceCode" id="sourceCode">&nbsp;/*
+&nbsp; * Copyright 2008 ZXing authors
+&nbsp; *
+&nbsp; * Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
+&nbsp; * you may not use this file except in compliance with the License.
+&nbsp; * You may obtain a copy of the License at
+&nbsp; *
+&nbsp; *      http://www.apache.org/licenses/LICENSE-2.0
+&nbsp; *
+&nbsp; * Unless required by applicable law or agreed to in writing, software
+&nbsp; * distributed under the License is distributed on an &quot;AS IS&quot; BASIS,
+&nbsp; * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+&nbsp; * See the License for the specific language governing permissions and
+&nbsp; * limitations under the License.
+&nbsp; */
+&nbsp;
+&nbsp;package com.google.zxing.datamatrix.detector;
+&nbsp;
+&nbsp;import com.google.zxing.NotFoundException;
+&nbsp;import com.google.zxing.ResultPoint;
+&nbsp;import com.google.zxing.common.BitMatrix;
+&nbsp;import com.google.zxing.common.DetectorResult;
+&nbsp;import com.google.zxing.common.GridSampler;
+&nbsp;import com.google.zxing.common.detector.WhiteRectangleDetector;
+&nbsp;
+&nbsp;/**
+&nbsp; * &lt;p&gt;Encapsulates logic that can detect a Data Matrix Code in an image, even if the Data Matrix Code
+&nbsp; * is rotated or skewed, or partially obscured.&lt;/p&gt;
+&nbsp; *
+&nbsp; * @author Sean Owen
+&nbsp; */
+&nbsp;public final class Detector {
+&nbsp;
+&nbsp;  private final BitMatrix image;
+&nbsp;  private final WhiteRectangleDetector rectangleDetector;
+&nbsp;
+<b class="fc">&nbsp;  public Detector(BitMatrix image) throws NotFoundException {</b>
+<b class="fc">&nbsp;    this.image = image;</b>
+<b class="fc">&nbsp;    rectangleDetector = new WhiteRectangleDetector(image);</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  /**
+&nbsp;   * &lt;p&gt;Detects a Data Matrix Code in an image.&lt;/p&gt;
+&nbsp;   *
+&nbsp;   * @return {@link DetectorResult} encapsulating results of detecting a Data Matrix Code
+&nbsp;   * @throws NotFoundException if no Data Matrix Code can be found
+&nbsp;   */
+&nbsp;  public DetectorResult detect() throws NotFoundException {
+&nbsp;
+<b class="fc">&nbsp;    ResultPoint[] cornerPoints = rectangleDetector.detect();</b>
+&nbsp;
+<b class="fc">&nbsp;    ResultPoint[] points = detectSolid1(cornerPoints);</b>
+<b class="fc">&nbsp;    points = detectSolid2(points);</b>
+<b class="fc">&nbsp;    points[3] = correctTopRight(points);</b>
+<b class="fc">&nbsp;    if (points[3] == null) {</b>
+<b class="fc">&nbsp;      throw NotFoundException.getNotFoundInstance();</b>
+&nbsp;    }
+<b class="fc">&nbsp;    points = shiftToModuleCenter(points);</b>
+&nbsp;
+<b class="fc">&nbsp;    ResultPoint topLeft = points[0];</b>
+<b class="fc">&nbsp;    ResultPoint bottomLeft = points[1];</b>
+<b class="fc">&nbsp;    ResultPoint bottomRight = points[2];</b>
+<b class="fc">&nbsp;    ResultPoint topRight = points[3];</b>
+&nbsp;
+<b class="fc">&nbsp;    int dimensionTop = transitionsBetween(topLeft, topRight) + 1;</b>
+<b class="fc">&nbsp;    int dimensionRight = transitionsBetween(bottomRight, topRight) + 1;</b>
+<b class="fc">&nbsp;    if ((dimensionTop &amp; 0x01) == 1) {</b>
+<b class="fc">&nbsp;      dimensionTop += 1;</b>
+&nbsp;    }
+<b class="fc">&nbsp;    if ((dimensionRight &amp; 0x01) == 1) {</b>
+<b class="fc">&nbsp;      dimensionRight += 1;</b>
+&nbsp;    }
+&nbsp;
+<b class="fc">&nbsp;    if (4 * dimensionTop &lt; 6 * dimensionRight &amp;&amp; 4 * dimensionRight &lt; 6 * dimensionTop) {</b>
+&nbsp;      // The matrix is square
+<b class="fc">&nbsp;      dimensionTop = dimensionRight = Math.max(dimensionTop, dimensionRight);</b>
+&nbsp;    }
+&nbsp;
+<b class="fc">&nbsp;    BitMatrix bits = sampleGrid(image,</b>
+&nbsp;                                topLeft,
+&nbsp;                                bottomLeft,
+&nbsp;                                bottomRight,
+&nbsp;                                topRight,
+&nbsp;                                dimensionTop,
+&nbsp;                                dimensionRight);
+&nbsp;
+<b class="fc">&nbsp;    return new DetectorResult(bits, new ResultPoint[]{topLeft, bottomLeft, bottomRight, topRight});</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  private static ResultPoint shiftPoint(ResultPoint point, ResultPoint to, int div) {
+<b class="fc">&nbsp;    float x = (to.getX() - point.getX()) / (div + 1);</b>
+<b class="fc">&nbsp;    float y = (to.getY() - point.getY()) / (div + 1);</b>
+<b class="fc">&nbsp;    return new ResultPoint(point.getX() + x, point.getY() + y);</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  private static ResultPoint moveAway(ResultPoint point, float fromX, float fromY) {
+<b class="fc">&nbsp;    float x = point.getX();</b>
+<b class="fc">&nbsp;    float y = point.getY();</b>
+&nbsp;
+<b class="fc">&nbsp;    if (x &lt; fromX) {</b>
+<b class="fc">&nbsp;      x -= 1;</b>
+&nbsp;    } else {
+<b class="fc">&nbsp;      x += 1;</b>
+&nbsp;    }
+&nbsp;
+<b class="fc">&nbsp;    if (y &lt; fromY) {</b>
+<b class="fc">&nbsp;      y -= 1;</b>
+&nbsp;    } else {
+<b class="fc">&nbsp;      y += 1;</b>
+&nbsp;    }
+&nbsp;
+<b class="fc">&nbsp;    return new ResultPoint(x, y);</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  /**
+&nbsp;   * Detect a solid side which has minimum transition.
+&nbsp;   */
+&nbsp;  private ResultPoint[] detectSolid1(ResultPoint[] cornerPoints) {
+&nbsp;    // 0  2
+&nbsp;    // 1  3
+<b class="fc">&nbsp;    ResultPoint pointA = cornerPoints[0];</b>
+<b class="fc">&nbsp;    ResultPoint pointB = cornerPoints[1];</b>
+<b class="fc">&nbsp;    ResultPoint pointC = cornerPoints[3];</b>
+<b class="fc">&nbsp;    ResultPoint pointD = cornerPoints[2];</b>
+&nbsp;
+<b class="fc">&nbsp;    int trAB = transitionsBetween(pointA, pointB);</b>
+<b class="fc">&nbsp;    int trBC = transitionsBetween(pointB, pointC);</b>
+<b class="fc">&nbsp;    int trCD = transitionsBetween(pointC, pointD);</b>
+<b class="fc">&nbsp;    int trDA = transitionsBetween(pointD, pointA);</b>
+&nbsp;
+&nbsp;    // 0..3
+&nbsp;    // :  :
+&nbsp;    // 1--2
+<b class="fc">&nbsp;    int min = trAB;</b>
+<b class="fc">&nbsp;    ResultPoint[] points = {pointD, pointA, pointB, pointC};</b>
+<b class="fc">&nbsp;    if (min &gt; trBC) {</b>
+<b class="fc">&nbsp;      min = trBC;</b>
+<b class="fc">&nbsp;      points[0] = pointA;</b>
+<b class="fc">&nbsp;      points[1] = pointB;</b>
+<b class="fc">&nbsp;      points[2] = pointC;</b>
+<b class="fc">&nbsp;      points[3] = pointD;</b>
+&nbsp;    }
+<b class="fc">&nbsp;    if (min &gt; trCD) {</b>
+<b class="fc">&nbsp;      min = trCD;</b>
+<b class="fc">&nbsp;      points[0] = pointB;</b>
+<b class="fc">&nbsp;      points[1] = pointC;</b>
+<b class="fc">&nbsp;      points[2] = pointD;</b>
+<b class="fc">&nbsp;      points[3] = pointA;</b>
+&nbsp;    }
+<b class="fc">&nbsp;    if (min &gt; trDA) {</b>
+<b class="fc">&nbsp;      points[0] = pointC;</b>
+<b class="fc">&nbsp;      points[1] = pointD;</b>
+<b class="fc">&nbsp;      points[2] = pointA;</b>
+<b class="fc">&nbsp;      points[3] = pointB;</b>
+&nbsp;    }
+&nbsp;
+<b class="fc">&nbsp;    return points;</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  /**
+&nbsp;   * Detect a second solid side next to first solid side.
+&nbsp;   */
+&nbsp;  private ResultPoint[] detectSolid2(ResultPoint[] points) {
+&nbsp;    // A..D
+&nbsp;    // :  :
+&nbsp;    // B--C
+<b class="fc">&nbsp;    ResultPoint pointA = points[0];</b>
+<b class="fc">&nbsp;    ResultPoint pointB = points[1];</b>
+<b class="fc">&nbsp;    ResultPoint pointC = points[2];</b>
+<b class="fc">&nbsp;    ResultPoint pointD = points[3];</b>
+&nbsp;
+&nbsp;    // Transition detection on the edge is not stable.
+&nbsp;    // To safely detect, shift the points to the module center.
+<b class="fc">&nbsp;    int tr = transitionsBetween(pointA, pointD);</b>
+<b class="fc">&nbsp;    ResultPoint pointBs = shiftPoint(pointB, pointC, (tr + 1) * 4);</b>
+<b class="fc">&nbsp;    ResultPoint pointCs = shiftPoint(pointC, pointB, (tr + 1) * 4);</b>
+<b class="fc">&nbsp;    int trBA = transitionsBetween(pointBs, pointA);</b>
+<b class="fc">&nbsp;    int trCD = transitionsBetween(pointCs, pointD);</b>
+&nbsp;
+&nbsp;    // 0..3
+&nbsp;    // |  :
+&nbsp;    // 1--2
+<b class="fc">&nbsp;    if (trBA &lt; trCD) {</b>
+&nbsp;      // solid sides: A-B-C
+<b class="fc">&nbsp;      points[0] = pointA;</b>
+<b class="fc">&nbsp;      points[1] = pointB;</b>
+<b class="fc">&nbsp;      points[2] = pointC;</b>
+<b class="fc">&nbsp;      points[3] = pointD;</b>
+&nbsp;    } else {
+&nbsp;      // solid sides: B-C-D
+<b class="fc">&nbsp;      points[0] = pointB;</b>
+<b class="fc">&nbsp;      points[1] = pointC;</b>
+<b class="fc">&nbsp;      points[2] = pointD;</b>
+<b class="fc">&nbsp;      points[3] = pointA;</b>
+&nbsp;    }
+&nbsp;
+<b class="fc">&nbsp;    return points;</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  /**
+&nbsp;   * Calculates the corner position of the white top right module.
+&nbsp;   */
+&nbsp;  private ResultPoint correctTopRight(ResultPoint[] points) {
+&nbsp;    // A..D
+&nbsp;    // |  :
+&nbsp;    // B--C
+<b class="fc">&nbsp;    ResultPoint pointA = points[0];</b>
+<b class="fc">&nbsp;    ResultPoint pointB = points[1];</b>
+<b class="fc">&nbsp;    ResultPoint pointC = points[2];</b>
+<b class="fc">&nbsp;    ResultPoint pointD = points[3];</b>
+&nbsp;
+&nbsp;    // shift points for safe transition detection.
+<b class="fc">&nbsp;    int trTop = transitionsBetween(pointA, pointD);</b>
+<b class="fc">&nbsp;    int trRight = transitionsBetween(pointB, pointD);</b>
+<b class="fc">&nbsp;    ResultPoint pointAs = shiftPoint(pointA, pointB, (trRight + 1) * 4);</b>
+<b class="fc">&nbsp;    ResultPoint pointCs = shiftPoint(pointC, pointB, (trTop + 1) * 4);</b>
+&nbsp;
+<b class="fc">&nbsp;    trTop = transitionsBetween(pointAs, pointD);</b>
+<b class="fc">&nbsp;    trRight = transitionsBetween(pointCs, pointD);</b>
+&nbsp;
+<b class="fc">&nbsp;    ResultPoint candidate1 = new ResultPoint(</b>
+<b class="fc">&nbsp;        pointD.getX() + (pointC.getX() - pointB.getX()) / (trTop + 1),</b>
+<b class="fc">&nbsp;        pointD.getY() + (pointC.getY() - pointB.getY()) / (trTop + 1));</b>
+<b class="fc">&nbsp;    ResultPoint candidate2 = new ResultPoint(</b>
+<b class="fc">&nbsp;        pointD.getX() + (pointA.getX() - pointB.getX()) / (trRight + 1),</b>
+<b class="fc">&nbsp;        pointD.getY() + (pointA.getY() - pointB.getY()) / (trRight + 1));</b>
+&nbsp;
+<b class="fc">&nbsp;    if (!isValid(candidate1)) {</b>
+<b class="fc">&nbsp;      if (isValid(candidate2)) {</b>
+<b class="fc">&nbsp;        return candidate2;</b>
+&nbsp;      }
+<b class="fc">&nbsp;      return null;</b>
+&nbsp;    }
+<b class="fc">&nbsp;    if (!isValid(candidate2)) {</b>
+<b class="fc">&nbsp;      return candidate1;</b>
+&nbsp;    }
+&nbsp;
+<b class="fc">&nbsp;    int sumc1 = transitionsBetween(pointAs, candidate1) + transitionsBetween(pointCs, candidate1);</b>
+<b class="fc">&nbsp;    int sumc2 = transitionsBetween(pointAs, candidate2) + transitionsBetween(pointCs, candidate2);</b>
+&nbsp;
+<b class="fc">&nbsp;    if (sumc1 &gt; sumc2) {</b>
+<b class="fc">&nbsp;      return candidate1;</b>
+&nbsp;    } else {
+<b class="fc">&nbsp;      return candidate2;</b>
+&nbsp;    }
+&nbsp;  }
+&nbsp;
+&nbsp;  /**
+&nbsp;   * Shift the edge points to the module center.
+&nbsp;   */
+&nbsp;  private ResultPoint[] shiftToModuleCenter(ResultPoint[] points) {
+&nbsp;    // A..D
+&nbsp;    // |  :
+&nbsp;    // B--C
+<b class="fc">&nbsp;    ResultPoint pointA = points[0];</b>
+<b class="fc">&nbsp;    ResultPoint pointB = points[1];</b>
+<b class="fc">&nbsp;    ResultPoint pointC = points[2];</b>
+<b class="fc">&nbsp;    ResultPoint pointD = points[3];</b>
+&nbsp;
+&nbsp;    // calculate pseudo dimensions
+<b class="fc">&nbsp;    int dimH = transitionsBetween(pointA, pointD) + 1;</b>
+<b class="fc">&nbsp;    int dimV = transitionsBetween(pointC, pointD) + 1;</b>
+&nbsp;
+&nbsp;    // shift points for safe dimension detection
+<b class="fc">&nbsp;    ResultPoint pointAs = shiftPoint(pointA, pointB, dimV * 4);</b>
+<b class="fc">&nbsp;    ResultPoint pointCs = shiftPoint(pointC, pointB, dimH * 4);</b>
+&nbsp;
+&nbsp;    //  calculate more precise dimensions
+<b class="fc">&nbsp;    dimH = transitionsBetween(pointAs, pointD) + 1;</b>
+<b class="fc">&nbsp;    dimV = transitionsBetween(pointCs, pointD) + 1;</b>
+<b class="fc">&nbsp;    if ((dimH &amp; 0x01) == 1) {</b>
+<b class="fc">&nbsp;      dimH += 1;</b>
+&nbsp;    }
+<b class="fc">&nbsp;    if ((dimV &amp; 0x01) == 1) {</b>
+<b class="fc">&nbsp;      dimV += 1;</b>
+&nbsp;    }
+&nbsp;
+&nbsp;    // WhiteRectangleDetector returns points inside of the rectangle.
+&nbsp;    // I want points on the edges.
+<b class="fc">&nbsp;    float centerX = (pointA.getX() + pointB.getX() + pointC.getX() + pointD.getX()) / 4;</b>
+<b class="fc">&nbsp;    float centerY = (pointA.getY() + pointB.getY() + pointC.getY() + pointD.getY()) / 4;</b>
+<b class="fc">&nbsp;    pointA = moveAway(pointA, centerX, centerY);</b>
+<b class="fc">&nbsp;    pointB = moveAway(pointB, centerX, centerY);</b>
+<b class="fc">&nbsp;    pointC = moveAway(pointC, centerX, centerY);</b>
+<b class="fc">&nbsp;    pointD = moveAway(pointD, centerX, centerY);</b>
+&nbsp;
+&nbsp;    ResultPoint pointBs;
+&nbsp;    ResultPoint pointDs;
+&nbsp;
+&nbsp;    // shift points to the center of each modules
+<b class="fc">&nbsp;    pointAs = shiftPoint(pointA, pointB, dimV * 4);</b>
+<b class="fc">&nbsp;    pointAs = shiftPoint(pointAs, pointD, dimH * 4);</b>
+<b class="fc">&nbsp;    pointBs = shiftPoint(pointB, pointA, dimV * 4);</b>
+<b class="fc">&nbsp;    pointBs = shiftPoint(pointBs, pointC, dimH * 4);</b>
+<b class="fc">&nbsp;    pointCs = shiftPoint(pointC, pointD, dimV * 4);</b>
+<b class="fc">&nbsp;    pointCs = shiftPoint(pointCs, pointB, dimH * 4);</b>
+<b class="fc">&nbsp;    pointDs = shiftPoint(pointD, pointC, dimV * 4);</b>
+<b class="fc">&nbsp;    pointDs = shiftPoint(pointDs, pointA, dimH * 4);</b>
+&nbsp;
+<b class="fc">&nbsp;    return new ResultPoint[]{pointAs, pointBs, pointCs, pointDs};</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  private boolean isValid(ResultPoint p) {
+<b class="fc">&nbsp;    return p.getX() &gt;= 0 &amp;&amp; p.getX() &lt;= image.getWidth() - 1 &amp;&amp; p.getY() &gt; 0 &amp;&amp; p.getY() &lt;= image.getHeight() - 1;</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  private static BitMatrix sampleGrid(BitMatrix image,
+&nbsp;                                      ResultPoint topLeft,
+&nbsp;                                      ResultPoint bottomLeft,
+&nbsp;                                      ResultPoint bottomRight,
+&nbsp;                                      ResultPoint topRight,
+&nbsp;                                      int dimensionX,
+&nbsp;                                      int dimensionY) throws NotFoundException {
+&nbsp;
+<b class="fc">&nbsp;    GridSampler sampler = GridSampler.getInstance();</b>
+&nbsp;
+<b class="fc">&nbsp;    return sampler.sampleGrid(image,</b>
+&nbsp;                              dimensionX,
+&nbsp;                              dimensionY,
+&nbsp;                              0.5f,
+&nbsp;                              0.5f,
+&nbsp;                              dimensionX - 0.5f,
+&nbsp;                              0.5f,
+&nbsp;                              dimensionX - 0.5f,
+&nbsp;                              dimensionY - 0.5f,
+&nbsp;                              0.5f,
+&nbsp;                              dimensionY - 0.5f,
+<b class="fc">&nbsp;                              topLeft.getX(),</b>
+<b class="fc">&nbsp;                              topLeft.getY(),</b>
+<b class="fc">&nbsp;                              topRight.getX(),</b>
+<b class="fc">&nbsp;                              topRight.getY(),</b>
+<b class="fc">&nbsp;                              bottomRight.getX(),</b>
+<b class="fc">&nbsp;                              bottomRight.getY(),</b>
+<b class="fc">&nbsp;                              bottomLeft.getX(),</b>
+<b class="fc">&nbsp;                              bottomLeft.getY());</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  /**
+&nbsp;   * Counts the number of black/white transitions between two points, using something like Bresenham&#39;s algorithm.
+&nbsp;   */
+&nbsp;  private int transitionsBetween(ResultPoint from, ResultPoint to) {
+&nbsp;    // See QR Code Detector, sizeOfBlackWhiteBlackRun()
+<b class="fc">&nbsp;    int fromX = (int) from.getX();</b>
+<b class="fc">&nbsp;    int fromY = (int) from.getY();</b>
+<b class="fc">&nbsp;    int toX = (int) to.getX();</b>
+<b class="fc">&nbsp;    int toY = Math.min(image.getHeight() - 1, (int) to.getY());</b>
+&nbsp;
+<b class="fc">&nbsp;    boolean steep = Math.abs(toY - fromY) &gt; Math.abs(toX - fromX);</b>
+<b class="fc">&nbsp;    if (steep) {</b>
+<b class="fc">&nbsp;      int temp = fromX;</b>
+<b class="fc">&nbsp;      fromX = fromY;</b>
+<b class="fc">&nbsp;      fromY = temp;</b>
+<b class="fc">&nbsp;      temp = toX;</b>
+<b class="fc">&nbsp;      toX = toY;</b>
+<b class="fc">&nbsp;      toY = temp;</b>
+&nbsp;    }
+&nbsp;
+<b class="fc">&nbsp;    int dx = Math.abs(toX - fromX);</b>
+<b class="fc">&nbsp;    int dy = Math.abs(toY - fromY);</b>
+<b class="fc">&nbsp;    int error = -dx / 2;</b>
+<b class="fc">&nbsp;    int ystep = fromY &lt; toY ? 1 : -1;</b>
+<b class="fc">&nbsp;    int xstep = fromX &lt; toX ? 1 : -1;</b>
+<b class="fc">&nbsp;    int transitions = 0;</b>
+<b class="fc">&nbsp;    boolean inBlack = image.get(steep ? fromY : fromX, steep ? fromX : fromY);</b>
+<b class="fc">&nbsp;    for (int x = fromX, y = fromY; x != toX; x += xstep) {</b>
+<b class="fc">&nbsp;      boolean isBlack = image.get(steep ? y : x, steep ? x : y);</b>
+<b class="fc">&nbsp;      if (isBlack != inBlack) {</b>
+<b class="fc">&nbsp;        transitions++;</b>
+<b class="fc">&nbsp;        inBlack = isBlack;</b>
+&nbsp;      }
+<b class="fc">&nbsp;      error += dy;</b>
+<b class="fc">&nbsp;      if (error &gt; 0) {</b>
+<b class="fc">&nbsp;        if (y == toY) {</b>
+<b class="nc">&nbsp;          break;</b>
+&nbsp;        }
+<b class="fc">&nbsp;        y += ystep;</b>
+<b class="fc">&nbsp;        error -= dx;</b>
+&nbsp;      }
+&nbsp;    }
+<b class="fc">&nbsp;    return transitions;</b>
+&nbsp;  }
+&nbsp;
+&nbsp;}
+</code>
+</pre>
+</div>
+
+<script type="text/javascript">
+(function() {
+    var msie = false, msie9 = false;
+    /*@cc_on
+      msie = true;
+      @if (@_jscript_version >= 9)
+        msie9 = true;
+      @end
+    @*/
+
+    if (!msie || msie && msie9) {
+      hljs.highlightAll()
+      hljs.initLineNumbersOnLoad();
+    }
+})();
+</script>
+
+<div class="footer">
+    
+    <div style="float:right;">generated on 2023-11-12 23:26</div>
+</div>
+</body>
+</html>

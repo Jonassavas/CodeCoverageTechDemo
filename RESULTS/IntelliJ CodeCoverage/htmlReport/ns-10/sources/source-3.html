@@ -1,0 +1,222 @@
+
+
+
+<!DOCTYPE html>
+<html id="htmlId">
+<head>
+  <meta http-equiv="Content-Type" content="text/html;charset=windows-1252"> 
+  <title>Coverage Report > Decoder</title>
+  <style type="text/css">
+    @import "../../css/coverage.css";
+    @import "../../css/idea.min.css";
+  </style>
+  <script type="text/javascript" src="../../js/highlight.min.js"></script>
+  <script type="text/javascript" src="../../js/highlightjs-line-numbers.min.js"></script>
+</head>
+
+<body>
+<div class="content">
+<div class="breadCrumbs">
+Current scope:     <a href="../../index.html">all classes</a>
+    <span class="separator">|</span>
+    <a href="../index.html">com.google.zxing.maxicode.decoder</a>
+</div>
+
+<h1>Coverage Summary for Class: Decoder (com.google.zxing.maxicode.decoder)</h1>
+
+<table class="coverageStats">
+<tr>
+  <th class="name">Class</th>
+<th class="coverageStat 
+">
+  Class, %
+</th>
+<th class="coverageStat 
+">
+  Method, %
+</th>
+<th class="coverageStat 
+">
+  Line, %
+</th>
+</tr>
+<tr>
+  <td class="name">Decoder</td>
+<td class="coverageStat">
+  <span class="percent">
+    100%
+  </span>
+  <span class="absValue">
+    (1/1)
+  </span>
+</td>
+<td class="coverageStat">
+  <span class="percent">
+    75%
+  </span>
+  <span class="absValue">
+    (3/4)
+  </span>
+</td>
+<td class="coverageStat">
+  <span class="percent">
+    86.5%
+  </span>
+  <span class="absValue">
+    (32/37)
+  </span>
+</td>
+</tr>
+
+</table>
+
+<br/>
+<br/>
+
+
+<pre>
+<code class="sourceCode" id="sourceCode">&nbsp;/*
+&nbsp; * Copyright 2011 ZXing authors
+&nbsp; *
+&nbsp; * Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
+&nbsp; * you may not use this file except in compliance with the License.
+&nbsp; * You may obtain a copy of the License at
+&nbsp; *
+&nbsp; *      http://www.apache.org/licenses/LICENSE-2.0
+&nbsp; *
+&nbsp; * Unless required by applicable law or agreed to in writing, software
+&nbsp; * distributed under the License is distributed on an &quot;AS IS&quot; BASIS,
+&nbsp; * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+&nbsp; * See the License for the specific language governing permissions and
+&nbsp; * limitations under the License.
+&nbsp; */
+&nbsp;
+&nbsp;package com.google.zxing.maxicode.decoder;
+&nbsp;
+&nbsp;import com.google.zxing.ChecksumException;
+&nbsp;import com.google.zxing.DecodeHintType;
+&nbsp;import com.google.zxing.FormatException;
+&nbsp;import com.google.zxing.common.BitMatrix;
+&nbsp;import com.google.zxing.common.DecoderResult;
+&nbsp;import com.google.zxing.common.reedsolomon.GenericGF;
+&nbsp;import com.google.zxing.common.reedsolomon.ReedSolomonDecoder;
+&nbsp;import com.google.zxing.common.reedsolomon.ReedSolomonException;
+&nbsp;
+&nbsp;import java.util.Map;
+&nbsp;
+&nbsp;/**
+&nbsp; * &lt;p&gt;The main class which implements MaxiCode decoding -- as opposed to locating and extracting
+&nbsp; * the MaxiCode from an image.&lt;/p&gt;
+&nbsp; *
+&nbsp; * @author Manuel Kasten
+&nbsp; */
+&nbsp;public final class Decoder {
+&nbsp;
+&nbsp;  private static final int ALL = 0;
+&nbsp;  private static final int EVEN = 1;
+&nbsp;  private static final int ODD = 2;
+&nbsp;
+&nbsp;  private final ReedSolomonDecoder rsDecoder;
+&nbsp;
+<b class="fc">&nbsp;  public Decoder() {</b>
+<b class="fc">&nbsp;    rsDecoder = new ReedSolomonDecoder(GenericGF.MAXICODE_FIELD_64);</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  public DecoderResult decode(BitMatrix bits) throws ChecksumException, FormatException {
+<b class="nc">&nbsp;    return decode(bits, null);</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  public DecoderResult decode(BitMatrix bits,
+&nbsp;                              Map&lt;DecodeHintType,?&gt; hints) throws FormatException, ChecksumException {
+<b class="fc">&nbsp;    BitMatrixParser parser = new BitMatrixParser(bits);</b>
+<b class="fc">&nbsp;    byte[] codewords = parser.readCodewords();</b>
+&nbsp;
+<b class="fc">&nbsp;    int errorsCorrected = correctErrors(codewords, 0, 10, 10, ALL);</b>
+<b class="fc">&nbsp;    int mode = codewords[0] &amp; 0x0F;</b>
+&nbsp;    byte[] datawords;
+<b class="fc">&nbsp;    switch (mode) {</b>
+&nbsp;      case 2:
+&nbsp;      case 3:
+&nbsp;      case 4:
+<b class="fc">&nbsp;        errorsCorrected += correctErrors(codewords, 20, 84, 40, EVEN);</b>
+<b class="fc">&nbsp;        errorsCorrected += correctErrors(codewords, 20, 84, 40, ODD);</b>
+<b class="fc">&nbsp;        datawords = new byte[94];</b>
+<b class="fc">&nbsp;        break;</b>
+&nbsp;      case 5:
+<b class="nc">&nbsp;        errorsCorrected += correctErrors(codewords, 20, 68, 56, EVEN);</b>
+<b class="nc">&nbsp;        errorsCorrected += correctErrors(codewords, 20, 68, 56, ODD);</b>
+<b class="nc">&nbsp;        datawords = new byte[78];</b>
+<b class="nc">&nbsp;        break;</b>
+&nbsp;      default:
+<b class="fc">&nbsp;        throw FormatException.getFormatInstance();</b>
+&nbsp;    }
+&nbsp;
+<b class="fc">&nbsp;    System.arraycopy(codewords, 0, datawords, 0, 10);</b>
+<b class="fc">&nbsp;    System.arraycopy(codewords, 20, datawords, 10, datawords.length - 10);</b>
+&nbsp;
+<b class="fc">&nbsp;    DecoderResult result = DecodedBitStreamParser.decode(datawords, mode);</b>
+<b class="fc">&nbsp;    result.setErrorsCorrected(errorsCorrected);</b>
+<b class="fc">&nbsp;    return result;</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  private int correctErrors(byte[] codewordBytes,
+&nbsp;                             int start,
+&nbsp;                             int dataCodewords,
+&nbsp;                             int ecCodewords,
+&nbsp;                             int mode) throws ChecksumException {
+<b class="fc">&nbsp;    int codewords = dataCodewords + ecCodewords;</b>
+&nbsp;
+&nbsp;    // in EVEN or ODD mode only half the codewords
+<b class="fc">&nbsp;    int divisor = mode == ALL ? 1 : 2;</b>
+&nbsp;
+&nbsp;    // First read into an array of ints
+<b class="fc">&nbsp;    int[] codewordsInts = new int[codewords / divisor];</b>
+<b class="fc">&nbsp;    for (int i = 0; i &lt; codewords; i++) {</b>
+<b class="fc">&nbsp;      if ((mode == ALL) || (i % 2 == (mode - 1))) {</b>
+<b class="fc">&nbsp;        codewordsInts[i / divisor] = codewordBytes[i + start] &amp; 0xFF;</b>
+&nbsp;      }
+&nbsp;    }
+<b class="fc">&nbsp;    int errorsCorrected = 0;</b>
+&nbsp;    try {
+<b class="fc">&nbsp;      errorsCorrected = rsDecoder.decodeWithECCount(codewordsInts, ecCodewords / divisor);</b>
+<b class="fc">&nbsp;    } catch (ReedSolomonException ignored) {</b>
+<b class="fc">&nbsp;      throw ChecksumException.getChecksumInstance();</b>
+<b class="fc">&nbsp;    }</b>
+&nbsp;    // Copy back into array of bytes -- only need to worry about the bytes that were data
+&nbsp;    // We don&#39;t care about errors in the error-correction codewords
+<b class="fc">&nbsp;    for (int i = 0; i &lt; dataCodewords; i++) {</b>
+<b class="fc">&nbsp;      if ((mode == ALL) || (i % 2 == (mode - 1))) {</b>
+<b class="fc">&nbsp;        codewordBytes[i + start] = (byte) codewordsInts[i / divisor];</b>
+&nbsp;      }
+&nbsp;    }
+<b class="fc">&nbsp;    return errorsCorrected;</b>
+&nbsp;  }
+&nbsp;
+&nbsp;}
+</code>
+</pre>
+</div>
+
+<script type="text/javascript">
+(function() {
+    var msie = false, msie9 = false;
+    /*@cc_on
+      msie = true;
+      @if (@_jscript_version >= 9)
+        msie9 = true;
+      @end
+    @*/
+
+    if (!msie || msie && msie9) {
+      hljs.highlightAll()
+      hljs.initLineNumbersOnLoad();
+    }
+})();
+</script>
+
+<div class="footer">
+    
+    <div style="float:right;">generated on 2023-11-12 23:26</div>
+</div>
+</body>
+</html>

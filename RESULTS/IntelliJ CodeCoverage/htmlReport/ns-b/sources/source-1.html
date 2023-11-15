@@ -1,0 +1,265 @@
+
+
+
+<!DOCTYPE html>
+<html id="htmlId">
+<head>
+  <meta http-equiv="Content-Type" content="text/html;charset=windows-1252"> 
+  <title>Coverage Report > DataMatrixReader</title>
+  <style type="text/css">
+    @import "../../css/coverage.css";
+    @import "../../css/idea.min.css";
+  </style>
+  <script type="text/javascript" src="../../js/highlight.min.js"></script>
+  <script type="text/javascript" src="../../js/highlightjs-line-numbers.min.js"></script>
+</head>
+
+<body>
+<div class="content">
+<div class="breadCrumbs">
+Current scope:     <a href="../../index.html">all classes</a>
+    <span class="separator">|</span>
+    <a href="../index.html">com.google.zxing.datamatrix</a>
+</div>
+
+<h1>Coverage Summary for Class: DataMatrixReader (com.google.zxing.datamatrix)</h1>
+
+<table class="coverageStats">
+<tr>
+  <th class="name">Class</th>
+<th class="coverageStat 
+">
+  Class, %
+</th>
+<th class="coverageStat 
+">
+  Method, %
+</th>
+<th class="coverageStat 
+">
+  Line, %
+</th>
+</tr>
+<tr>
+  <td class="name">DataMatrixReader</td>
+<td class="coverageStat">
+  <span class="percent">
+    100%
+  </span>
+  <span class="absValue">
+    (1/1)
+  </span>
+</td>
+<td class="coverageStat">
+  <span class="percent">
+    71.4%
+  </span>
+  <span class="absValue">
+    (5/7)
+  </span>
+</td>
+<td class="coverageStat">
+  <span class="percent">
+    91.2%
+  </span>
+  <span class="absValue">
+    (52/57)
+  </span>
+</td>
+</tr>
+
+</table>
+
+<br/>
+<br/>
+
+
+<pre>
+<code class="sourceCode" id="sourceCode">&nbsp;/*
+&nbsp; * Copyright 2007 ZXing authors
+&nbsp; *
+&nbsp; * Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
+&nbsp; * you may not use this file except in compliance with the License.
+&nbsp; * You may obtain a copy of the License at
+&nbsp; *
+&nbsp; *      http://www.apache.org/licenses/LICENSE-2.0
+&nbsp; *
+&nbsp; * Unless required by applicable law or agreed to in writing, software
+&nbsp; * distributed under the License is distributed on an &quot;AS IS&quot; BASIS,
+&nbsp; * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+&nbsp; * See the License for the specific language governing permissions and
+&nbsp; * limitations under the License.
+&nbsp; */
+&nbsp;
+&nbsp;package com.google.zxing.datamatrix;
+&nbsp;
+&nbsp;import com.google.zxing.BarcodeFormat;
+&nbsp;import com.google.zxing.BinaryBitmap;
+&nbsp;import com.google.zxing.ChecksumException;
+&nbsp;import com.google.zxing.DecodeHintType;
+&nbsp;import com.google.zxing.FormatException;
+&nbsp;import com.google.zxing.NotFoundException;
+&nbsp;import com.google.zxing.Reader;
+&nbsp;import com.google.zxing.Result;
+&nbsp;import com.google.zxing.ResultMetadataType;
+&nbsp;import com.google.zxing.ResultPoint;
+&nbsp;import com.google.zxing.common.BitMatrix;
+&nbsp;import com.google.zxing.common.DecoderResult;
+&nbsp;import com.google.zxing.common.DetectorResult;
+&nbsp;import com.google.zxing.datamatrix.decoder.Decoder;
+&nbsp;import com.google.zxing.datamatrix.detector.Detector;
+&nbsp;
+&nbsp;import java.util.List;
+&nbsp;import java.util.Map;
+&nbsp;
+&nbsp;/**
+&nbsp; * This implementation can detect and decode Data Matrix codes in an image.
+&nbsp; *
+&nbsp; * @author bbrown@google.com (Brian Brown)
+&nbsp; */
+<b class="fc">&nbsp;public final class DataMatrixReader implements Reader {</b>
+&nbsp;
+<b class="fc">&nbsp;  private static final ResultPoint[] NO_POINTS = new ResultPoint[0];</b>
+&nbsp;
+<b class="fc">&nbsp;  private final Decoder decoder = new Decoder();</b>
+&nbsp;
+&nbsp;  /**
+&nbsp;   * Locates and decodes a Data Matrix code in an image.
+&nbsp;   *
+&nbsp;   * @return a String representing the content encoded by the Data Matrix code
+&nbsp;   * @throws NotFoundException if a Data Matrix code cannot be found
+&nbsp;   * @throws FormatException if a Data Matrix code cannot be decoded
+&nbsp;   * @throws ChecksumException if error correction fails
+&nbsp;   */
+&nbsp;  @Override
+&nbsp;  public Result decode(BinaryBitmap image) throws NotFoundException, ChecksumException, FormatException {
+<b class="nc">&nbsp;    return decode(image, null);</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  @Override
+&nbsp;  public Result decode(BinaryBitmap image, Map&lt;DecodeHintType,?&gt; hints)
+&nbsp;      throws NotFoundException, ChecksumException, FormatException {
+&nbsp;    DecoderResult decoderResult;
+&nbsp;    ResultPoint[] points;
+<b class="fc">&nbsp;    if (hints != null &amp;&amp; hints.containsKey(DecodeHintType.PURE_BARCODE)) {</b>
+<b class="fc">&nbsp;      BitMatrix bits = extractPureBits(image.getBlackMatrix());</b>
+<b class="fc">&nbsp;      decoderResult = decoder.decode(bits);</b>
+<b class="fc">&nbsp;      points = NO_POINTS;</b>
+<b class="fc">&nbsp;    } else {</b>
+<b class="fc">&nbsp;      DetectorResult detectorResult = new Detector(image.getBlackMatrix()).detect();</b>
+<b class="fc">&nbsp;      decoderResult = decoder.decode(detectorResult.getBits());</b>
+<b class="fc">&nbsp;      points = detectorResult.getPoints();</b>
+&nbsp;    }
+<b class="fc">&nbsp;    Result result = new Result(decoderResult.getText(), decoderResult.getRawBytes(), points,</b>
+&nbsp;        BarcodeFormat.DATA_MATRIX);
+<b class="fc">&nbsp;    List&lt;byte[]&gt; byteSegments = decoderResult.getByteSegments();</b>
+<b class="fc">&nbsp;    if (byteSegments != null) {</b>
+<b class="fc">&nbsp;      result.putMetadata(ResultMetadataType.BYTE_SEGMENTS, byteSegments);</b>
+&nbsp;    }
+<b class="fc">&nbsp;    String ecLevel = decoderResult.getECLevel();</b>
+<b class="fc">&nbsp;    if (ecLevel != null) {</b>
+<b class="nc">&nbsp;      result.putMetadata(ResultMetadataType.ERROR_CORRECTION_LEVEL, ecLevel);</b>
+&nbsp;    }
+<b class="fc">&nbsp;    result.putMetadata(ResultMetadataType.ERRORS_CORRECTED, decoderResult.getErrorsCorrected());</b>
+<b class="fc">&nbsp;    result.putMetadata(ResultMetadataType.SYMBOLOGY_IDENTIFIER, &quot;]d&quot; + decoderResult.getSymbologyModifier());</b>
+<b class="fc">&nbsp;    return result;</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  @Override
+&nbsp;  public void reset() {
+&nbsp;    // do nothing
+<b class="nc">&nbsp;  }</b>
+&nbsp;
+&nbsp;  /**
+&nbsp;   * This method detects a code in a &quot;pure&quot; image -- that is, pure monochrome image
+&nbsp;   * which contains only an unrotated, unskewed, image of a code, with some white border
+&nbsp;   * around it. This is a specialized method that works exceptionally fast in this special
+&nbsp;   * case.
+&nbsp;   */
+&nbsp;  private static BitMatrix extractPureBits(BitMatrix image) throws NotFoundException {
+&nbsp;
+<b class="fc">&nbsp;    int[] leftTopBlack = image.getTopLeftOnBit();</b>
+<b class="fc">&nbsp;    int[] rightBottomBlack = image.getBottomRightOnBit();</b>
+<b class="fc">&nbsp;    if (leftTopBlack == null || rightBottomBlack == null) {</b>
+<b class="nc">&nbsp;      throw NotFoundException.getNotFoundInstance();</b>
+&nbsp;    }
+&nbsp;
+<b class="fc">&nbsp;    int moduleSize = moduleSize(leftTopBlack, image);</b>
+&nbsp;
+<b class="fc">&nbsp;    int top = leftTopBlack[1];</b>
+<b class="fc">&nbsp;    int bottom = rightBottomBlack[1];</b>
+<b class="fc">&nbsp;    int left = leftTopBlack[0];</b>
+<b class="fc">&nbsp;    int right = rightBottomBlack[0];</b>
+&nbsp;
+<b class="fc">&nbsp;    int matrixWidth = (right - left + 1) / moduleSize;</b>
+<b class="fc">&nbsp;    int matrixHeight = (bottom - top + 1) / moduleSize;</b>
+<b class="fc">&nbsp;    if (matrixWidth &lt;= 0 || matrixHeight &lt;= 0) {</b>
+<b class="fc">&nbsp;      throw NotFoundException.getNotFoundInstance();</b>
+&nbsp;    }
+&nbsp;
+&nbsp;    // Push in the &quot;border&quot; by half the module width so that we start
+&nbsp;    // sampling in the middle of the module. Just in case the image is a
+&nbsp;    // little off, this will help recover.
+<b class="fc">&nbsp;    int nudge = moduleSize / 2;</b>
+<b class="fc">&nbsp;    top += nudge;</b>
+<b class="fc">&nbsp;    left += nudge;</b>
+&nbsp;
+&nbsp;    // Now just read off the bits
+<b class="fc">&nbsp;    BitMatrix bits = new BitMatrix(matrixWidth, matrixHeight);</b>
+<b class="fc">&nbsp;    for (int y = 0; y &lt; matrixHeight; y++) {</b>
+<b class="fc">&nbsp;      int iOffset = top + y * moduleSize;</b>
+<b class="fc">&nbsp;      for (int x = 0; x &lt; matrixWidth; x++) {</b>
+<b class="fc">&nbsp;        if (image.get(left + x * moduleSize, iOffset)) {</b>
+<b class="fc">&nbsp;          bits.set(x, y);</b>
+&nbsp;        }
+&nbsp;      }
+&nbsp;    }
+<b class="fc">&nbsp;    return bits;</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  private static int moduleSize(int[] leftTopBlack, BitMatrix image) throws NotFoundException {
+<b class="fc">&nbsp;    int width = image.getWidth();</b>
+<b class="fc">&nbsp;    int x = leftTopBlack[0];</b>
+<b class="fc">&nbsp;    int y = leftTopBlack[1];</b>
+<b class="fc">&nbsp;    while (x &lt; width &amp;&amp; image.get(x, y)) {</b>
+<b class="fc">&nbsp;      x++;</b>
+&nbsp;    }
+<b class="fc">&nbsp;    if (x == width) {</b>
+<b class="fc">&nbsp;      throw NotFoundException.getNotFoundInstance();</b>
+&nbsp;    }
+&nbsp;
+<b class="fc">&nbsp;    int moduleSize = x - leftTopBlack[0];</b>
+<b class="fc">&nbsp;    if (moduleSize == 0) {</b>
+<b class="nc">&nbsp;      throw NotFoundException.getNotFoundInstance();</b>
+&nbsp;    }
+<b class="fc">&nbsp;    return moduleSize;</b>
+&nbsp;  }
+&nbsp;
+&nbsp;}
+</code>
+</pre>
+</div>
+
+<script type="text/javascript">
+(function() {
+    var msie = false, msie9 = false;
+    /*@cc_on
+      msie = true;
+      @if (@_jscript_version >= 9)
+        msie9 = true;
+      @end
+    @*/
+
+    if (!msie || msie && msie9) {
+      hljs.highlightAll()
+      hljs.initLineNumbersOnLoad();
+    }
+})();
+</script>
+
+<div class="footer">
+    
+    <div style="float:right;">generated on 2023-11-12 23:26</div>
+</div>
+</body>
+</html>

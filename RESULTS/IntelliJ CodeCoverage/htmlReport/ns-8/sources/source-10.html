@@ -1,0 +1,175 @@
+
+
+
+<!DOCTYPE html>
+<html id="htmlId">
+<head>
+  <meta http-equiv="Content-Type" content="text/html;charset=windows-1252"> 
+  <title>Coverage Report > ECIInput</title>
+  <style type="text/css">
+    @import "../../css/coverage.css";
+    @import "../../css/idea.min.css";
+  </style>
+  <script type="text/javascript" src="../../js/highlight.min.js"></script>
+  <script type="text/javascript" src="../../js/highlightjs-line-numbers.min.js"></script>
+</head>
+
+<body>
+<div class="content">
+<div class="breadCrumbs">
+Current scope:     <a href="../../index.html">all classes</a>
+    <span class="separator">|</span>
+    <a href="../index.html">com.google.zxing.common</a>
+</div>
+
+<h1>Coverage Summary for Class: ECIInput (com.google.zxing.common)</h1>
+
+<table class="coverageStats">
+<tr>
+  <th class="name">Class</th>
+</tr>
+<tr>
+  <td class="name">ECIInput</td>
+</tr>
+
+</table>
+
+<br/>
+<br/>
+
+
+<pre>
+<code class="sourceCode" id="sourceCode">&nbsp;/*
+&nbsp; * Copyright 2021 ZXing authors
+&nbsp; *
+&nbsp; * Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
+&nbsp; * you may not use this file except in compliance with the License.
+&nbsp; * You may obtain a copy of the License at
+&nbsp; *
+&nbsp; *      http://www.apache.org/licenses/LICENSE-2.0
+&nbsp; *
+&nbsp; * Unless required by applicable law or agreed to in writing, software
+&nbsp; * distributed under the License is distributed on an &quot;AS IS&quot; BASIS,
+&nbsp; * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+&nbsp; * See the License for the specific language governing permissions and
+&nbsp; * limitations under the License.
+&nbsp; */
+&nbsp;
+&nbsp;package com.google.zxing.common;
+&nbsp;
+&nbsp;/**
+&nbsp; * Interface to navigate a sequence of ECIs and bytes.
+&nbsp; *
+&nbsp; * @author Alex Geller
+&nbsp; */
+&nbsp;public interface ECIInput {
+&nbsp;
+&nbsp; /**
+&nbsp;  * Returns the length of this input.  The length is the number
+&nbsp;  * of {@code byte}s in or ECIs in the sequence.
+&nbsp;  *
+&nbsp;  * @return  the number of {@code char}s in this sequence
+&nbsp;  */
+&nbsp;  int length();
+&nbsp;
+&nbsp; /**
+&nbsp;  * Returns the {@code byte} value at the specified index.  An index ranges from zero
+&nbsp;  * to {@code length() - 1}.  The first {@code byte} value of the sequence is at
+&nbsp;  * index zero, the next at index one, and so on, as for array
+&nbsp;  * indexing.
+&nbsp;  *
+&nbsp;  * @param   index the index of the {@code byte} value to be returned
+&nbsp;  *
+&nbsp;  * @return  the specified {@code byte} value as character or the FNC1 character
+&nbsp;  *
+&nbsp;  * @throws  IndexOutOfBoundsException
+&nbsp;  *          if the {@code index} argument is negative or not less than
+&nbsp;  *          {@code length()}
+&nbsp;  * @throws  IllegalArgumentException
+&nbsp;  *          if the value at the {@code index} argument is an ECI (@see #isECI)
+&nbsp;  */
+&nbsp;  char charAt(int index);
+&nbsp;
+&nbsp; /**
+&nbsp;  * Returns a {@code CharSequence} that is a subsequence of this sequence.
+&nbsp;  * The subsequence starts with the {@code char} value at the specified index and
+&nbsp;  * ends with the {@code char} value at index {@code end - 1}.  The length
+&nbsp;  * (in {@code char}s) of the
+&nbsp;  * returned sequence is {@code end - start}, so if {@code start == end}
+&nbsp;  * then an empty sequence is returned.
+&nbsp;  *
+&nbsp;  * @param   start   the start index, inclusive
+&nbsp;  * @param   end     the end index, exclusive
+&nbsp;  *
+&nbsp;  * @return  the specified subsequence
+&nbsp;  *
+&nbsp;  * @throws  IndexOutOfBoundsException
+&nbsp;  *          if {@code start} or {@code end} are negative,
+&nbsp;  *          if {@code end} is greater than {@code length()},
+&nbsp;  *          or if {@code start} is greater than {@code end}
+&nbsp;  * @throws  IllegalArgumentException
+&nbsp;  *          if a value in the range {@code start}-{@code end} is an ECI (@see #isECI)
+&nbsp;  */
+&nbsp;  CharSequence subSequence(int start, int end);
+&nbsp;
+&nbsp; /**
+&nbsp;  * Determines if a value is an ECI
+&nbsp;  *
+&nbsp;  * @param   index the index of the value
+&nbsp;  *
+&nbsp;  * @return  true if the value at position {@code index} is an ECI
+&nbsp;  *
+&nbsp;  * @throws  IndexOutOfBoundsException
+&nbsp;  *          if the {@code index} argument is negative or not less than
+&nbsp;  *          {@code length()}
+&nbsp;  */
+&nbsp;  boolean isECI(int index);
+&nbsp;
+&nbsp; /**
+&nbsp;  * Returns the {@code int} ECI value at the specified index.  An index ranges from zero
+&nbsp;  * to {@code length() - 1}.  The first {@code byte} value of the sequence is at
+&nbsp;  * index zero, the next at index one, and so on, as for array
+&nbsp;  * indexing.
+&nbsp;  *
+&nbsp;  * @param   index the index of the {@code int} value to be returned
+&nbsp;  *
+&nbsp;  * @return  the specified {@code int} ECI value. 
+&nbsp;  *          The ECI specified the encoding of all bytes with a higher index until the
+&nbsp;  *          next ECI or until the end of the input if no other ECI follows.
+&nbsp;  *
+&nbsp;  * @throws  IndexOutOfBoundsException
+&nbsp;  *          if the {@code index} argument is negative or not less than
+&nbsp;  *          {@code length()}
+&nbsp;  * @throws  IllegalArgumentException
+&nbsp;  *          if the value at the {@code index} argument is not an ECI (@see #isECI)
+&nbsp;  */
+&nbsp;  int getECIValue(int index);
+&nbsp;  boolean haveNCharacters(int index, int n);
+&nbsp;}
+</code>
+</pre>
+</div>
+
+<script type="text/javascript">
+(function() {
+    var msie = false, msie9 = false;
+    /*@cc_on
+      msie = true;
+      @if (@_jscript_version >= 9)
+        msie9 = true;
+      @end
+    @*/
+
+    if (!msie || msie && msie9) {
+      hljs.highlightAll()
+      hljs.initLineNumbersOnLoad();
+    }
+})();
+</script>
+
+<div class="footer">
+    
+    <div style="float:right;">generated on 2023-11-12 23:26</div>
+</div>
+</body>
+</html>

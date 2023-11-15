@@ -1,0 +1,346 @@
+
+
+
+<!DOCTYPE html>
+<html id="htmlId">
+<head>
+  <meta http-equiv="Content-Type" content="text/html;charset=windows-1252"> 
+  <title>Coverage Report > StringUtils</title>
+  <style type="text/css">
+    @import "../../css/coverage.css";
+    @import "../../css/idea.min.css";
+  </style>
+  <script type="text/javascript" src="../../js/highlight.min.js"></script>
+  <script type="text/javascript" src="../../js/highlightjs-line-numbers.min.js"></script>
+</head>
+
+<body>
+<div class="content">
+<div class="breadCrumbs">
+Current scope:     <a href="../../index.html">all classes</a>
+    <span class="separator">|</span>
+    <a href="../index.html">com.google.zxing.common</a>
+</div>
+
+<h1>Coverage Summary for Class: StringUtils (com.google.zxing.common)</h1>
+
+<table class="coverageStats">
+<tr>
+  <th class="name">Class</th>
+<th class="coverageStat 
+">
+  Class, %
+</th>
+<th class="coverageStat 
+">
+  Method, %
+</th>
+<th class="coverageStat 
+">
+  Line, %
+</th>
+</tr>
+<tr>
+  <td class="name">StringUtils</td>
+<td class="coverageStat">
+  <span class="percent">
+    100%
+  </span>
+  <span class="absValue">
+    (1/1)
+  </span>
+</td>
+<td class="coverageStat">
+  <span class="percent">
+    100%
+  </span>
+  <span class="absValue">
+    (3/3)
+  </span>
+</td>
+<td class="coverageStat">
+  <span class="percent">
+    92.4%
+  </span>
+  <span class="absValue">
+    (97/105)
+  </span>
+</td>
+</tr>
+
+</table>
+
+<br/>
+<br/>
+
+
+<pre>
+<code class="sourceCode" id="sourceCode">&nbsp;/*
+&nbsp; * Copyright (C) 2010 ZXing authors
+&nbsp; *
+&nbsp; * Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
+&nbsp; * you may not use this file except in compliance with the License.
+&nbsp; * You may obtain a copy of the License at
+&nbsp; *
+&nbsp; *      http://www.apache.org/licenses/LICENSE-2.0
+&nbsp; *
+&nbsp; * Unless required by applicable law or agreed to in writing, software
+&nbsp; * distributed under the License is distributed on an &quot;AS IS&quot; BASIS,
+&nbsp; * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+&nbsp; * See the License for the specific language governing permissions and
+&nbsp; * limitations under the License.
+&nbsp; */
+&nbsp;
+&nbsp;package com.google.zxing.common;
+&nbsp;
+&nbsp;import java.nio.charset.Charset;
+&nbsp;import java.nio.charset.StandardCharsets;
+&nbsp;import java.nio.charset.UnsupportedCharsetException;
+&nbsp;import java.util.Map;
+&nbsp;
+&nbsp;import com.google.zxing.DecodeHintType;
+&nbsp;
+&nbsp;/**
+&nbsp; * Common string-related functions.
+&nbsp; *
+&nbsp; * @author Sean Owen
+&nbsp; * @author Alex Dupre
+&nbsp; */
+&nbsp;public final class StringUtils {
+&nbsp;
+<b class="fc">&nbsp;  private static final Charset PLATFORM_DEFAULT_ENCODING = Charset.defaultCharset();</b>
+<b class="fc">&nbsp;  public static final Charset SHIFT_JIS_CHARSET = Charset.forName(&quot;SJIS&quot;);</b>
+&nbsp;  public static final Charset GB2312_CHARSET;
+&nbsp;  static {
+&nbsp;    Charset gb2312Charset;
+&nbsp;    try {
+<b class="fc">&nbsp;      gb2312Charset = Charset.forName(&quot;GB2312&quot;);</b>
+<b class="nc">&nbsp;    } catch (UnsupportedCharsetException ucee) {</b>
+&nbsp;      // Can happen on some embedded JREs?
+<b class="nc">&nbsp;      gb2312Charset = null;</b>
+<b class="fc">&nbsp;    }</b>
+<b class="fc">&nbsp;    GB2312_CHARSET = gb2312Charset;</b>
+&nbsp;  }
+<b class="fc">&nbsp;  private static final Charset EUC_JP = Charset.forName(&quot;EUC_JP&quot;);</b>
+<b class="fc">&nbsp;  private static final boolean ASSUME_SHIFT_JIS =</b>
+<b class="fc">&nbsp;      SHIFT_JIS_CHARSET.equals(PLATFORM_DEFAULT_ENCODING) ||</b>
+<b class="fc">&nbsp;      EUC_JP.equals(PLATFORM_DEFAULT_ENCODING);</b>
+&nbsp;
+&nbsp;  // Retained for ABI compatibility with earlier versions
+&nbsp;  public static final String SHIFT_JIS = &quot;SJIS&quot;;
+&nbsp;  public static final String GB2312 = &quot;GB2312&quot;;
+&nbsp;
+&nbsp;  private StringUtils() { }
+&nbsp;
+&nbsp;  /**
+&nbsp;   * @param bytes bytes encoding a string, whose encoding should be guessed
+&nbsp;   * @param hints decode hints if applicable
+&nbsp;   * @return name of guessed encoding; at the moment will only guess one of:
+&nbsp;   *  &quot;SJIS&quot;, &quot;UTF8&quot;, &quot;ISO8859_1&quot;, or the platform default encoding if none
+&nbsp;   *  of these can possibly be correct
+&nbsp;   */
+&nbsp;  public static String guessEncoding(byte[] bytes, Map&lt;DecodeHintType,?&gt; hints) {
+<b class="fc">&nbsp;    Charset c = guessCharset(bytes, hints);</b>
+<b class="fc">&nbsp;    if (c.equals(SHIFT_JIS_CHARSET)) {</b>
+<b class="fc">&nbsp;      return &quot;SJIS&quot;;</b>
+&nbsp;    }
+<b class="fc">&nbsp;    if (c.equals(StandardCharsets.UTF_8)) {</b>
+<b class="fc">&nbsp;      return &quot;UTF8&quot;;</b>
+&nbsp;    }
+<b class="fc">&nbsp;    if (c.equals(StandardCharsets.ISO_8859_1)) {</b>
+<b class="fc">&nbsp;      return &quot;ISO8859_1&quot;;</b>
+&nbsp;    }
+<b class="fc">&nbsp;    return c.name();</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  /**
+&nbsp;   * @param bytes bytes encoding a string, whose encoding should be guessed
+&nbsp;   * @param hints decode hints if applicable
+&nbsp;   * @return Charset of guessed encoding; at the moment will only guess one of:
+&nbsp;   *  {@link #SHIFT_JIS_CHARSET}, {@link StandardCharsets#UTF_8},
+&nbsp;   *  {@link StandardCharsets#ISO_8859_1}, {@link StandardCharsets#UTF_16},
+&nbsp;   *  or the platform default encoding if
+&nbsp;   *  none of these can possibly be correct
+&nbsp;   */
+&nbsp;  public static Charset guessCharset(byte[] bytes, Map&lt;DecodeHintType,?&gt; hints) {
+<b class="fc">&nbsp;    if (hints != null &amp;&amp; hints.containsKey(DecodeHintType.CHARACTER_SET)) {</b>
+<b class="nc">&nbsp;      return Charset.forName(hints.get(DecodeHintType.CHARACTER_SET).toString());</b>
+&nbsp;    }
+&nbsp;
+&nbsp;    // First try UTF-16, assuming anything with its BOM is UTF-16
+<b class="fc">&nbsp;    if (bytes.length &gt; 2 &amp;&amp;</b>
+&nbsp;        ((bytes[0] == (byte) 0xFE &amp;&amp; bytes[1] == (byte) 0xFF) ||
+&nbsp;         (bytes[0] == (byte) 0xFF &amp;&amp; bytes[1] == (byte) 0xFE))) {
+<b class="fc">&nbsp;      return StandardCharsets.UTF_16;</b>
+&nbsp;    }
+&nbsp;
+&nbsp;    // For now, merely tries to distinguish ISO-8859-1, UTF-8 and Shift_JIS,
+&nbsp;    // which should be by far the most common encodings.
+<b class="fc">&nbsp;    int length = bytes.length;</b>
+<b class="fc">&nbsp;    boolean canBeISO88591 = true;</b>
+<b class="fc">&nbsp;    boolean canBeShiftJIS = true;</b>
+<b class="fc">&nbsp;    boolean canBeUTF8 = true;</b>
+<b class="fc">&nbsp;    int utf8BytesLeft = 0;</b>
+<b class="fc">&nbsp;    int utf2BytesChars = 0;</b>
+<b class="fc">&nbsp;    int utf3BytesChars = 0;</b>
+<b class="fc">&nbsp;    int utf4BytesChars = 0;</b>
+<b class="fc">&nbsp;    int sjisBytesLeft = 0;</b>
+<b class="fc">&nbsp;    int sjisKatakanaChars = 0;</b>
+<b class="fc">&nbsp;    int sjisCurKatakanaWordLength = 0;</b>
+<b class="fc">&nbsp;    int sjisCurDoubleBytesWordLength = 0;</b>
+<b class="fc">&nbsp;    int sjisMaxKatakanaWordLength = 0;</b>
+<b class="fc">&nbsp;    int sjisMaxDoubleBytesWordLength = 0;</b>
+<b class="fc">&nbsp;    int isoHighOther = 0;</b>
+&nbsp;
+<b class="fc">&nbsp;    boolean utf8bom = bytes.length &gt; 3 &amp;&amp;</b>
+&nbsp;        bytes[0] == (byte) 0xEF &amp;&amp;
+&nbsp;        bytes[1] == (byte) 0xBB &amp;&amp;
+&nbsp;        bytes[2] == (byte) 0xBF;
+&nbsp;
+<b class="fc">&nbsp;    for (int i = 0;</b>
+<b class="fc">&nbsp;         i &lt; length &amp;&amp; (canBeISO88591 || canBeShiftJIS || canBeUTF8);</b>
+<b class="fc">&nbsp;         i++) {</b>
+&nbsp;
+<b class="fc">&nbsp;      int value = bytes[i] &amp; 0xFF;</b>
+&nbsp;
+&nbsp;      // UTF-8 stuff
+<b class="fc">&nbsp;      if (canBeUTF8) {</b>
+<b class="fc">&nbsp;        if (utf8BytesLeft &gt; 0) {</b>
+<b class="fc">&nbsp;          if ((value &amp; 0x80) == 0) {</b>
+<b class="fc">&nbsp;            canBeUTF8 = false;</b>
+&nbsp;          } else {
+<b class="fc">&nbsp;            utf8BytesLeft--;</b>
+&nbsp;          }
+<b class="fc">&nbsp;        } else if ((value &amp; 0x80) != 0) {</b>
+<b class="fc">&nbsp;          if ((value &amp; 0x40) == 0) {</b>
+<b class="fc">&nbsp;            canBeUTF8 = false;</b>
+&nbsp;          } else {
+<b class="fc">&nbsp;            utf8BytesLeft++;</b>
+<b class="fc">&nbsp;            if ((value &amp; 0x20) == 0) {</b>
+<b class="fc">&nbsp;              utf2BytesChars++;</b>
+&nbsp;            } else {
+<b class="fc">&nbsp;              utf8BytesLeft++;</b>
+<b class="fc">&nbsp;              if ((value &amp; 0x10) == 0) {</b>
+<b class="fc">&nbsp;                utf3BytesChars++;</b>
+&nbsp;              } else {
+<b class="fc">&nbsp;                utf8BytesLeft++;</b>
+<b class="fc">&nbsp;                if ((value &amp; 0x08) == 0) {</b>
+<b class="fc">&nbsp;                  utf4BytesChars++;</b>
+&nbsp;                } else {
+<b class="nc">&nbsp;                  canBeUTF8 = false;</b>
+&nbsp;                }
+&nbsp;              }
+&nbsp;            }
+&nbsp;          }
+&nbsp;        }
+&nbsp;      }
+&nbsp;
+&nbsp;      // ISO-8859-1 stuff
+<b class="fc">&nbsp;      if (canBeISO88591) {</b>
+<b class="fc">&nbsp;        if (value &gt; 0x7F &amp;&amp; value &lt; 0xA0) {</b>
+<b class="fc">&nbsp;          canBeISO88591 = false;</b>
+<b class="fc">&nbsp;        } else if (value &gt; 0x9F &amp;&amp; (value &lt; 0xC0 || value == 0xD7 || value == 0xF7)) {</b>
+<b class="fc">&nbsp;          isoHighOther++;</b>
+&nbsp;        }
+&nbsp;      }
+&nbsp;
+&nbsp;      // Shift_JIS stuff
+<b class="fc">&nbsp;      if (canBeShiftJIS) {</b>
+<b class="fc">&nbsp;        if (sjisBytesLeft &gt; 0) {</b>
+<b class="fc">&nbsp;          if (value &lt; 0x40 || value == 0x7F || value &gt; 0xFC) {</b>
+<b class="nc">&nbsp;            canBeShiftJIS = false;</b>
+&nbsp;          } else {
+<b class="fc">&nbsp;            sjisBytesLeft--;</b>
+&nbsp;          }
+<b class="fc">&nbsp;        } else if (value == 0x80 || value == 0xA0 || value &gt; 0xEF) {</b>
+<b class="fc">&nbsp;          canBeShiftJIS = false;</b>
+<b class="fc">&nbsp;        } else if (value &gt; 0xA0 &amp;&amp; value &lt; 0xE0) {</b>
+<b class="fc">&nbsp;          sjisKatakanaChars++;</b>
+<b class="fc">&nbsp;          sjisCurDoubleBytesWordLength = 0;</b>
+<b class="fc">&nbsp;          sjisCurKatakanaWordLength++;</b>
+<b class="fc">&nbsp;          if (sjisCurKatakanaWordLength &gt; sjisMaxKatakanaWordLength) {</b>
+<b class="fc">&nbsp;            sjisMaxKatakanaWordLength = sjisCurKatakanaWordLength;</b>
+&nbsp;          }
+<b class="fc">&nbsp;        } else if (value &gt; 0x7F) {</b>
+<b class="fc">&nbsp;          sjisBytesLeft++;</b>
+&nbsp;          //sjisDoubleBytesChars++;
+<b class="fc">&nbsp;          sjisCurKatakanaWordLength = 0;</b>
+<b class="fc">&nbsp;          sjisCurDoubleBytesWordLength++;</b>
+<b class="fc">&nbsp;          if (sjisCurDoubleBytesWordLength &gt; sjisMaxDoubleBytesWordLength) {</b>
+<b class="fc">&nbsp;            sjisMaxDoubleBytesWordLength = sjisCurDoubleBytesWordLength;</b>
+&nbsp;          }
+&nbsp;        } else {
+&nbsp;          //sjisLowChars++;
+<b class="fc">&nbsp;          sjisCurKatakanaWordLength = 0;</b>
+<b class="fc">&nbsp;          sjisCurDoubleBytesWordLength = 0;</b>
+&nbsp;        }
+&nbsp;      }
+&nbsp;    }
+&nbsp;
+<b class="fc">&nbsp;    if (canBeUTF8 &amp;&amp; utf8BytesLeft &gt; 0) {</b>
+<b class="fc">&nbsp;      canBeUTF8 = false;</b>
+&nbsp;    }
+<b class="fc">&nbsp;    if (canBeShiftJIS &amp;&amp; sjisBytesLeft &gt; 0) {</b>
+<b class="nc">&nbsp;      canBeShiftJIS = false;</b>
+&nbsp;    }
+&nbsp;
+&nbsp;    // Easy -- if there is BOM or at least 1 valid not-single byte character (and no evidence it can&#39;t be UTF-8), done
+<b class="fc">&nbsp;    if (canBeUTF8 &amp;&amp; (utf8bom || utf2BytesChars + utf3BytesChars + utf4BytesChars &gt; 0)) {</b>
+<b class="fc">&nbsp;      return StandardCharsets.UTF_8;</b>
+&nbsp;    }
+&nbsp;    // Easy -- if assuming Shift_JIS or &gt;= 3 valid consecutive not-ascii characters (and no evidence it can&#39;t be), done
+<b class="fc">&nbsp;    if (canBeShiftJIS &amp;&amp; (ASSUME_SHIFT_JIS || sjisMaxKatakanaWordLength &gt;= 3 || sjisMaxDoubleBytesWordLength &gt;= 3)) {</b>
+<b class="fc">&nbsp;      return SHIFT_JIS_CHARSET;</b>
+&nbsp;    }
+&nbsp;    // Distinguishing Shift_JIS and ISO-8859-1 can be a little tough for short words. The crude heuristic is:
+&nbsp;    // - If we saw
+&nbsp;    //   - only two consecutive katakana chars in the whole text, or
+&nbsp;    //   - at least 10% of bytes that could be &quot;upper&quot; not-alphanumeric Latin1,
+&nbsp;    // - then we conclude Shift_JIS, else ISO-8859-1
+<b class="fc">&nbsp;    if (canBeISO88591 &amp;&amp; canBeShiftJIS) {</b>
+<b class="fc">&nbsp;      return (sjisMaxKatakanaWordLength == 2 &amp;&amp; sjisKatakanaChars == 2) || isoHighOther * 10 &gt;= length</b>
+<b class="nc">&nbsp;          ? SHIFT_JIS_CHARSET : StandardCharsets.ISO_8859_1;</b>
+&nbsp;    }
+&nbsp;
+&nbsp;    // Otherwise, try in order ISO-8859-1, Shift JIS, UTF-8 and fall back to default platform encoding
+<b class="fc">&nbsp;    if (canBeISO88591) {</b>
+<b class="fc">&nbsp;      return StandardCharsets.ISO_8859_1;</b>
+&nbsp;    }
+<b class="fc">&nbsp;    if (canBeShiftJIS) {</b>
+<b class="fc">&nbsp;      return SHIFT_JIS_CHARSET;</b>
+&nbsp;    }
+<b class="fc">&nbsp;    if (canBeUTF8) {</b>
+<b class="nc">&nbsp;      return StandardCharsets.UTF_8;</b>
+&nbsp;    }
+&nbsp;    // Otherwise, we take a wild guess with platform encoding
+<b class="fc">&nbsp;    return PLATFORM_DEFAULT_ENCODING;</b>
+&nbsp;  }
+&nbsp;
+&nbsp;}
+</code>
+</pre>
+</div>
+
+<script type="text/javascript">
+(function() {
+    var msie = false, msie9 = false;
+    /*@cc_on
+      msie = true;
+      @if (@_jscript_version >= 9)
+        msie9 = true;
+      @end
+    @*/
+
+    if (!msie || msie && msie9) {
+      hljs.highlightAll()
+      hljs.initLineNumbersOnLoad();
+    }
+})();
+</script>
+
+<div class="footer">
+    
+    <div style="float:right;">generated on 2023-11-12 23:26</div>
+</div>
+</body>
+</html>

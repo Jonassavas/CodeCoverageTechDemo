@@ -1,0 +1,861 @@
+
+
+
+<!DOCTYPE html>
+<html id="htmlId">
+<head>
+  <meta http-equiv="Content-Type" content="text/html;charset=windows-1252"> 
+  <title>Coverage Report > PDF417HighLevelEncoder</title>
+  <style type="text/css">
+    @import "../../css/coverage.css";
+    @import "../../css/idea.min.css";
+  </style>
+  <script type="text/javascript" src="../../js/highlight.min.js"></script>
+  <script type="text/javascript" src="../../js/highlightjs-line-numbers.min.js"></script>
+</head>
+
+<body>
+<div class="content">
+<div class="breadCrumbs">
+Current scope:     <a href="../../index.html">all classes</a>
+    <span class="separator">|</span>
+    <a href="../index.html">com.google.zxing.pdf417.encoder</a>
+</div>
+
+<h1>Coverage Summary for Class: PDF417HighLevelEncoder (com.google.zxing.pdf417.encoder)</h1>
+
+<table class="coverageStats">
+
+<tr>
+  <th class="name">Class</th>
+<th class="coverageStat 
+">
+  Method, %
+</th>
+<th class="coverageStat 
+">
+  Line, %
+</th>
+</tr>
+<tr>
+  <td class="name">PDF417HighLevelEncoder</td>
+<td class="coverageStat">
+  <span class="percent">
+    100%
+  </span>
+  <span class="absValue">
+    (17/17)
+  </span>
+</td>
+<td class="coverageStat">
+  <span class="percent">
+    92.2%
+  </span>
+  <span class="absValue">
+    (260/282)
+  </span>
+</td>
+</tr>
+  <tr>
+    <td class="name">PDF417HighLevelEncoder$1</td>
+<td class="coverageStat">
+  <span class="percent">
+    100%
+  </span>
+  <span class="absValue">
+    (1/1)
+  </span>
+</td>
+<td class="coverageStat">
+  <span class="percent">
+    100%
+  </span>
+  <span class="absValue">
+    (1/1)
+  </span>
+</td>
+  </tr>
+  <tr>
+    <td class="name">PDF417HighLevelEncoder$NoECIInput</td>
+<td class="coverageStat">
+  <span class="percent">
+    77.8%
+  </span>
+  <span class="absValue">
+    (7/9)
+  </span>
+</td>
+<td class="coverageStat">
+  <span class="percent">
+    80%
+  </span>
+  <span class="absValue">
+    (8/10)
+  </span>
+</td>
+  </tr>
+<tr>
+  <td class="name"><strong>Total</strong></td>
+<td class="coverageStat">
+  <span class="percent">
+    92.6%
+  </span>
+  <span class="absValue">
+    (25/27)
+  </span>
+</td>
+<td class="coverageStat">
+  <span class="percent">
+    91.8%
+  </span>
+  <span class="absValue">
+    (269/293)
+  </span>
+</td>
+</tr>
+</table>
+
+<br/>
+<br/>
+
+
+<pre>
+<code class="sourceCode" id="sourceCode">&nbsp;/*
+&nbsp; * Copyright 2006 Jeremias Maerki in part, and ZXing Authors in part
+&nbsp; *
+&nbsp; * Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
+&nbsp; * you may not use this file except in compliance with the License.
+&nbsp; * You may obtain a copy of the License at
+&nbsp; *
+&nbsp; * http://www.apache.org/licenses/LICENSE-2.0
+&nbsp; *
+&nbsp; * Unless required by applicable law or agreed to in writing, software
+&nbsp; * distributed under the License is distributed on an &quot;AS IS&quot; BASIS,
+&nbsp; * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+&nbsp; * See the License for the specific language governing permissions and
+&nbsp; * limitations under the License.
+&nbsp; */
+&nbsp;
+&nbsp;/*
+&nbsp; * This file has been modified from its original form in Barcode4J.
+&nbsp; */
+&nbsp;
+&nbsp;package com.google.zxing.pdf417.encoder;
+&nbsp;
+&nbsp;import com.google.zxing.WriterException;
+&nbsp;import com.google.zxing.common.CharacterSetECI;
+&nbsp;import com.google.zxing.common.ECIInput;
+&nbsp;import com.google.zxing.common.MinimalECIInput;
+&nbsp;
+&nbsp;import java.math.BigInteger;
+&nbsp;import java.nio.charset.Charset;
+&nbsp;import java.nio.charset.CharsetEncoder;
+&nbsp;import java.nio.charset.StandardCharsets;
+&nbsp;import java.util.Arrays;
+&nbsp;
+&nbsp;/**
+&nbsp; * PDF417 high-level encoder following the algorithm described in ISO/IEC 15438:2001(E) in
+&nbsp; * annex P.
+&nbsp; */
+<b class="fc">&nbsp;final class PDF417HighLevelEncoder {</b>
+&nbsp;
+&nbsp;  /**
+&nbsp;   * code for Text compaction
+&nbsp;   */
+&nbsp;  private static final int TEXT_COMPACTION = 0;
+&nbsp;
+&nbsp;  /**
+&nbsp;   * code for Byte compaction
+&nbsp;   */
+&nbsp;  private static final int BYTE_COMPACTION = 1;
+&nbsp;
+&nbsp;  /**
+&nbsp;   * code for Numeric compaction
+&nbsp;   */
+&nbsp;  private static final int NUMERIC_COMPACTION = 2;
+&nbsp;
+&nbsp;  /**
+&nbsp;   * Text compaction submode Alpha
+&nbsp;   */
+&nbsp;  private static final int SUBMODE_ALPHA = 0;
+&nbsp;
+&nbsp;  /**
+&nbsp;   * Text compaction submode Lower
+&nbsp;   */
+&nbsp;  private static final int SUBMODE_LOWER = 1;
+&nbsp;
+&nbsp;  /**
+&nbsp;   * Text compaction submode Mixed
+&nbsp;   */
+&nbsp;  private static final int SUBMODE_MIXED = 2;
+&nbsp;
+&nbsp;  /**
+&nbsp;   * Text compaction submode Punctuation
+&nbsp;   */
+&nbsp;  private static final int SUBMODE_PUNCTUATION = 3;
+&nbsp;
+&nbsp;  /**
+&nbsp;   * mode latch to Text Compaction mode
+&nbsp;   */
+&nbsp;  private static final int LATCH_TO_TEXT = 900;
+&nbsp;
+&nbsp;  /**
+&nbsp;   * mode latch to Byte Compaction mode (number of characters NOT a multiple of 6)
+&nbsp;   */
+&nbsp;  private static final int LATCH_TO_BYTE_PADDED = 901;
+&nbsp;
+&nbsp;  /**
+&nbsp;   * mode latch to Numeric Compaction mode
+&nbsp;   */
+&nbsp;  private static final int LATCH_TO_NUMERIC = 902;
+&nbsp;
+&nbsp;  /**
+&nbsp;   * mode shift to Byte Compaction mode
+&nbsp;   */
+&nbsp;  private static final int SHIFT_TO_BYTE = 913;
+&nbsp;
+&nbsp;  /**
+&nbsp;   * mode latch to Byte Compaction mode (number of characters a multiple of 6)
+&nbsp;   */
+&nbsp;  private static final int LATCH_TO_BYTE = 924;
+&nbsp;
+&nbsp;  /**
+&nbsp;   * identifier for a user defined Extended Channel Interpretation (ECI)
+&nbsp;   */
+&nbsp;  private static final int ECI_USER_DEFINED = 925;
+&nbsp;
+&nbsp;  /**
+&nbsp;   * identifier for a general purpose ECO format
+&nbsp;   */
+&nbsp;  private static final int ECI_GENERAL_PURPOSE = 926;
+&nbsp;
+&nbsp;  /**
+&nbsp;   * identifier for an ECI of a character set of code page
+&nbsp;   */
+&nbsp;  private static final int ECI_CHARSET = 927;
+&nbsp;
+&nbsp;  /**
+&nbsp;   * Raw code table for text compaction Mixed sub-mode
+&nbsp;   */
+<b class="fc">&nbsp;  private static final byte[] TEXT_MIXED_RAW = {</b>
+&nbsp;      48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 38, 13, 9, 44, 58,
+&nbsp;      35, 45, 46, 36, 47, 43, 37, 42, 61, 94, 0, 32, 0, 0, 0};
+&nbsp;
+&nbsp;  /**
+&nbsp;   * Raw code table for text compaction: Punctuation sub-mode
+&nbsp;   */
+<b class="fc">&nbsp;  private static final byte[] TEXT_PUNCTUATION_RAW = {</b>
+&nbsp;      59, 60, 62, 64, 91, 92, 93, 95, 96, 126, 33, 13, 9, 44, 58,
+&nbsp;      10, 45, 46, 36, 47, 34, 124, 42, 40, 41, 63, 123, 125, 39, 0};
+&nbsp;
+<b class="fc">&nbsp;  private static final byte[] MIXED = new byte[128];</b>
+<b class="fc">&nbsp;  private static final byte[] PUNCTUATION = new byte[128];</b>
+&nbsp;
+<b class="fc">&nbsp;  private static final Charset DEFAULT_ENCODING = StandardCharsets.ISO_8859_1;</b>
+&nbsp;
+&nbsp;  private PDF417HighLevelEncoder() {
+&nbsp;  }
+&nbsp;
+&nbsp;  static {
+&nbsp;    //Construct inverse lookups
+<b class="fc">&nbsp;    Arrays.fill(MIXED, (byte) -1);</b>
+<b class="fc">&nbsp;    for (int i = 0; i &lt; TEXT_MIXED_RAW.length; i++) {</b>
+<b class="fc">&nbsp;      byte b = TEXT_MIXED_RAW[i];</b>
+<b class="fc">&nbsp;      if (b &gt; 0) {</b>
+<b class="fc">&nbsp;        MIXED[b] = (byte) i;</b>
+&nbsp;      }
+&nbsp;    }
+<b class="fc">&nbsp;    Arrays.fill(PUNCTUATION, (byte) -1);</b>
+<b class="fc">&nbsp;    for (int i = 0; i &lt; TEXT_PUNCTUATION_RAW.length; i++) {</b>
+<b class="fc">&nbsp;      byte b = TEXT_PUNCTUATION_RAW[i];</b>
+<b class="fc">&nbsp;      if (b &gt; 0) {</b>
+<b class="fc">&nbsp;        PUNCTUATION[b] = (byte) i;</b>
+&nbsp;      }
+&nbsp;    }
+&nbsp;  }
+&nbsp;
+&nbsp;  /**
+&nbsp;   * Performs high-level encoding of a PDF417 message using the algorithm described in annex P
+&nbsp;   * of ISO/IEC 15438:2001(E). If byte compaction has been selected, then only byte compaction
+&nbsp;   * is used.
+&nbsp;   *
+&nbsp;   * @param msg the message
+&nbsp;   * @param compaction compaction mode to use
+&nbsp;   * @param encoding character encoding used to encode in default or byte compaction
+&nbsp;   *  or {@code null} for default / not applicable
+&nbsp;   * @param autoECI encode input minimally using multiple ECIs if needed
+&nbsp;   *   If autoECI encoding is specified and additionally {@code encoding} is specified, then the encoder
+&nbsp;   *   will use the specified {@link Charset} for any character that can be encoded by it, regardless
+&nbsp;   *   if a different encoding would lead to a more compact encoding. When no {@code encoding} is specified
+&nbsp;   *   then charsets will be chosen so that the byte representation is minimal.
+&nbsp;   * @return the encoded message (the char values range from 0 to 928)
+&nbsp;   */
+&nbsp;  static String encodeHighLevel(String msg, Compaction compaction, Charset encoding, boolean autoECI)
+&nbsp;      throws WriterException {
+&nbsp;
+<b class="fc">&nbsp;    if (msg.isEmpty()) {</b>
+<b class="fc">&nbsp;      throw new WriterException(&quot;Empty message not allowed&quot;);</b>
+&nbsp;    }
+&nbsp;
+<b class="fc">&nbsp;    if (encoding == null &amp;&amp; !autoECI) {</b>
+<b class="fc">&nbsp;      for (int i = 0; i &lt; msg.length(); i++) {</b>
+<b class="fc">&nbsp;        if (msg.charAt(i) &gt; 255) {</b>
+<b class="nc">&nbsp;          throw new WriterException(&quot;Non-encodable character detected: &quot; + msg.charAt(i) + &quot; (Unicode: &quot; +</b>
+<b class="nc">&nbsp;              (int) msg.charAt(i) +</b>
+&nbsp;              &quot;). Consider specifying EncodeHintType.PDF417_AUTO_ECI and/or EncodeTypeHint.CHARACTER_SET.&quot;);
+&nbsp;        }
+&nbsp;      }
+&nbsp;    }
+&nbsp;    //the codewords 0..928 are encoded as Unicode characters
+<b class="fc">&nbsp;    StringBuilder sb = new StringBuilder(msg.length());</b>
+&nbsp;
+&nbsp;    ECIInput input;
+<b class="fc">&nbsp;    if (autoECI) {</b>
+<b class="fc">&nbsp;      input = new MinimalECIInput(msg, encoding, -1);</b>
+&nbsp;    } else {
+<b class="fc">&nbsp;      input = new NoECIInput(msg);</b>
+<b class="fc">&nbsp;      if (encoding == null) {</b>
+<b class="fc">&nbsp;        encoding = DEFAULT_ENCODING;</b>
+<b class="fc">&nbsp;      } else if (!DEFAULT_ENCODING.equals(encoding)) {</b>
+<b class="fc">&nbsp;        CharacterSetECI eci = CharacterSetECI.getCharacterSetECI(encoding);</b>
+<b class="fc">&nbsp;        if (eci != null) {</b>
+<b class="fc">&nbsp;          encodingECI(eci.getValue(), sb);</b>
+&nbsp;        }
+&nbsp;      }
+&nbsp;    }
+&nbsp;
+<b class="fc">&nbsp;    int len = input.length();</b>
+<b class="fc">&nbsp;    int p = 0;</b>
+<b class="fc">&nbsp;    int textSubMode = SUBMODE_ALPHA;</b>
+&nbsp;
+&nbsp;    // User selected encoding mode
+<b class="fc">&nbsp;    switch (compaction) {</b>
+&nbsp;      case TEXT:
+<b class="fc">&nbsp;        encodeText(input, p, len, sb, textSubMode);</b>
+<b class="fc">&nbsp;        break;</b>
+&nbsp;      case BYTE:
+<b class="fc">&nbsp;        if (autoECI) {</b>
+<b class="nc">&nbsp;          encodeMultiECIBinary(input, 0, input.length(), TEXT_COMPACTION, sb);</b>
+&nbsp;        } else {
+<b class="fc">&nbsp;          byte[] msgBytes = input.toString().getBytes(encoding);</b>
+<b class="fc">&nbsp;          encodeBinary(msgBytes, p, msgBytes.length, BYTE_COMPACTION, sb);</b>
+&nbsp;        }
+<b class="fc">&nbsp;        break;</b>
+&nbsp;      case NUMERIC:
+<b class="fc">&nbsp;        sb.append((char) LATCH_TO_NUMERIC);</b>
+<b class="fc">&nbsp;        encodeNumeric(input, p, len, sb);</b>
+<b class="fc">&nbsp;        break;</b>
+&nbsp;      default:
+<b class="fc">&nbsp;        int encodingMode = TEXT_COMPACTION; //Default mode, see 4.4.2.1</b>
+<b class="fc">&nbsp;        while (p &lt; len) {</b>
+<b class="fc">&nbsp;          while (p &lt; len &amp;&amp; input.isECI(p)) {</b>
+<b class="fc">&nbsp;            encodingECI(input.getECIValue(p), sb);</b>
+<b class="fc">&nbsp;            p++;</b>
+&nbsp;          }
+<b class="fc">&nbsp;          if (p &gt;= len) {</b>
+<b class="nc">&nbsp;            break;</b>
+&nbsp;          }
+<b class="fc">&nbsp;          int n = determineConsecutiveDigitCount(input, p);</b>
+<b class="fc">&nbsp;          if (n &gt;= 13) {</b>
+<b class="fc">&nbsp;            sb.append((char) LATCH_TO_NUMERIC);</b>
+<b class="fc">&nbsp;            encodingMode = NUMERIC_COMPACTION;</b>
+<b class="fc">&nbsp;            textSubMode = SUBMODE_ALPHA; //Reset after latch</b>
+<b class="fc">&nbsp;            encodeNumeric(input, p, n, sb);</b>
+<b class="fc">&nbsp;            p += n;</b>
+&nbsp;          } else {
+<b class="fc">&nbsp;            int t = determineConsecutiveTextCount(input, p);</b>
+<b class="fc">&nbsp;            if (t &gt;= 5 || n == len) {</b>
+<b class="fc">&nbsp;              if (encodingMode != TEXT_COMPACTION) {</b>
+<b class="nc">&nbsp;                sb.append((char) LATCH_TO_TEXT);</b>
+<b class="nc">&nbsp;                encodingMode = TEXT_COMPACTION;</b>
+<b class="nc">&nbsp;                textSubMode = SUBMODE_ALPHA; //start with submode alpha after latch</b>
+&nbsp;              }
+<b class="fc">&nbsp;              textSubMode = encodeText(input, p, t, sb, textSubMode);</b>
+<b class="fc">&nbsp;              p += t;</b>
+&nbsp;            } else {
+<b class="fc">&nbsp;              int b = determineConsecutiveBinaryCount(input, p, autoECI ? null : encoding);</b>
+<b class="fc">&nbsp;              if (b == 0) {</b>
+<b class="nc">&nbsp;                b = 1;</b>
+&nbsp;              }
+<b class="fc">&nbsp;              byte[] bytes = autoECI ? null : input.subSequence(p, p + b).toString().getBytes(encoding);</b>
+<b class="fc">&nbsp;              if (((bytes == null &amp;&amp; b == 1) || (bytes != null &amp;&amp; bytes.length == 1))</b>
+&nbsp;                  &amp;&amp; encodingMode == TEXT_COMPACTION) {
+&nbsp;                //Switch for one byte (instead of latch)
+<b class="fc">&nbsp;                if (autoECI) {</b>
+<b class="nc">&nbsp;                  encodeMultiECIBinary(input, p, 1, TEXT_COMPACTION, sb);</b>
+&nbsp;                } else {
+<b class="fc">&nbsp;                  encodeBinary(bytes, 0, 1, TEXT_COMPACTION, sb);</b>
+&nbsp;                }
+&nbsp;              } else {
+&nbsp;                //Mode latch performed by encodeBinary()
+<b class="fc">&nbsp;                if (autoECI) {</b>
+<b class="fc">&nbsp;                  encodeMultiECIBinary(input, p, p + b, encodingMode, sb);</b>
+&nbsp;                } else {
+<b class="fc">&nbsp;                  encodeBinary(bytes, 0, bytes.length, encodingMode, sb);</b>
+&nbsp;                }
+<b class="fc">&nbsp;                encodingMode = BYTE_COMPACTION;</b>
+<b class="fc">&nbsp;                textSubMode = SUBMODE_ALPHA; //Reset after latch</b>
+&nbsp;              }
+<b class="fc">&nbsp;              p += b;</b>
+&nbsp;            }
+&nbsp;          }
+<b class="fc">&nbsp;        }</b>
+&nbsp;        break;
+&nbsp;    }
+&nbsp;
+<b class="fc">&nbsp;    return sb.toString();</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  /**
+&nbsp;   * Encode parts of the message using Text Compaction as described in ISO/IEC 15438:2001(E),
+&nbsp;   * chapter 4.4.2.
+&nbsp;   *
+&nbsp;   * @param input          the input
+&nbsp;   * @param startpos       the start position within the message
+&nbsp;   * @param count          the number of characters to encode
+&nbsp;   * @param sb             receives the encoded codewords
+&nbsp;   * @param initialSubmode should normally be SUBMODE_ALPHA
+&nbsp;   * @return the text submode in which this method ends
+&nbsp;   */
+&nbsp;  private static int encodeText(ECIInput input,
+&nbsp;                                int startpos,
+&nbsp;                                int count,
+&nbsp;                                StringBuilder sb,
+&nbsp;                                int initialSubmode) throws WriterException {
+<b class="fc">&nbsp;    StringBuilder tmp = new StringBuilder(count);</b>
+<b class="fc">&nbsp;    int submode = initialSubmode;</b>
+<b class="fc">&nbsp;    int idx = 0;</b>
+&nbsp;    while (true) {
+<b class="fc">&nbsp;      if (input.isECI(startpos + idx)) {</b>
+<b class="nc">&nbsp;        encodingECI(input.getECIValue(startpos + idx), sb);</b>
+<b class="nc">&nbsp;        idx++;</b>
+&nbsp;      } else {
+<b class="fc">&nbsp;        char ch = input.charAt(startpos + idx);</b>
+<b class="fc">&nbsp;        switch (submode) {</b>
+&nbsp;          case SUBMODE_ALPHA:
+<b class="fc">&nbsp;            if (isAlphaUpper(ch)) {</b>
+<b class="fc">&nbsp;              if (ch == &#39; &#39;) {</b>
+<b class="fc">&nbsp;                tmp.append((char) 26); //space</b>
+&nbsp;              } else {
+<b class="fc">&nbsp;                tmp.append((char) (ch - 65));</b>
+&nbsp;              }
+&nbsp;            } else {
+<b class="fc">&nbsp;              if (isAlphaLower(ch)) {</b>
+<b class="fc">&nbsp;                submode = SUBMODE_LOWER;</b>
+<b class="fc">&nbsp;                tmp.append((char) 27); //ll</b>
+<b class="fc">&nbsp;                continue;</b>
+<b class="fc">&nbsp;              } else if (isMixed(ch)) {</b>
+<b class="fc">&nbsp;                submode = SUBMODE_MIXED;</b>
+<b class="fc">&nbsp;                tmp.append((char) 28); //ml</b>
+<b class="fc">&nbsp;                continue;</b>
+&nbsp;              } else {
+<b class="fc">&nbsp;                tmp.append((char) 29); //ps</b>
+<b class="fc">&nbsp;                tmp.append((char) PUNCTUATION[ch]);</b>
+<b class="fc">&nbsp;                break;</b>
+&nbsp;              }
+&nbsp;            }
+&nbsp;            break;
+&nbsp;          case SUBMODE_LOWER:
+<b class="fc">&nbsp;            if (isAlphaLower(ch)) {</b>
+<b class="fc">&nbsp;              if (ch == &#39; &#39;) {</b>
+<b class="fc">&nbsp;                tmp.append((char) 26); //space</b>
+&nbsp;              } else {
+<b class="fc">&nbsp;                tmp.append((char) (ch - 97));</b>
+&nbsp;              }
+&nbsp;            } else {
+<b class="fc">&nbsp;              if (isAlphaUpper(ch)) {</b>
+<b class="fc">&nbsp;                tmp.append((char) 27); //as</b>
+<b class="fc">&nbsp;                tmp.append((char) (ch - 65));</b>
+&nbsp;                //space cannot happen here, it is also in &quot;Lower&quot;
+<b class="fc">&nbsp;                break;</b>
+<b class="fc">&nbsp;              } else if (isMixed(ch)) {</b>
+<b class="fc">&nbsp;                submode = SUBMODE_MIXED;</b>
+<b class="fc">&nbsp;                tmp.append((char) 28); //ml</b>
+<b class="fc">&nbsp;                continue;</b>
+&nbsp;              } else {
+<b class="fc">&nbsp;                tmp.append((char) 29); //ps</b>
+<b class="fc">&nbsp;                tmp.append((char) PUNCTUATION[ch]);</b>
+<b class="fc">&nbsp;                break;</b>
+&nbsp;              }
+&nbsp;            }
+&nbsp;            break;
+&nbsp;          case SUBMODE_MIXED:
+<b class="fc">&nbsp;            if (isMixed(ch)) {</b>
+<b class="fc">&nbsp;              tmp.append((char) MIXED[ch]);</b>
+&nbsp;            } else {
+<b class="fc">&nbsp;              if (isAlphaUpper(ch)) {</b>
+<b class="fc">&nbsp;                submode = SUBMODE_ALPHA;</b>
+<b class="fc">&nbsp;                tmp.append((char) 28); //al</b>
+<b class="fc">&nbsp;                continue;</b>
+<b class="fc">&nbsp;              } else if (isAlphaLower(ch)) {</b>
+<b class="fc">&nbsp;                submode = SUBMODE_LOWER;</b>
+<b class="fc">&nbsp;                tmp.append((char) 27); //ll</b>
+<b class="fc">&nbsp;                continue;</b>
+&nbsp;              } else {
+<b class="fc">&nbsp;                if (startpos + idx + 1 &lt; count &amp;&amp;</b>
+<b class="fc">&nbsp;                    !input.isECI(startpos + idx + 1) &amp;&amp;</b>
+<b class="fc">&nbsp;                    isPunctuation(input.charAt(startpos + idx + 1))) {</b>
+<b class="fc">&nbsp;                  submode = SUBMODE_PUNCTUATION;</b>
+<b class="fc">&nbsp;                  tmp.append((char) 25); //pl</b>
+<b class="fc">&nbsp;                  continue;</b>
+&nbsp;                }
+<b class="fc">&nbsp;                tmp.append((char) 29); //ps</b>
+<b class="fc">&nbsp;                tmp.append((char) PUNCTUATION[ch]);</b>
+&nbsp;              }
+&nbsp;            }
+<b class="fc">&nbsp;            break;</b>
+&nbsp;          default: //SUBMODE_PUNCTUATION
+<b class="fc">&nbsp;            if (isPunctuation(ch)) {</b>
+<b class="fc">&nbsp;              tmp.append((char) PUNCTUATION[ch]);</b>
+&nbsp;            } else {
+<b class="fc">&nbsp;              submode = SUBMODE_ALPHA;</b>
+<b class="fc">&nbsp;              tmp.append((char) 29); //al</b>
+<b class="fc">&nbsp;              continue;</b>
+&nbsp;            }
+&nbsp;        }
+<b class="fc">&nbsp;        idx++;</b>
+<b class="fc">&nbsp;        if (idx &gt;= count) {</b>
+<b class="fc">&nbsp;          break;</b>
+&nbsp;        }
+<b class="fc">&nbsp;      }</b>
+&nbsp;    }
+<b class="fc">&nbsp;    char h = 0;</b>
+<b class="fc">&nbsp;    int len = tmp.length();</b>
+<b class="fc">&nbsp;    for (int i = 0; i &lt; len; i++) {</b>
+<b class="fc">&nbsp;      boolean odd = (i % 2) != 0;</b>
+<b class="fc">&nbsp;      if (odd) {</b>
+<b class="fc">&nbsp;        h = (char) ((h * 30) + tmp.charAt(i));</b>
+<b class="fc">&nbsp;        sb.append(h);</b>
+&nbsp;      } else {
+<b class="fc">&nbsp;        h = tmp.charAt(i);</b>
+&nbsp;      }
+&nbsp;    }
+<b class="fc">&nbsp;    if ((len % 2) != 0) {</b>
+<b class="fc">&nbsp;      sb.append((char) ((h * 30) + 29)); //ps</b>
+&nbsp;    }
+<b class="fc">&nbsp;    return submode;</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  /**
+&nbsp;   * Encode all of the message using Byte Compaction as described in ISO/IEC 15438:2001(E)
+&nbsp;   *
+&nbsp;   * @param input     the input
+&nbsp;   * @param startpos  the start position within the message
+&nbsp;   * @param count     the number of bytes to encode
+&nbsp;   * @param startmode the mode from which this method starts
+&nbsp;   * @param sb        receives the encoded codewords
+&nbsp;   */
+&nbsp;  private static void encodeMultiECIBinary(ECIInput input,
+&nbsp;                                          int startpos,
+&nbsp;                                          int count,
+&nbsp;                                          int startmode,
+&nbsp;                                          StringBuilder sb) throws WriterException {
+<b class="fc">&nbsp;    final int end = Math.min(startpos + count, input.length());</b>
+<b class="fc">&nbsp;    int localStart = startpos;</b>
+&nbsp;    while (true) {
+&nbsp;      //encode all leading ECIs and advance localStart
+<b class="fc">&nbsp;      while (localStart &lt; end &amp;&amp; input.isECI(localStart)) {</b>
+<b class="fc">&nbsp;        encodingECI(input.getECIValue(localStart), sb);</b>
+<b class="fc">&nbsp;        localStart++;</b>
+&nbsp;      }
+<b class="fc">&nbsp;      int localEnd = localStart;</b>
+&nbsp;      //advance end until before the next ECI
+<b class="fc">&nbsp;      while (localEnd &lt; end &amp;&amp; !input.isECI(localEnd)) {</b>
+<b class="fc">&nbsp;        localEnd++;</b>
+&nbsp;      }
+&nbsp;
+<b class="fc">&nbsp;      final int localCount = localEnd - localStart;</b>
+<b class="fc">&nbsp;      if (localCount &lt;= 0) {</b>
+&nbsp;        //done
+<b class="fc">&nbsp;        break;</b>
+&nbsp;      } else {
+&nbsp;        //encode the segment
+<b class="fc">&nbsp;        encodeBinary(subBytes(input, localStart, localEnd),</b>
+<b class="fc">&nbsp;            0, localCount, localStart == startpos ? startmode : BYTE_COMPACTION, sb);</b>
+<b class="fc">&nbsp;        localStart = localEnd;</b>
+&nbsp;      }
+<b class="fc">&nbsp;    }</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  static byte[] subBytes(ECIInput input, int start, int end) {
+<b class="fc">&nbsp;    final int count = end - start;</b>
+<b class="fc">&nbsp;    byte[] result = new byte[count];</b>
+<b class="fc">&nbsp;    for (int i = start; i &lt; end; i++) {</b>
+<b class="fc">&nbsp;      result[i - start] = (byte) (input.charAt(i) &amp; 0xff);</b>
+&nbsp;    }
+<b class="fc">&nbsp;    return result;</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  /**
+&nbsp;   * Encode parts of the message using Byte Compaction as described in ISO/IEC 15438:2001(E),
+&nbsp;   * chapter 4.4.3. The Unicode characters will be converted to binary using the cp437
+&nbsp;   * codepage.
+&nbsp;   *
+&nbsp;   * @param bytes     the message converted to a byte array
+&nbsp;   * @param startpos  the start position within the message
+&nbsp;   * @param count     the number of bytes to encode
+&nbsp;   * @param startmode the mode from which this method starts
+&nbsp;   * @param sb        receives the encoded codewords
+&nbsp;   */
+&nbsp;  private static void encodeBinary(byte[] bytes,
+&nbsp;                                   int startpos,
+&nbsp;                                   int count,
+&nbsp;                                   int startmode,
+&nbsp;                                   StringBuilder sb) {
+<b class="fc">&nbsp;    if (count == 1 &amp;&amp; startmode == TEXT_COMPACTION) {</b>
+<b class="fc">&nbsp;      sb.append((char) SHIFT_TO_BYTE);</b>
+&nbsp;    } else {
+<b class="fc">&nbsp;      if ((count % 6) == 0) {</b>
+<b class="fc">&nbsp;        sb.append((char) LATCH_TO_BYTE);</b>
+&nbsp;      } else {
+<b class="fc">&nbsp;        sb.append((char) LATCH_TO_BYTE_PADDED);</b>
+&nbsp;      }
+&nbsp;    }
+&nbsp;
+<b class="fc">&nbsp;    int idx = startpos;</b>
+&nbsp;    // Encode sixpacks
+<b class="fc">&nbsp;    if (count &gt;= 6) {</b>
+<b class="fc">&nbsp;      char[] chars = new char[5];</b>
+<b class="fc">&nbsp;      while ((startpos + count - idx) &gt;= 6) {</b>
+<b class="fc">&nbsp;        long t = 0;</b>
+<b class="fc">&nbsp;        for (int i = 0; i &lt; 6; i++) {</b>
+<b class="fc">&nbsp;          t &lt;&lt;= 8;</b>
+<b class="fc">&nbsp;          t += bytes[idx + i] &amp; 0xff;</b>
+&nbsp;        }
+<b class="fc">&nbsp;        for (int i = 0; i &lt; 5; i++) {</b>
+<b class="fc">&nbsp;          chars[i] = (char) (t % 900);</b>
+<b class="fc">&nbsp;          t /= 900;</b>
+&nbsp;        }
+<b class="fc">&nbsp;        for (int i = chars.length - 1; i &gt;= 0; i--) {</b>
+<b class="fc">&nbsp;          sb.append(chars[i]);</b>
+&nbsp;        }
+<b class="fc">&nbsp;        idx += 6;</b>
+<b class="fc">&nbsp;      }</b>
+&nbsp;    }
+&nbsp;    //Encode rest (remaining n&lt;5 bytes if any)
+<b class="fc">&nbsp;    for (int i = idx; i &lt; startpos + count; i++) {</b>
+<b class="fc">&nbsp;      int ch = bytes[i] &amp; 0xff;</b>
+<b class="fc">&nbsp;      sb.append((char) ch);</b>
+&nbsp;    }
+&nbsp;  }
+&nbsp;
+&nbsp;  private static void encodeNumeric(ECIInput input, int startpos, int count, StringBuilder sb) {
+<b class="fc">&nbsp;    int idx = 0;</b>
+<b class="fc">&nbsp;    StringBuilder tmp = new StringBuilder(count / 3 + 1);</b>
+<b class="fc">&nbsp;    BigInteger num900 = BigInteger.valueOf(900);</b>
+<b class="fc">&nbsp;    BigInteger num0 = BigInteger.valueOf(0);</b>
+<b class="fc">&nbsp;    while (idx &lt; count) {</b>
+<b class="fc">&nbsp;      tmp.setLength(0);</b>
+<b class="fc">&nbsp;      int len = Math.min(44, count - idx);</b>
+<b class="fc">&nbsp;      String part = &quot;1&quot; + input.subSequence(startpos + idx, startpos + idx + len);</b>
+<b class="fc">&nbsp;      BigInteger bigint = new BigInteger(part);</b>
+&nbsp;      do {
+<b class="fc">&nbsp;        tmp.append((char) bigint.mod(num900).intValue());</b>
+<b class="fc">&nbsp;        bigint = bigint.divide(num900);</b>
+<b class="fc">&nbsp;      } while (!bigint.equals(num0));</b>
+&nbsp;
+&nbsp;      //Reverse temporary string
+<b class="fc">&nbsp;      for (int i = tmp.length() - 1; i &gt;= 0; i--) {</b>
+<b class="fc">&nbsp;        sb.append(tmp.charAt(i));</b>
+&nbsp;      }
+<b class="fc">&nbsp;      idx += len;</b>
+<b class="fc">&nbsp;    }</b>
+&nbsp;  }
+&nbsp;
+&nbsp;
+&nbsp;  private static boolean isDigit(char ch) {
+<b class="fc">&nbsp;    return ch &gt;= &#39;0&#39; &amp;&amp; ch &lt;= &#39;9&#39;;</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  private static boolean isAlphaUpper(char ch) {
+<b class="fc">&nbsp;    return ch == &#39; &#39; || (ch &gt;= &#39;A&#39; &amp;&amp; ch &lt;= &#39;Z&#39;);</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  private static boolean isAlphaLower(char ch) {
+<b class="fc">&nbsp;    return ch == &#39; &#39; || (ch &gt;= &#39;a&#39; &amp;&amp; ch &lt;= &#39;z&#39;);</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  private static boolean isMixed(char ch) {
+<b class="fc">&nbsp;    return MIXED[ch] != -1;</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  private static boolean isPunctuation(char ch) {
+<b class="fc">&nbsp;    return PUNCTUATION[ch] != -1;</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  private static boolean isText(char ch) {
+<b class="fc">&nbsp;    return ch == &#39;\t&#39; || ch == &#39;\n&#39; || ch == &#39;\r&#39; || (ch &gt;= 32 &amp;&amp; ch &lt;= 126);</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  /**
+&nbsp;   * Determines the number of consecutive characters that are encodable using numeric compaction.
+&nbsp;   *
+&nbsp;   * @param input      the input
+&nbsp;   * @param startpos the start position within the input
+&nbsp;   * @return the requested character count
+&nbsp;   */
+&nbsp;  private static int determineConsecutiveDigitCount(ECIInput input, int startpos) {
+<b class="fc">&nbsp;    int count = 0;</b>
+<b class="fc">&nbsp;    final int len = input.length();</b>
+<b class="fc">&nbsp;    int idx = startpos;</b>
+<b class="fc">&nbsp;    if (idx &lt; len) {</b>
+<b class="fc">&nbsp;      while (idx &lt; len &amp;&amp; !input.isECI(idx) &amp;&amp; isDigit(input.charAt(idx))) {</b>
+<b class="fc">&nbsp;        count++;</b>
+<b class="fc">&nbsp;        idx++;</b>
+&nbsp;      }
+&nbsp;    }
+<b class="fc">&nbsp;    return count;</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  /**
+&nbsp;   * Determines the number of consecutive characters that are encodable using text compaction.
+&nbsp;   *
+&nbsp;   * @param input      the input
+&nbsp;   * @param startpos the start position within the input
+&nbsp;   * @return the requested character count
+&nbsp;   */
+&nbsp;  private static int determineConsecutiveTextCount(ECIInput input, int startpos) {
+<b class="fc">&nbsp;    final int len = input.length();</b>
+<b class="fc">&nbsp;    int idx = startpos;</b>
+<b class="fc">&nbsp;    while (idx &lt; len) {</b>
+<b class="fc">&nbsp;      int numericCount = 0;</b>
+<b class="fc">&nbsp;      while (numericCount &lt; 13 &amp;&amp; idx &lt; len &amp;&amp; !input.isECI(idx) &amp;&amp; isDigit(input.charAt(idx))) {</b>
+<b class="fc">&nbsp;        numericCount++;</b>
+<b class="fc">&nbsp;        idx++;</b>
+&nbsp;      }
+<b class="fc">&nbsp;      if (numericCount &gt;= 13) {</b>
+<b class="fc">&nbsp;        return idx - startpos - numericCount;</b>
+&nbsp;      }
+<b class="fc">&nbsp;      if (numericCount &gt; 0) {</b>
+&nbsp;        //Heuristic: All text-encodable chars or digits are binary encodable
+<b class="fc">&nbsp;        continue;</b>
+&nbsp;      }
+&nbsp;
+&nbsp;      //Check if character is encodable
+<b class="fc">&nbsp;      if (input.isECI(idx) || !isText(input.charAt(idx))) {</b>
+<b class="fc">&nbsp;        break;</b>
+&nbsp;      }
+<b class="fc">&nbsp;      idx++;</b>
+<b class="fc">&nbsp;    }</b>
+<b class="fc">&nbsp;    return idx - startpos;</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  /**
+&nbsp;   * Determines the number of consecutive characters that are encodable using binary compaction.
+&nbsp;   *
+&nbsp;   * @param input    the input
+&nbsp;   * @param startpos the start position within the message
+&nbsp;   * @param encoding the charset used to convert the message to a byte array
+&nbsp;   * @return the requested character count
+&nbsp;   */
+&nbsp;  private static int determineConsecutiveBinaryCount(ECIInput input, int startpos, Charset encoding)
+&nbsp;      throws WriterException {
+<b class="fc">&nbsp;    CharsetEncoder encoder = encoding == null ? null : encoding.newEncoder();</b>
+<b class="fc">&nbsp;    int len = input.length();</b>
+<b class="fc">&nbsp;    int idx = startpos;</b>
+<b class="fc">&nbsp;    while (idx &lt; len) {</b>
+<b class="fc">&nbsp;      int numericCount = 0;</b>
+&nbsp;
+<b class="fc">&nbsp;      int i = idx;</b>
+<b class="fc">&nbsp;      while (numericCount &lt; 13 &amp;&amp; !input.isECI(i) &amp;&amp; isDigit(input.charAt(i))) {</b>
+<b class="fc">&nbsp;        numericCount++;</b>
+&nbsp;        //textCount++;
+<b class="fc">&nbsp;        i = idx + numericCount;</b>
+<b class="fc">&nbsp;        if (i &gt;= len) {</b>
+<b class="fc">&nbsp;          break;</b>
+&nbsp;        }
+&nbsp;      }
+<b class="fc">&nbsp;      if (numericCount &gt;= 13) {</b>
+<b class="fc">&nbsp;        return idx - startpos;</b>
+&nbsp;      }
+&nbsp;
+<b class="fc">&nbsp;      if (encoder != null &amp;&amp; !encoder.canEncode(input.charAt(idx))) {</b>
+<b class="nc">&nbsp;        assert input instanceof NoECIInput;</b>
+<b class="nc">&nbsp;        char ch = input.charAt(idx);</b>
+<b class="nc">&nbsp;        throw new WriterException(&quot;Non-encodable character detected: &quot; + ch + &quot; (Unicode: &quot; + (int) ch + &#39;)&#39;);</b>
+&nbsp;      }
+<b class="fc">&nbsp;      idx++;</b>
+<b class="fc">&nbsp;    }</b>
+<b class="fc">&nbsp;    return idx - startpos;</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  private static void encodingECI(int eci, StringBuilder sb) throws WriterException {
+<b class="fc">&nbsp;    if (eci &gt;= 0 &amp;&amp; eci &lt; 900) {</b>
+<b class="fc">&nbsp;      sb.append((char) ECI_CHARSET);</b>
+<b class="fc">&nbsp;      sb.append((char) eci);</b>
+<b class="nc">&nbsp;    } else if (eci &lt; 810900) {</b>
+<b class="nc">&nbsp;      sb.append((char) ECI_GENERAL_PURPOSE);</b>
+<b class="nc">&nbsp;      sb.append((char) (eci / 900 - 1));</b>
+<b class="nc">&nbsp;      sb.append((char) (eci % 900));</b>
+<b class="nc">&nbsp;    } else if (eci &lt; 811800) {</b>
+<b class="nc">&nbsp;      sb.append((char) ECI_USER_DEFINED);</b>
+<b class="nc">&nbsp;      sb.append((char) (810900 - eci));</b>
+&nbsp;    } else {
+<b class="nc">&nbsp;      throw new WriterException(&quot;ECI number not in valid range from 0..811799, but was &quot; + eci);</b>
+&nbsp;    }
+&nbsp;  }
+&nbsp;
+<b class="fc">&nbsp;  private static final class NoECIInput implements ECIInput {</b>
+&nbsp;
+&nbsp;    String input;
+&nbsp;
+<b class="fc">&nbsp;    private NoECIInput(String input) {</b>
+<b class="fc">&nbsp;      this.input = input;</b>
+&nbsp;    }
+&nbsp;
+&nbsp;    public int length() {
+<b class="fc">&nbsp;      return input.length();</b>
+&nbsp;    }
+&nbsp;
+&nbsp;    public char charAt(int index) {
+<b class="fc">&nbsp;      return input.charAt(index);</b>
+&nbsp;    }
+&nbsp;
+&nbsp;    public boolean isECI(int index) {
+<b class="fc">&nbsp;      return false;</b>
+&nbsp;    }
+&nbsp;
+&nbsp;    public int getECIValue(int index) {
+<b class="nc">&nbsp;      return -1;</b>
+&nbsp;    }
+&nbsp;
+&nbsp;    public boolean haveNCharacters(int index, int n) {
+<b class="nc">&nbsp;      return index + n &lt;= input.length();</b>
+&nbsp;    }
+&nbsp;
+&nbsp;    public CharSequence subSequence(int start, int end) {
+<b class="fc">&nbsp;      return input.subSequence(start, end);</b>
+&nbsp;    }
+&nbsp;
+&nbsp;    public String toString() {
+<b class="fc">&nbsp;      return input;</b>
+&nbsp;    }
+&nbsp;  }
+&nbsp;}
+</code>
+</pre>
+</div>
+
+<script type="text/javascript">
+(function() {
+    var msie = false, msie9 = false;
+    /*@cc_on
+      msie = true;
+      @if (@_jscript_version >= 9)
+        msie9 = true;
+      @end
+    @*/
+
+    if (!msie || msie && msie9) {
+      hljs.highlightAll()
+      hljs.initLineNumbersOnLoad();
+    }
+})();
+</script>
+
+<div class="footer">
+    
+    <div style="float:right;">generated on 2023-11-12 23:26</div>
+</div>
+</body>
+</html>

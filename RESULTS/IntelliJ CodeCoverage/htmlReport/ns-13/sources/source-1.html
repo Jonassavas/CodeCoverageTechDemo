@@ -1,0 +1,177 @@
+
+
+
+<!DOCTYPE html>
+<html id="htmlId">
+<head>
+  <meta http-equiv="Content-Type" content="text/html;charset=windows-1252"> 
+  <title>Coverage Report > MultiDetector</title>
+  <style type="text/css">
+    @import "../../css/coverage.css";
+    @import "../../css/idea.min.css";
+  </style>
+  <script type="text/javascript" src="../../js/highlight.min.js"></script>
+  <script type="text/javascript" src="../../js/highlightjs-line-numbers.min.js"></script>
+</head>
+
+<body>
+<div class="content">
+<div class="breadCrumbs">
+Current scope:     <a href="../../index.html">all classes</a>
+    <span class="separator">|</span>
+    <a href="../index.html">com.google.zxing.multi.qrcode.detector</a>
+</div>
+
+<h1>Coverage Summary for Class: MultiDetector (com.google.zxing.multi.qrcode.detector)</h1>
+
+<table class="coverageStats">
+<tr>
+  <th class="name">Class</th>
+<th class="coverageStat 
+">
+  Class, %
+</th>
+<th class="coverageStat 
+">
+  Method, %
+</th>
+<th class="coverageStat 
+">
+  Line, %
+</th>
+</tr>
+<tr>
+  <td class="name">MultiDetector</td>
+<td class="coverageStat">
+  <span class="percent">
+    100%
+  </span>
+  <span class="absValue">
+    (1/1)
+  </span>
+</td>
+<td class="coverageStat">
+  <span class="percent">
+    100%
+  </span>
+  <span class="absValue">
+    (3/3)
+  </span>
+</td>
+<td class="coverageStat">
+  <span class="percent">
+    81.2%
+  </span>
+  <span class="absValue">
+    (13/16)
+  </span>
+</td>
+</tr>
+
+</table>
+
+<br/>
+<br/>
+
+
+<pre>
+<code class="sourceCode" id="sourceCode">&nbsp;/*
+&nbsp; * Copyright 2009 ZXing authors
+&nbsp; *
+&nbsp; * Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
+&nbsp; * you may not use this file except in compliance with the License.
+&nbsp; * You may obtain a copy of the License at
+&nbsp; *
+&nbsp; *      http://www.apache.org/licenses/LICENSE-2.0
+&nbsp; *
+&nbsp; * Unless required by applicable law or agreed to in writing, software
+&nbsp; * distributed under the License is distributed on an &quot;AS IS&quot; BASIS,
+&nbsp; * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+&nbsp; * See the License for the specific language governing permissions and
+&nbsp; * limitations under the License.
+&nbsp; */
+&nbsp;
+&nbsp;package com.google.zxing.multi.qrcode.detector;
+&nbsp;
+&nbsp;import com.google.zxing.DecodeHintType;
+&nbsp;import com.google.zxing.NotFoundException;
+&nbsp;import com.google.zxing.ReaderException;
+&nbsp;import com.google.zxing.ResultPointCallback;
+&nbsp;import com.google.zxing.common.BitMatrix;
+&nbsp;import com.google.zxing.common.DetectorResult;
+&nbsp;import com.google.zxing.qrcode.detector.Detector;
+&nbsp;import com.google.zxing.qrcode.detector.FinderPatternInfo;
+&nbsp;
+&nbsp;import java.util.ArrayList;
+&nbsp;import java.util.List;
+&nbsp;import java.util.Map;
+&nbsp;
+&nbsp;/**
+&nbsp; * &lt;p&gt;Encapsulates logic that can detect one or more QR Codes in an image, even if the QR Code
+&nbsp; * is rotated or skewed, or partially obscured.&lt;/p&gt;
+&nbsp; *
+&nbsp; * @author Sean Owen
+&nbsp; * @author Hannes Erven
+&nbsp; */
+&nbsp;public final class MultiDetector extends Detector {
+&nbsp;
+<b class="fc">&nbsp;  private static final DetectorResult[] EMPTY_DETECTOR_RESULTS = new DetectorResult[0];</b>
+&nbsp;
+&nbsp;  public MultiDetector(BitMatrix image) {
+<b class="fc">&nbsp;    super(image);</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  public DetectorResult[] detectMulti(Map&lt;DecodeHintType,?&gt; hints) throws NotFoundException {
+<b class="fc">&nbsp;    BitMatrix image = getImage();</b>
+&nbsp;    ResultPointCallback resultPointCallback =
+<b class="fc">&nbsp;        hints == null ? null : (ResultPointCallback) hints.get(DecodeHintType.NEED_RESULT_POINT_CALLBACK);</b>
+<b class="fc">&nbsp;    MultiFinderPatternFinder finder = new MultiFinderPatternFinder(image, resultPointCallback);</b>
+<b class="fc">&nbsp;    FinderPatternInfo[] infos = finder.findMulti(hints);</b>
+&nbsp;
+<b class="fc">&nbsp;    if (infos.length == 0) {</b>
+<b class="nc">&nbsp;      throw NotFoundException.getNotFoundInstance();</b>
+&nbsp;    }
+&nbsp;
+<b class="fc">&nbsp;    List&lt;DetectorResult&gt; result = new ArrayList&lt;&gt;();</b>
+<b class="fc">&nbsp;    for (FinderPatternInfo info : infos) {</b>
+&nbsp;      try {
+<b class="fc">&nbsp;        result.add(processFinderPatternInfo(info));</b>
+<b class="nc">&nbsp;      } catch (ReaderException e) {</b>
+&nbsp;        // ignore
+<b class="fc">&nbsp;      }</b>
+&nbsp;    }
+<b class="fc">&nbsp;    if (result.isEmpty()) {</b>
+<b class="nc">&nbsp;      return EMPTY_DETECTOR_RESULTS;</b>
+&nbsp;    } else {
+<b class="fc">&nbsp;      return result.toArray(EMPTY_DETECTOR_RESULTS);</b>
+&nbsp;    }
+&nbsp;  }
+&nbsp;
+&nbsp;}
+</code>
+</pre>
+</div>
+
+<script type="text/javascript">
+(function() {
+    var msie = false, msie9 = false;
+    /*@cc_on
+      msie = true;
+      @if (@_jscript_version >= 9)
+        msie9 = true;
+      @end
+    @*/
+
+    if (!msie || msie && msie9) {
+      hljs.highlightAll()
+      hljs.initLineNumbersOnLoad();
+    }
+})();
+</script>
+
+<div class="footer">
+    
+    <div style="float:right;">generated on 2023-11-12 23:26</div>
+</div>
+</body>
+</html>

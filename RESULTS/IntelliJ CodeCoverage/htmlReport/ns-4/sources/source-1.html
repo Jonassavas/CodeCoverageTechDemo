@@ -1,0 +1,779 @@
+
+
+
+<!DOCTYPE html>
+<html id="htmlId">
+<head>
+  <meta http-equiv="Content-Type" content="text/html;charset=windows-1252"> 
+  <title>Coverage Report > Detector</title>
+  <style type="text/css">
+    @import "../../css/coverage.css";
+    @import "../../css/idea.min.css";
+  </style>
+  <script type="text/javascript" src="../../js/highlight.min.js"></script>
+  <script type="text/javascript" src="../../js/highlightjs-line-numbers.min.js"></script>
+</head>
+
+<body>
+<div class="content">
+<div class="breadCrumbs">
+Current scope:     <a href="../../index.html">all classes</a>
+    <span class="separator">|</span>
+    <a href="../index.html">com.google.zxing.aztec.detector</a>
+</div>
+
+<h1>Coverage Summary for Class: Detector (com.google.zxing.aztec.detector)</h1>
+
+<table class="coverageStats">
+
+<tr>
+  <th class="name">Class</th>
+<th class="coverageStat 
+">
+  Method, %
+</th>
+<th class="coverageStat 
+">
+  Line, %
+</th>
+</tr>
+<tr>
+  <td class="name">Detector</td>
+<td class="coverageStat">
+  <span class="percent">
+    95.2%
+  </span>
+  <span class="absValue">
+    (20/21)
+  </span>
+</td>
+<td class="coverageStat">
+  <span class="percent">
+    98.2%
+  </span>
+  <span class="absValue">
+    (216/220)
+  </span>
+</td>
+</tr>
+  <tr>
+    <td class="name">Detector$CorrectedParameter</td>
+<td class="coverageStat">
+  <span class="percent">
+    100%
+  </span>
+  <span class="absValue">
+    (3/3)
+  </span>
+</td>
+<td class="coverageStat">
+  <span class="percent">
+    100%
+  </span>
+  <span class="absValue">
+    (5/5)
+  </span>
+</td>
+  </tr>
+  <tr>
+    <td class="name">Detector$Point</td>
+<td class="coverageStat">
+  <span class="percent">
+    80%
+  </span>
+  <span class="absValue">
+    (4/5)
+  </span>
+</td>
+<td class="coverageStat">
+  <span class="percent">
+    85.7%
+  </span>
+  <span class="absValue">
+    (6/7)
+  </span>
+</td>
+  </tr>
+<tr>
+  <td class="name"><strong>Total</strong></td>
+<td class="coverageStat">
+  <span class="percent">
+    93.1%
+  </span>
+  <span class="absValue">
+    (27/29)
+  </span>
+</td>
+<td class="coverageStat">
+  <span class="percent">
+    97.8%
+  </span>
+  <span class="absValue">
+    (227/232)
+  </span>
+</td>
+</tr>
+</table>
+
+<br/>
+<br/>
+
+
+<pre>
+<code class="sourceCode" id="sourceCode">&nbsp;/*
+&nbsp; * Copyright 2010 ZXing authors
+&nbsp; *
+&nbsp; * Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
+&nbsp; * you may not use this file except in compliance with the License.
+&nbsp; * You may obtain a copy of the License at
+&nbsp; *
+&nbsp; *      http://www.apache.org/licenses/LICENSE-2.0
+&nbsp; *
+&nbsp; * Unless required by applicable law or agreed to in writing, software
+&nbsp; * distributed under the License is distributed on an &quot;AS IS&quot; BASIS,
+&nbsp; * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+&nbsp; * See the License for the specific language governing permissions and
+&nbsp; * limitations under the License.
+&nbsp; */
+&nbsp;
+&nbsp;package com.google.zxing.aztec.detector;
+&nbsp;
+&nbsp;import com.google.zxing.NotFoundException;
+&nbsp;import com.google.zxing.ResultPoint;
+&nbsp;import com.google.zxing.aztec.AztecDetectorResult;
+&nbsp;import com.google.zxing.common.BitMatrix;
+&nbsp;import com.google.zxing.common.GridSampler;
+&nbsp;import com.google.zxing.common.detector.MathUtils;
+&nbsp;import com.google.zxing.common.detector.WhiteRectangleDetector;
+&nbsp;import com.google.zxing.common.reedsolomon.GenericGF;
+&nbsp;import com.google.zxing.common.reedsolomon.ReedSolomonDecoder;
+&nbsp;import com.google.zxing.common.reedsolomon.ReedSolomonException;
+&nbsp;
+&nbsp;/**
+&nbsp; * Encapsulates logic that can detect an Aztec Code in an image, even if the Aztec Code
+&nbsp; * is rotated or skewed, or partially obscured.
+&nbsp; *
+&nbsp; * @author David Olivier
+&nbsp; * @author Frank Yellin
+&nbsp; */
+&nbsp;public final class Detector {
+&nbsp;
+<b class="fc">&nbsp;  private static final int[] EXPECTED_CORNER_BITS = {</b>
+&nbsp;      0xee0,  // 07340  XXX .XX X.. ...
+&nbsp;      0x1dc,  // 00734  ... XXX .XX X..
+&nbsp;      0x83b,  // 04073  X.. ... XXX .XX
+&nbsp;      0x707,  // 03407 .XX X.. ... XXX
+&nbsp;  };
+&nbsp;
+&nbsp;  private final BitMatrix image;
+&nbsp;
+&nbsp;  private boolean compact;
+&nbsp;  private int nbLayers;
+&nbsp;  private int nbDataBlocks;
+&nbsp;  private int nbCenterLayers;
+&nbsp;  private int shift;
+&nbsp;
+<b class="fc">&nbsp;  public Detector(BitMatrix image) {</b>
+<b class="fc">&nbsp;    this.image = image;</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  public AztecDetectorResult detect() throws NotFoundException {
+<b class="nc">&nbsp;    return detect(false);</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  /**
+&nbsp;   * Detects an Aztec Code in an image.
+&nbsp;   *
+&nbsp;   * @param isMirror if true, image is a mirror-image of original
+&nbsp;   * @return {@link AztecDetectorResult} encapsulating results of detecting an Aztec Code
+&nbsp;   * @throws NotFoundException if no Aztec Code can be found
+&nbsp;   */
+&nbsp;  public AztecDetectorResult detect(boolean isMirror) throws NotFoundException {
+&nbsp;
+&nbsp;    // 1. Get the center of the aztec matrix
+<b class="fc">&nbsp;    Point pCenter = getMatrixCenter();</b>
+&nbsp;
+&nbsp;    // 2. Get the center points of the four diagonal points just outside the bull&#39;s eye
+&nbsp;    //  [topRight, bottomRight, bottomLeft, topLeft]
+<b class="fc">&nbsp;    ResultPoint[] bullsEyeCorners = getBullsEyeCorners(pCenter);</b>
+&nbsp;
+<b class="fc">&nbsp;    if (isMirror) {</b>
+<b class="fc">&nbsp;      ResultPoint temp = bullsEyeCorners[0];</b>
+<b class="fc">&nbsp;      bullsEyeCorners[0] = bullsEyeCorners[2];</b>
+<b class="fc">&nbsp;      bullsEyeCorners[2] = temp;</b>
+&nbsp;    }
+&nbsp;
+&nbsp;    // 3. Get the size of the matrix and other parameters from the bull&#39;s eye
+<b class="fc">&nbsp;    int errorsCorrected = extractParameters(bullsEyeCorners);</b>
+&nbsp;
+&nbsp;    // 4. Sample the grid
+<b class="fc">&nbsp;    BitMatrix bits = sampleGrid(image,</b>
+&nbsp;                                bullsEyeCorners[shift % 4],
+&nbsp;                                bullsEyeCorners[(shift + 1) % 4],
+&nbsp;                                bullsEyeCorners[(shift + 2) % 4],
+&nbsp;                                bullsEyeCorners[(shift + 3) % 4]);
+&nbsp;
+&nbsp;    // 5. Get the corners of the matrix.
+<b class="fc">&nbsp;    ResultPoint[] corners = getMatrixCornerPoints(bullsEyeCorners);</b>
+&nbsp;
+<b class="fc">&nbsp;    return new AztecDetectorResult(bits, corners, compact, nbDataBlocks, nbLayers, errorsCorrected);</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  /**
+&nbsp;   * Extracts the number of data layers and data blocks from the layer around the bull&#39;s eye.
+&nbsp;   *
+&nbsp;   * @param bullsEyeCorners the array of bull&#39;s eye corners
+&nbsp;   * @return the number of errors corrected during parameter extraction
+&nbsp;   * @throws NotFoundException in case of too many errors or invalid parameters
+&nbsp;   */
+&nbsp;  private int extractParameters(ResultPoint[] bullsEyeCorners) throws NotFoundException {
+<b class="fc">&nbsp;    if (!isValid(bullsEyeCorners[0]) || !isValid(bullsEyeCorners[1]) ||</b>
+<b class="fc">&nbsp;        !isValid(bullsEyeCorners[2]) || !isValid(bullsEyeCorners[3])) {</b>
+<b class="nc">&nbsp;      throw NotFoundException.getNotFoundInstance();</b>
+&nbsp;    }
+<b class="fc">&nbsp;    int length = 2 * nbCenterLayers;</b>
+&nbsp;    // Get the bits around the bull&#39;s eye
+<b class="fc">&nbsp;    int[] sides = {</b>
+<b class="fc">&nbsp;        sampleLine(bullsEyeCorners[0], bullsEyeCorners[1], length), // Right side</b>
+<b class="fc">&nbsp;        sampleLine(bullsEyeCorners[1], bullsEyeCorners[2], length), // Bottom</b>
+<b class="fc">&nbsp;        sampleLine(bullsEyeCorners[2], bullsEyeCorners[3], length), // Left side</b>
+<b class="fc">&nbsp;        sampleLine(bullsEyeCorners[3], bullsEyeCorners[0], length)  // Top</b>
+&nbsp;    };
+&nbsp;
+&nbsp;    // bullsEyeCorners[shift] is the corner of the bulls&#39;eye that has three
+&nbsp;    // orientation marks.
+&nbsp;    // sides[shift] is the row/column that goes from the corner with three
+&nbsp;    // orientation marks to the corner with two.
+<b class="fc">&nbsp;    shift = getRotation(sides, length);</b>
+&nbsp;
+&nbsp;    // Flatten the parameter bits into a single 28- or 40-bit long
+<b class="fc">&nbsp;    long parameterData = 0;</b>
+<b class="fc">&nbsp;    for (int i = 0; i &lt; 4; i++) {</b>
+<b class="fc">&nbsp;      int side = sides[(shift + i) % 4];</b>
+<b class="fc">&nbsp;      if (compact) {</b>
+&nbsp;        // Each side of the form ..XXXXXXX. where Xs are parameter data
+<b class="fc">&nbsp;        parameterData &lt;&lt;= 7;</b>
+<b class="fc">&nbsp;        parameterData += (side &gt;&gt; 1) &amp; 0x7F;</b>
+&nbsp;      } else {
+&nbsp;        // Each side of the form ..XXXXX.XXXXX. where Xs are parameter data
+<b class="fc">&nbsp;        parameterData &lt;&lt;= 10;</b>
+<b class="fc">&nbsp;        parameterData += ((side &gt;&gt; 2) &amp; (0x1f &lt;&lt; 5)) + ((side &gt;&gt; 1) &amp; 0x1F);</b>
+&nbsp;      }
+&nbsp;    }
+&nbsp;
+&nbsp;    // Corrects parameter data using RS.  Returns just the data portion
+&nbsp;    // without the error correction.
+<b class="fc">&nbsp;    CorrectedParameter correctedParam = getCorrectedParameterData(parameterData, compact);</b>
+<b class="fc">&nbsp;    int correctedData = correctedParam.getData();</b>
+&nbsp;
+<b class="fc">&nbsp;    if (compact) {</b>
+&nbsp;      // 8 bits:  2 bits layers and 6 bits data blocks
+<b class="fc">&nbsp;      nbLayers = (correctedData &gt;&gt; 6) + 1;</b>
+<b class="fc">&nbsp;      nbDataBlocks = (correctedData &amp; 0x3F) + 1;</b>
+&nbsp;    } else {
+&nbsp;      // 16 bits:  5 bits layers and 11 bits data blocks
+<b class="fc">&nbsp;      nbLayers = (correctedData &gt;&gt; 11) + 1;</b>
+<b class="fc">&nbsp;      nbDataBlocks = (correctedData &amp; 0x7FF) + 1;</b>
+&nbsp;    }
+&nbsp;
+<b class="fc">&nbsp;    return correctedParam.getErrorsCorrected();</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  private static int getRotation(int[] sides, int length) throws NotFoundException {
+&nbsp;    // In a normal pattern, we expect to See
+&nbsp;    //   **    .*             D       A
+&nbsp;    //   *      *
+&nbsp;    //
+&nbsp;    //   .      *
+&nbsp;    //   ..    ..             C       B
+&nbsp;    //
+&nbsp;    // Grab the 3 bits from each of the sides the form the locator pattern and concatenate
+&nbsp;    // into a 12-bit integer.  Start with the bit at A
+<b class="fc">&nbsp;    int cornerBits = 0;</b>
+<b class="fc">&nbsp;    for (int side : sides) {</b>
+&nbsp;      // XX......X where X&#39;s are orientation marks
+<b class="fc">&nbsp;      int t = ((side &gt;&gt; (length - 2)) &lt;&lt; 1) + (side &amp; 1);</b>
+<b class="fc">&nbsp;      cornerBits = (cornerBits &lt;&lt; 3) + t;</b>
+&nbsp;    }
+&nbsp;    // Mov the bottom bit to the top, so that the three bits of the locator pattern at A are
+&nbsp;    // together.  cornerBits is now:
+&nbsp;    //  3 orientation bits at A || 3 orientation bits at B || ... || 3 orientation bits at D
+<b class="fc">&nbsp;    cornerBits = ((cornerBits &amp; 1) &lt;&lt; 11) + (cornerBits &gt;&gt; 1);</b>
+&nbsp;    // The result shift indicates which element of BullsEyeCorners[] goes into the top-left
+&nbsp;    // corner. Since the four rotation values have a Hamming distance of 8, we
+&nbsp;    // can easily tolerate two errors.
+<b class="fc">&nbsp;    for (int shift = 0; shift &lt; 4; shift++) {</b>
+<b class="fc">&nbsp;      if (Integer.bitCount(cornerBits ^ EXPECTED_CORNER_BITS[shift]) &lt;= 2) {</b>
+<b class="fc">&nbsp;        return shift;</b>
+&nbsp;      }
+&nbsp;    }
+<b class="fc">&nbsp;    throw NotFoundException.getNotFoundInstance();</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  /**
+&nbsp;   * Corrects the parameter bits using Reed-Solomon algorithm.
+&nbsp;   *
+&nbsp;   * @param parameterData parameter bits
+&nbsp;   * @param compact true if this is a compact Aztec code
+&nbsp;   * @return the corrected parameter
+&nbsp;   * @throws NotFoundException if the array contains too many errors
+&nbsp;   */
+&nbsp;  private static CorrectedParameter getCorrectedParameterData(long parameterData,
+&nbsp;                                                              boolean compact) throws NotFoundException {
+&nbsp;    int numCodewords;
+&nbsp;    int numDataCodewords;
+&nbsp;
+<b class="fc">&nbsp;    if (compact) {</b>
+<b class="fc">&nbsp;      numCodewords = 7;</b>
+<b class="fc">&nbsp;      numDataCodewords = 2;</b>
+&nbsp;    } else {
+<b class="fc">&nbsp;      numCodewords = 10;</b>
+<b class="fc">&nbsp;      numDataCodewords = 4;</b>
+&nbsp;    }
+&nbsp;
+<b class="fc">&nbsp;    int numECCodewords = numCodewords - numDataCodewords;</b>
+<b class="fc">&nbsp;    int[] parameterWords = new int[numCodewords];</b>
+<b class="fc">&nbsp;    for (int i = numCodewords - 1; i &gt;= 0; --i) {</b>
+<b class="fc">&nbsp;      parameterWords[i] = (int) parameterData &amp; 0xF;</b>
+<b class="fc">&nbsp;      parameterData &gt;&gt;= 4;</b>
+&nbsp;    }
+&nbsp;
+<b class="fc">&nbsp;    int errorsCorrected = 0;</b>
+&nbsp;    try {
+<b class="fc">&nbsp;      ReedSolomonDecoder rsDecoder = new ReedSolomonDecoder(GenericGF.AZTEC_PARAM);</b>
+<b class="fc">&nbsp;      errorsCorrected = rsDecoder.decodeWithECCount(parameterWords, numECCodewords);</b>
+<b class="nc">&nbsp;    } catch (ReedSolomonException ignored) {</b>
+<b class="nc">&nbsp;      throw NotFoundException.getNotFoundInstance();</b>
+<b class="fc">&nbsp;    }</b>
+&nbsp;
+&nbsp;    // Toss the error correction.  Just return the data as an integer
+<b class="fc">&nbsp;    int result = 0;</b>
+<b class="fc">&nbsp;    for (int i = 0; i &lt; numDataCodewords; i++) {</b>
+<b class="fc">&nbsp;      result = (result &lt;&lt; 4) + parameterWords[i];</b>
+&nbsp;    }
+<b class="fc">&nbsp;    return new CorrectedParameter(result, errorsCorrected);</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  /**
+&nbsp;   * Finds the corners of a bull-eye centered on the passed point.
+&nbsp;   * This returns the centers of the diagonal points just outside the bull&#39;s eye
+&nbsp;   * Returns [topRight, bottomRight, bottomLeft, topLeft]
+&nbsp;   *
+&nbsp;   * @param pCenter Center point
+&nbsp;   * @return The corners of the bull-eye
+&nbsp;   * @throws NotFoundException If no valid bull-eye can be found
+&nbsp;   */
+&nbsp;  private ResultPoint[] getBullsEyeCorners(Point pCenter) throws NotFoundException {
+&nbsp;
+<b class="fc">&nbsp;    Point pina = pCenter;</b>
+<b class="fc">&nbsp;    Point pinb = pCenter;</b>
+<b class="fc">&nbsp;    Point pinc = pCenter;</b>
+<b class="fc">&nbsp;    Point pind = pCenter;</b>
+&nbsp;
+<b class="fc">&nbsp;    boolean color = true;</b>
+&nbsp;
+<b class="fc">&nbsp;    for (nbCenterLayers = 1; nbCenterLayers &lt; 9; nbCenterLayers++) {</b>
+<b class="fc">&nbsp;      Point pouta = getFirstDifferent(pina, color, 1, -1);</b>
+<b class="fc">&nbsp;      Point poutb = getFirstDifferent(pinb, color, 1, 1);</b>
+<b class="fc">&nbsp;      Point poutc = getFirstDifferent(pinc, color, -1, 1);</b>
+<b class="fc">&nbsp;      Point poutd = getFirstDifferent(pind, color, -1, -1);</b>
+&nbsp;
+&nbsp;      //d      a
+&nbsp;      //
+&nbsp;      //c      b
+&nbsp;
+<b class="fc">&nbsp;      if (nbCenterLayers &gt; 2) {</b>
+<b class="fc">&nbsp;        float q = distance(poutd, pouta) * nbCenterLayers / (distance(pind, pina) * (nbCenterLayers + 2));</b>
+<b class="fc">&nbsp;        if (q &lt; 0.75 || q &gt; 1.25 || !isWhiteOrBlackRectangle(pouta, poutb, poutc, poutd)) {</b>
+<b class="fc">&nbsp;          break;</b>
+&nbsp;        }
+&nbsp;      }
+&nbsp;
+<b class="fc">&nbsp;      pina = pouta;</b>
+<b class="fc">&nbsp;      pinb = poutb;</b>
+<b class="fc">&nbsp;      pinc = poutc;</b>
+<b class="fc">&nbsp;      pind = poutd;</b>
+&nbsp;
+<b class="fc">&nbsp;      color = !color;</b>
+&nbsp;    }
+&nbsp;
+<b class="fc">&nbsp;    if (nbCenterLayers != 5 &amp;&amp; nbCenterLayers != 7) {</b>
+<b class="fc">&nbsp;      throw NotFoundException.getNotFoundInstance();</b>
+&nbsp;    }
+&nbsp;
+<b class="fc">&nbsp;    compact = nbCenterLayers == 5;</b>
+&nbsp;
+&nbsp;    // Expand the square by .5 pixel in each direction so that we&#39;re on the border
+&nbsp;    // between the white square and the black square
+<b class="fc">&nbsp;    ResultPoint pinax = new ResultPoint(pina.getX() + 0.5f, pina.getY() - 0.5f);</b>
+<b class="fc">&nbsp;    ResultPoint pinbx = new ResultPoint(pinb.getX() + 0.5f, pinb.getY() + 0.5f);</b>
+<b class="fc">&nbsp;    ResultPoint pincx = new ResultPoint(pinc.getX() - 0.5f, pinc.getY() + 0.5f);</b>
+<b class="fc">&nbsp;    ResultPoint pindx = new ResultPoint(pind.getX() - 0.5f, pind.getY() - 0.5f);</b>
+&nbsp;
+&nbsp;    // Expand the square so that its corners are the centers of the points
+&nbsp;    // just outside the bull&#39;s eye.
+<b class="fc">&nbsp;    return expandSquare(new ResultPoint[]{pinax, pinbx, pincx, pindx},</b>
+&nbsp;                        2 * nbCenterLayers - 3,
+&nbsp;                        2 * nbCenterLayers);
+&nbsp;  }
+&nbsp;
+&nbsp;  /**
+&nbsp;   * Finds a candidate center point of an Aztec code from an image
+&nbsp;   *
+&nbsp;   * @return the center point
+&nbsp;   */
+&nbsp;  private Point getMatrixCenter() {
+&nbsp;
+&nbsp;    ResultPoint pointA;
+&nbsp;    ResultPoint pointB;
+&nbsp;    ResultPoint pointC;
+&nbsp;    ResultPoint pointD;
+&nbsp;
+&nbsp;    //Get a white rectangle that can be the border of the matrix in center bull&#39;s eye or
+&nbsp;    try {
+&nbsp;
+<b class="fc">&nbsp;      ResultPoint[] cornerPoints = new WhiteRectangleDetector(image).detect();</b>
+<b class="fc">&nbsp;      pointA = cornerPoints[0];</b>
+<b class="fc">&nbsp;      pointB = cornerPoints[1];</b>
+<b class="fc">&nbsp;      pointC = cornerPoints[2];</b>
+<b class="fc">&nbsp;      pointD = cornerPoints[3];</b>
+&nbsp;
+<b class="fc">&nbsp;    } catch (NotFoundException e) {</b>
+&nbsp;
+&nbsp;      // This exception can be in case the initial rectangle is white
+&nbsp;      // In that case, surely in the bull&#39;s eye, we try to expand the rectangle.
+<b class="fc">&nbsp;      int cx = image.getWidth() / 2;</b>
+<b class="fc">&nbsp;      int cy = image.getHeight() / 2;</b>
+<b class="fc">&nbsp;      pointA = getFirstDifferent(new Point(cx + 7, cy - 7), false, 1, -1).toResultPoint();</b>
+<b class="fc">&nbsp;      pointB = getFirstDifferent(new Point(cx + 7, cy + 7), false, 1, 1).toResultPoint();</b>
+<b class="fc">&nbsp;      pointC = getFirstDifferent(new Point(cx - 7, cy + 7), false, -1, 1).toResultPoint();</b>
+<b class="fc">&nbsp;      pointD = getFirstDifferent(new Point(cx - 7, cy - 7), false, -1, -1).toResultPoint();</b>
+&nbsp;
+<b class="fc">&nbsp;    }</b>
+&nbsp;
+&nbsp;    //Compute the center of the rectangle
+<b class="fc">&nbsp;    int cx = MathUtils.round((pointA.getX() + pointD.getX() + pointB.getX() + pointC.getX()) / 4.0f);</b>
+<b class="fc">&nbsp;    int cy = MathUtils.round((pointA.getY() + pointD.getY() + pointB.getY() + pointC.getY()) / 4.0f);</b>
+&nbsp;
+&nbsp;    // Redetermine the white rectangle starting from previously computed center.
+&nbsp;    // This will ensure that we end up with a white rectangle in center bull&#39;s eye
+&nbsp;    // in order to compute a more accurate center.
+&nbsp;    try {
+<b class="fc">&nbsp;      ResultPoint[] cornerPoints = new WhiteRectangleDetector(image, 15, cx, cy).detect();</b>
+<b class="fc">&nbsp;      pointA = cornerPoints[0];</b>
+<b class="fc">&nbsp;      pointB = cornerPoints[1];</b>
+<b class="fc">&nbsp;      pointC = cornerPoints[2];</b>
+<b class="fc">&nbsp;      pointD = cornerPoints[3];</b>
+<b class="fc">&nbsp;    } catch (NotFoundException e) {</b>
+&nbsp;      // This exception can be in case the initial rectangle is white
+&nbsp;      // In that case we try to expand the rectangle.
+<b class="fc">&nbsp;      pointA = getFirstDifferent(new Point(cx + 7, cy - 7), false, 1, -1).toResultPoint();</b>
+<b class="fc">&nbsp;      pointB = getFirstDifferent(new Point(cx + 7, cy + 7), false, 1, 1).toResultPoint();</b>
+<b class="fc">&nbsp;      pointC = getFirstDifferent(new Point(cx - 7, cy + 7), false, -1, 1).toResultPoint();</b>
+<b class="fc">&nbsp;      pointD = getFirstDifferent(new Point(cx - 7, cy - 7), false, -1, -1).toResultPoint();</b>
+<b class="fc">&nbsp;    }</b>
+&nbsp;
+&nbsp;    // Recompute the center of the rectangle
+<b class="fc">&nbsp;    cx = MathUtils.round((pointA.getX() + pointD.getX() + pointB.getX() + pointC.getX()) / 4.0f);</b>
+<b class="fc">&nbsp;    cy = MathUtils.round((pointA.getY() + pointD.getY() + pointB.getY() + pointC.getY()) / 4.0f);</b>
+&nbsp;
+<b class="fc">&nbsp;    return new Point(cx, cy);</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  /**
+&nbsp;   * Gets the Aztec code corners from the bull&#39;s eye corners and the parameters.
+&nbsp;   *
+&nbsp;   * @param bullsEyeCorners the array of bull&#39;s eye corners
+&nbsp;   * @return the array of aztec code corners
+&nbsp;   */
+&nbsp;  private ResultPoint[] getMatrixCornerPoints(ResultPoint[] bullsEyeCorners) {
+<b class="fc">&nbsp;    return expandSquare(bullsEyeCorners, 2 * nbCenterLayers, getDimension());</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  /**
+&nbsp;   * Creates a BitMatrix by sampling the provided image.
+&nbsp;   * topLeft, topRight, bottomRight, and bottomLeft are the centers of the squares on the
+&nbsp;   * diagonal just outside the bull&#39;s eye.
+&nbsp;   */
+&nbsp;  private BitMatrix sampleGrid(BitMatrix image,
+&nbsp;                               ResultPoint topLeft,
+&nbsp;                               ResultPoint topRight,
+&nbsp;                               ResultPoint bottomRight,
+&nbsp;                               ResultPoint bottomLeft) throws NotFoundException {
+&nbsp;
+<b class="fc">&nbsp;    GridSampler sampler = GridSampler.getInstance();</b>
+<b class="fc">&nbsp;    int dimension = getDimension();</b>
+&nbsp;
+<b class="fc">&nbsp;    float low = dimension / 2.0f - nbCenterLayers;</b>
+<b class="fc">&nbsp;    float high = dimension / 2.0f + nbCenterLayers;</b>
+&nbsp;
+<b class="fc">&nbsp;    return sampler.sampleGrid(image,</b>
+&nbsp;                              dimension,
+&nbsp;                              dimension,
+&nbsp;                              low, low,   // topleft
+&nbsp;                              high, low,  // topright
+&nbsp;                              high, high, // bottomright
+&nbsp;                              low, high,  // bottomleft
+<b class="fc">&nbsp;                              topLeft.getX(), topLeft.getY(),</b>
+<b class="fc">&nbsp;                              topRight.getX(), topRight.getY(),</b>
+<b class="fc">&nbsp;                              bottomRight.getX(), bottomRight.getY(),</b>
+<b class="fc">&nbsp;                              bottomLeft.getX(), bottomLeft.getY());</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  /**
+&nbsp;   * Samples a line.
+&nbsp;   *
+&nbsp;   * @param p1   start point (inclusive)
+&nbsp;   * @param p2   end point (exclusive)
+&nbsp;   * @param size number of bits
+&nbsp;   * @return the array of bits as an int (first bit is high-order bit of result)
+&nbsp;   */
+&nbsp;  private int sampleLine(ResultPoint p1, ResultPoint p2, int size) {
+<b class="fc">&nbsp;    int result = 0;</b>
+&nbsp;
+<b class="fc">&nbsp;    float d = distance(p1, p2);</b>
+<b class="fc">&nbsp;    float moduleSize = d / size;</b>
+<b class="fc">&nbsp;    float px = p1.getX();</b>
+<b class="fc">&nbsp;    float py = p1.getY();</b>
+<b class="fc">&nbsp;    float dx = moduleSize * (p2.getX() - p1.getX()) / d;</b>
+<b class="fc">&nbsp;    float dy = moduleSize * (p2.getY() - p1.getY()) / d;</b>
+<b class="fc">&nbsp;    for (int i = 0; i &lt; size; i++) {</b>
+<b class="fc">&nbsp;      if (image.get(MathUtils.round(px + i * dx), MathUtils.round(py + i * dy))) {</b>
+<b class="fc">&nbsp;        result |= 1 &lt;&lt; (size - i - 1);</b>
+&nbsp;      }
+&nbsp;    }
+<b class="fc">&nbsp;    return result;</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  /**
+&nbsp;   * @return true if the border of the rectangle passed in parameter is compound of white points only
+&nbsp;   *         or black points only
+&nbsp;   */
+&nbsp;  private boolean isWhiteOrBlackRectangle(Point p1,
+&nbsp;                                          Point p2,
+&nbsp;                                          Point p3,
+&nbsp;                                          Point p4) {
+&nbsp;
+<b class="fc">&nbsp;    int corr = 3;</b>
+&nbsp;
+<b class="fc">&nbsp;    p1 = new Point(Math.max(0, p1.getX() - corr), Math.min(image.getHeight() - 1, p1.getY() + corr));</b>
+<b class="fc">&nbsp;    p2 = new Point(Math.max(0, p2.getX() - corr), Math.max(0, p2.getY() - corr));</b>
+<b class="fc">&nbsp;    p3 = new Point(Math.min(image.getWidth() - 1, p3.getX() + corr),</b>
+<b class="fc">&nbsp;                   Math.max(0, Math.min(image.getHeight() - 1, p3.getY() - corr)));</b>
+<b class="fc">&nbsp;    p4 = new Point(Math.min(image.getWidth() - 1, p4.getX() + corr),</b>
+<b class="fc">&nbsp;                   Math.min(image.getHeight() - 1, p4.getY() + corr));</b>
+&nbsp;
+<b class="fc">&nbsp;    int cInit = getColor(p4, p1);</b>
+&nbsp;
+<b class="fc">&nbsp;    if (cInit == 0) {</b>
+<b class="fc">&nbsp;      return false;</b>
+&nbsp;    }
+&nbsp;
+<b class="fc">&nbsp;    int c = getColor(p1, p2);</b>
+&nbsp;
+<b class="fc">&nbsp;    if (c != cInit) {</b>
+<b class="fc">&nbsp;      return false;</b>
+&nbsp;    }
+&nbsp;
+<b class="fc">&nbsp;    c = getColor(p2, p3);</b>
+&nbsp;
+<b class="fc">&nbsp;    if (c != cInit) {</b>
+<b class="fc">&nbsp;      return false;</b>
+&nbsp;    }
+&nbsp;
+<b class="fc">&nbsp;    c = getColor(p3, p4);</b>
+&nbsp;
+<b class="fc">&nbsp;    return c == cInit;</b>
+&nbsp;
+&nbsp;  }
+&nbsp;
+&nbsp;  /**
+&nbsp;   * Gets the color of a segment
+&nbsp;   *
+&nbsp;   * @return 1 if segment more than 90% black, -1 if segment is more than 90% white, 0 else
+&nbsp;   */
+&nbsp;  private int getColor(Point p1, Point p2) {
+<b class="fc">&nbsp;    float d = distance(p1, p2);</b>
+<b class="fc">&nbsp;    if (d == 0.0f) {</b>
+<b class="fc">&nbsp;      return 0;</b>
+&nbsp;    }
+<b class="fc">&nbsp;    float dx = (p2.getX() - p1.getX()) / d;</b>
+<b class="fc">&nbsp;    float dy = (p2.getY() - p1.getY()) / d;</b>
+<b class="fc">&nbsp;    int error = 0;</b>
+&nbsp;
+<b class="fc">&nbsp;    float px = p1.getX();</b>
+<b class="fc">&nbsp;    float py = p1.getY();</b>
+&nbsp;
+<b class="fc">&nbsp;    boolean colorModel = image.get(p1.getX(), p1.getY());</b>
+&nbsp;
+<b class="fc">&nbsp;    int iMax = (int) Math.floor(d);</b>
+<b class="fc">&nbsp;    for (int i = 0; i &lt; iMax; i++) {</b>
+<b class="fc">&nbsp;      if (image.get(MathUtils.round(px), MathUtils.round(py)) != colorModel) {</b>
+<b class="fc">&nbsp;        error++;</b>
+&nbsp;      }
+<b class="fc">&nbsp;      px += dx;</b>
+<b class="fc">&nbsp;      py += dy;</b>
+&nbsp;    }
+&nbsp;
+<b class="fc">&nbsp;    float errRatio = error / d;</b>
+&nbsp;
+<b class="fc">&nbsp;    if (errRatio &gt; 0.1f &amp;&amp; errRatio &lt; 0.9f) {</b>
+<b class="fc">&nbsp;      return 0;</b>
+&nbsp;    }
+&nbsp;
+<b class="fc">&nbsp;    return (errRatio &lt;= 0.1f) == colorModel ? 1 : -1;</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  /**
+&nbsp;   * Gets the coordinate of the first point with a different color in the given direction
+&nbsp;   */
+&nbsp;  private Point getFirstDifferent(Point init, boolean color, int dx, int dy) {
+<b class="fc">&nbsp;    int x = init.getX() + dx;</b>
+<b class="fc">&nbsp;    int y = init.getY() + dy;</b>
+&nbsp;
+<b class="fc">&nbsp;    while (isValid(x, y) &amp;&amp; image.get(x, y) == color) {</b>
+<b class="fc">&nbsp;      x += dx;</b>
+<b class="fc">&nbsp;      y += dy;</b>
+&nbsp;    }
+&nbsp;
+<b class="fc">&nbsp;    x -= dx;</b>
+<b class="fc">&nbsp;    y -= dy;</b>
+&nbsp;
+<b class="fc">&nbsp;    while (isValid(x, y) &amp;&amp; image.get(x, y) == color) {</b>
+<b class="fc">&nbsp;      x += dx;</b>
+&nbsp;    }
+<b class="fc">&nbsp;    x -= dx;</b>
+&nbsp;
+<b class="fc">&nbsp;    while (isValid(x, y) &amp;&amp; image.get(x, y) == color) {</b>
+<b class="fc">&nbsp;      y += dy;</b>
+&nbsp;    }
+<b class="fc">&nbsp;    y -= dy;</b>
+&nbsp;
+<b class="fc">&nbsp;    return new Point(x, y);</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  /**
+&nbsp;   * Expand the square represented by the corner points by pushing out equally in all directions
+&nbsp;   *
+&nbsp;   * @param cornerPoints the corners of the square, which has the bull&#39;s eye at its center
+&nbsp;   * @param oldSide the original length of the side of the square in the target bit matrix
+&nbsp;   * @param newSide the new length of the size of the square in the target bit matrix
+&nbsp;   * @return the corners of the expanded square
+&nbsp;   */
+&nbsp;  private static ResultPoint[] expandSquare(ResultPoint[] cornerPoints, int oldSide, int newSide) {
+<b class="fc">&nbsp;    float ratio = newSide / (2.0f * oldSide);</b>
+<b class="fc">&nbsp;    float dx = cornerPoints[0].getX() - cornerPoints[2].getX();</b>
+<b class="fc">&nbsp;    float dy = cornerPoints[0].getY() - cornerPoints[2].getY();</b>
+<b class="fc">&nbsp;    float centerx = (cornerPoints[0].getX() + cornerPoints[2].getX()) / 2.0f;</b>
+<b class="fc">&nbsp;    float centery = (cornerPoints[0].getY() + cornerPoints[2].getY()) / 2.0f;</b>
+&nbsp;
+<b class="fc">&nbsp;    ResultPoint result0 = new ResultPoint(centerx + ratio * dx, centery + ratio * dy);</b>
+<b class="fc">&nbsp;    ResultPoint result2 = new ResultPoint(centerx - ratio * dx, centery - ratio * dy);</b>
+&nbsp;
+<b class="fc">&nbsp;    dx = cornerPoints[1].getX() - cornerPoints[3].getX();</b>
+<b class="fc">&nbsp;    dy = cornerPoints[1].getY() - cornerPoints[3].getY();</b>
+<b class="fc">&nbsp;    centerx = (cornerPoints[1].getX() + cornerPoints[3].getX()) / 2.0f;</b>
+<b class="fc">&nbsp;    centery = (cornerPoints[1].getY() + cornerPoints[3].getY()) / 2.0f;</b>
+<b class="fc">&nbsp;    ResultPoint result1 = new ResultPoint(centerx + ratio * dx, centery + ratio * dy);</b>
+<b class="fc">&nbsp;    ResultPoint result3 = new ResultPoint(centerx - ratio * dx, centery - ratio * dy);</b>
+&nbsp;
+<b class="fc">&nbsp;    return new ResultPoint[]{result0, result1, result2, result3};</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  private boolean isValid(int x, int y) {
+<b class="fc">&nbsp;    return x &gt;= 0 &amp;&amp; x &lt; image.getWidth() &amp;&amp; y &gt;= 0 &amp;&amp; y &lt; image.getHeight();</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  private boolean isValid(ResultPoint point) {
+<b class="fc">&nbsp;    int x = MathUtils.round(point.getX());</b>
+<b class="fc">&nbsp;    int y = MathUtils.round(point.getY());</b>
+<b class="fc">&nbsp;    return isValid(x, y);</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  private static float distance(Point a, Point b) {
+<b class="fc">&nbsp;    return MathUtils.distance(a.getX(), a.getY(), b.getX(), b.getY());</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  private static float distance(ResultPoint a, ResultPoint b) {
+<b class="fc">&nbsp;    return MathUtils.distance(a.getX(), a.getY(), b.getX(), b.getY());</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  private int getDimension() {
+<b class="fc">&nbsp;    if (compact) {</b>
+<b class="fc">&nbsp;      return 4 * nbLayers + 11;</b>
+&nbsp;    }
+<b class="fc">&nbsp;    return 4 * nbLayers + 2 * ((2 * nbLayers + 6) / 15) + 15;</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  static final class Point {
+&nbsp;    private final int x;
+&nbsp;    private final int y;
+&nbsp;
+&nbsp;    ResultPoint toResultPoint() {
+<b class="fc">&nbsp;      return new ResultPoint(x, y);</b>
+&nbsp;    }
+&nbsp;
+<b class="fc">&nbsp;    Point(int x, int y) {</b>
+<b class="fc">&nbsp;      this.x = x;</b>
+<b class="fc">&nbsp;      this.y = y;</b>
+&nbsp;    }
+&nbsp;
+&nbsp;    int getX() {
+<b class="fc">&nbsp;      return x;</b>
+&nbsp;    }
+&nbsp;
+&nbsp;    int getY() {
+<b class="fc">&nbsp;      return y;</b>
+&nbsp;    }
+&nbsp;
+&nbsp;    @Override
+&nbsp;    public String toString() {
+<b class="nc">&nbsp;      return &quot;&lt;&quot; + x + &#39; &#39; + y + &#39;&gt;&#39;;</b>
+&nbsp;    }
+&nbsp;  }
+&nbsp;
+&nbsp;  static final class CorrectedParameter {
+&nbsp;    private final int data;
+&nbsp;    private final int errorsCorrected;
+&nbsp;
+<b class="fc">&nbsp;    CorrectedParameter(int data, int errorsCorrected) {</b>
+<b class="fc">&nbsp;      this.data = data;</b>
+<b class="fc">&nbsp;      this.errorsCorrected = errorsCorrected;</b>
+&nbsp;    }
+&nbsp;
+&nbsp;    int getData() {
+<b class="fc">&nbsp;      return data;</b>
+&nbsp;    }
+&nbsp;
+&nbsp;    int getErrorsCorrected() {
+<b class="fc">&nbsp;      return errorsCorrected;</b>
+&nbsp;    }
+&nbsp;  }
+&nbsp;}
+</code>
+</pre>
+</div>
+
+<script type="text/javascript">
+(function() {
+    var msie = false, msie9 = false;
+    /*@cc_on
+      msie = true;
+      @if (@_jscript_version >= 9)
+        msie9 = true;
+      @end
+    @*/
+
+    if (!msie || msie && msie9) {
+      hljs.highlightAll()
+      hljs.initLineNumbersOnLoad();
+    }
+})();
+</script>
+
+<div class="footer">
+    
+    <div style="float:right;">generated on 2023-11-12 23:26</div>
+</div>
+</body>
+</html>

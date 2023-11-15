@@ -1,0 +1,316 @@
+
+
+
+<!DOCTYPE html>
+<html id="htmlId">
+<head>
+  <meta http-equiv="Content-Type" content="text/html;charset=windows-1252"> 
+  <title>Coverage Report > C40Encoder</title>
+  <style type="text/css">
+    @import "../../css/coverage.css";
+    @import "../../css/idea.min.css";
+  </style>
+  <script type="text/javascript" src="../../js/highlight.min.js"></script>
+  <script type="text/javascript" src="../../js/highlightjs-line-numbers.min.js"></script>
+</head>
+
+<body>
+<div class="content">
+<div class="breadCrumbs">
+Current scope:     <a href="../../index.html">all classes</a>
+    <span class="separator">|</span>
+    <a href="../index.html">com.google.zxing.datamatrix.encoder</a>
+</div>
+
+<h1>Coverage Summary for Class: C40Encoder (com.google.zxing.datamatrix.encoder)</h1>
+
+<table class="coverageStats">
+<tr>
+  <th class="name">Class</th>
+<th class="coverageStat 
+">
+  Class, %
+</th>
+<th class="coverageStat 
+">
+  Method, %
+</th>
+<th class="coverageStat 
+">
+  Line, %
+</th>
+</tr>
+<tr>
+  <td class="name">C40Encoder</td>
+<td class="coverageStat">
+  <span class="percent">
+    100%
+  </span>
+  <span class="absValue">
+    (1/1)
+  </span>
+</td>
+<td class="coverageStat">
+  <span class="percent">
+    88.9%
+  </span>
+  <span class="absValue">
+    (8/9)
+  </span>
+</td>
+<td class="coverageStat">
+  <span class="percent">
+    71.4%
+  </span>
+  <span class="absValue">
+    (85/119)
+  </span>
+</td>
+</tr>
+
+</table>
+
+<br/>
+<br/>
+
+
+<pre>
+<code class="sourceCode" id="sourceCode">&nbsp;/*
+&nbsp; * Copyright 2006-2007 Jeremias Maerki.
+&nbsp; *
+&nbsp; * Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
+&nbsp; * you may not use this file except in compliance with the License.
+&nbsp; * You may obtain a copy of the License at
+&nbsp; *
+&nbsp; *      http://www.apache.org/licenses/LICENSE-2.0
+&nbsp; *
+&nbsp; * Unless required by applicable law or agreed to in writing, software
+&nbsp; * distributed under the License is distributed on an &quot;AS IS&quot; BASIS,
+&nbsp; * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+&nbsp; * See the License for the specific language governing permissions and
+&nbsp; * limitations under the License.
+&nbsp; */
+&nbsp;
+&nbsp;package com.google.zxing.datamatrix.encoder;
+&nbsp;
+<b class="fc">&nbsp;class C40Encoder implements Encoder {</b>
+&nbsp;
+&nbsp;  @Override
+&nbsp;  public int getEncodingMode() {
+<b class="fc">&nbsp;    return HighLevelEncoder.C40_ENCODATION;</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  void encodeMaximal(EncoderContext context) {
+<b class="nc">&nbsp;    StringBuilder buffer = new StringBuilder();</b>
+<b class="nc">&nbsp;    int lastCharSize = 0;</b>
+<b class="nc">&nbsp;    int backtrackStartPosition = context.pos;</b>
+<b class="nc">&nbsp;    int backtrackBufferLength = 0;</b>
+<b class="nc">&nbsp;    while (context.hasMoreCharacters()) {</b>
+<b class="nc">&nbsp;      char c = context.getCurrentChar();</b>
+<b class="nc">&nbsp;      context.pos++;</b>
+<b class="nc">&nbsp;      lastCharSize = encodeChar(c, buffer);</b>
+<b class="nc">&nbsp;      if (buffer.length() % 3 == 0) {</b>
+<b class="nc">&nbsp;        backtrackStartPosition = context.pos;</b>
+<b class="nc">&nbsp;        backtrackBufferLength = buffer.length();</b>
+&nbsp;      }
+<b class="nc">&nbsp;    }</b>
+<b class="nc">&nbsp;    if (backtrackBufferLength != buffer.length()) {</b>
+<b class="nc">&nbsp;      int unwritten = (buffer.length() / 3) * 2;</b>
+&nbsp;
+<b class="nc">&nbsp;      int curCodewordCount = context.getCodewordCount() + unwritten + 1; // +1 for the latch to C40</b>
+<b class="nc">&nbsp;      context.updateSymbolInfo(curCodewordCount);</b>
+<b class="nc">&nbsp;      int available = context.getSymbolInfo().getDataCapacity() - curCodewordCount;</b>
+<b class="nc">&nbsp;      int rest = buffer.length() % 3;</b>
+<b class="nc">&nbsp;      if ((rest == 2 &amp;&amp; available != 2) ||</b>
+&nbsp;          (rest == 1 &amp;&amp; (lastCharSize &gt; 3 || available != 1))) {
+<b class="nc">&nbsp;        buffer.setLength(backtrackBufferLength);</b>
+<b class="nc">&nbsp;        context.pos = backtrackStartPosition;</b>
+&nbsp;      }
+&nbsp;    }
+<b class="nc">&nbsp;    if (buffer.length() &gt; 0) {</b>
+<b class="nc">&nbsp;      context.writeCodeword(HighLevelEncoder.LATCH_TO_C40);</b>
+&nbsp;    }
+&nbsp;  
+<b class="nc">&nbsp;    handleEOD(context, buffer);</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  @Override
+&nbsp;  public void encode(EncoderContext context) {
+&nbsp;    //step C
+<b class="fc">&nbsp;    StringBuilder buffer = new StringBuilder();</b>
+<b class="fc">&nbsp;    while (context.hasMoreCharacters()) {</b>
+<b class="fc">&nbsp;      char c = context.getCurrentChar();</b>
+<b class="fc">&nbsp;      context.pos++;</b>
+&nbsp;
+<b class="fc">&nbsp;      int lastCharSize = encodeChar(c, buffer);</b>
+&nbsp;
+<b class="fc">&nbsp;      int unwritten = (buffer.length() / 3) * 2;</b>
+&nbsp;
+<b class="fc">&nbsp;      int curCodewordCount = context.getCodewordCount() + unwritten;</b>
+<b class="fc">&nbsp;      context.updateSymbolInfo(curCodewordCount);</b>
+<b class="fc">&nbsp;      int available = context.getSymbolInfo().getDataCapacity() - curCodewordCount;</b>
+&nbsp;
+<b class="fc">&nbsp;      if (!context.hasMoreCharacters()) {</b>
+&nbsp;        //Avoid having a single C40 value in the last triplet
+<b class="fc">&nbsp;        StringBuilder removed = new StringBuilder();</b>
+<b class="fc">&nbsp;        if ((buffer.length() % 3) == 2 &amp;&amp; available != 2) {</b>
+<b class="fc">&nbsp;          lastCharSize = backtrackOneCharacter(context, buffer, removed, lastCharSize);</b>
+&nbsp;        }
+<b class="fc">&nbsp;        while ((buffer.length() % 3) == 1 &amp;&amp; (lastCharSize &gt; 3 || available != 1)) {</b>
+<b class="fc">&nbsp;          lastCharSize = backtrackOneCharacter(context, buffer, removed, lastCharSize);</b>
+&nbsp;        }
+&nbsp;        break;
+&nbsp;      }
+&nbsp;
+<b class="fc">&nbsp;      int count = buffer.length();</b>
+<b class="fc">&nbsp;      if ((count % 3) == 0) {</b>
+<b class="fc">&nbsp;        int newMode = HighLevelEncoder.lookAheadTest(context.getMessage(), context.pos, getEncodingMode());</b>
+<b class="fc">&nbsp;        if (newMode != getEncodingMode()) {</b>
+&nbsp;          // Return to ASCII encodation, which will actually handle latch to new mode
+<b class="fc">&nbsp;          context.signalEncoderChange(HighLevelEncoder.ASCII_ENCODATION);</b>
+<b class="fc">&nbsp;          break;</b>
+&nbsp;        }
+&nbsp;      }
+<b class="fc">&nbsp;    }</b>
+<b class="fc">&nbsp;    handleEOD(context, buffer);</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  private int backtrackOneCharacter(EncoderContext context,
+&nbsp;                                    StringBuilder buffer, StringBuilder removed, int lastCharSize) {
+<b class="fc">&nbsp;    int count = buffer.length();</b>
+<b class="fc">&nbsp;    buffer.delete(count - lastCharSize, count);</b>
+<b class="fc">&nbsp;    context.pos--;</b>
+<b class="fc">&nbsp;    char c = context.getCurrentChar();</b>
+<b class="fc">&nbsp;    lastCharSize = encodeChar(c, removed);</b>
+<b class="fc">&nbsp;    context.resetSymbolInfo(); //Deal with possible reduction in symbol size</b>
+<b class="fc">&nbsp;    return lastCharSize;</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  static void writeNextTriplet(EncoderContext context, StringBuilder buffer) {
+<b class="fc">&nbsp;    context.writeCodewords(encodeToCodewords(buffer));</b>
+<b class="fc">&nbsp;    buffer.delete(0, 3);</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  /**
+&nbsp;   * Handle &quot;end of data&quot; situations
+&nbsp;   *
+&nbsp;   * @param context the encoder context
+&nbsp;   * @param buffer  the buffer with the remaining encoded characters
+&nbsp;   */
+&nbsp;  void handleEOD(EncoderContext context, StringBuilder buffer) {
+<b class="fc">&nbsp;    int unwritten = (buffer.length() / 3) * 2;</b>
+<b class="fc">&nbsp;    int rest = buffer.length() % 3;</b>
+&nbsp;
+<b class="fc">&nbsp;    int curCodewordCount = context.getCodewordCount() + unwritten;</b>
+<b class="fc">&nbsp;    context.updateSymbolInfo(curCodewordCount);</b>
+<b class="fc">&nbsp;    int available = context.getSymbolInfo().getDataCapacity() - curCodewordCount;</b>
+&nbsp;
+<b class="fc">&nbsp;    if (rest == 2) {</b>
+<b class="fc">&nbsp;      buffer.append(&#39;\0&#39;); //Shift 1</b>
+<b class="fc">&nbsp;      while (buffer.length() &gt;= 3) {</b>
+<b class="fc">&nbsp;        writeNextTriplet(context, buffer);</b>
+&nbsp;      }
+<b class="fc">&nbsp;      if (context.hasMoreCharacters()) {</b>
+<b class="fc">&nbsp;        context.writeCodeword(HighLevelEncoder.C40_UNLATCH);</b>
+&nbsp;      }
+<b class="fc">&nbsp;    } else if (available == 1 &amp;&amp; rest == 1) {</b>
+<b class="fc">&nbsp;      while (buffer.length() &gt;= 3) {</b>
+<b class="fc">&nbsp;        writeNextTriplet(context, buffer);</b>
+&nbsp;      }
+<b class="fc">&nbsp;      if (context.hasMoreCharacters()) {</b>
+<b class="fc">&nbsp;        context.writeCodeword(HighLevelEncoder.C40_UNLATCH);</b>
+&nbsp;      }
+&nbsp;      // else no unlatch
+<b class="fc">&nbsp;      context.pos--;</b>
+<b class="fc">&nbsp;    } else if (rest == 0) {</b>
+<b class="fc">&nbsp;      while (buffer.length() &gt;= 3) {</b>
+<b class="fc">&nbsp;        writeNextTriplet(context, buffer);</b>
+&nbsp;      }
+<b class="fc">&nbsp;      if (available &gt; 0 || context.hasMoreCharacters()) {</b>
+<b class="fc">&nbsp;        context.writeCodeword(HighLevelEncoder.C40_UNLATCH);</b>
+&nbsp;      }
+&nbsp;    } else {
+<b class="nc">&nbsp;      throw new IllegalStateException(&quot;Unexpected case. Please report!&quot;);</b>
+&nbsp;    }
+<b class="fc">&nbsp;    context.signalEncoderChange(HighLevelEncoder.ASCII_ENCODATION);</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  int encodeChar(char c, StringBuilder sb) {
+<b class="fc">&nbsp;    if (c == &#39; &#39;) {</b>
+<b class="fc">&nbsp;      sb.append(&#39;\3&#39;);</b>
+<b class="fc">&nbsp;      return 1;</b>
+&nbsp;    }
+<b class="fc">&nbsp;    if (c &gt;= &#39;0&#39; &amp;&amp; c &lt;= &#39;9&#39;) {</b>
+<b class="fc">&nbsp;      sb.append((char) (c - 48 + 4));</b>
+<b class="fc">&nbsp;      return 1;</b>
+&nbsp;    }
+<b class="fc">&nbsp;    if (c &gt;= &#39;A&#39; &amp;&amp; c &lt;= &#39;Z&#39;) {</b>
+<b class="fc">&nbsp;      sb.append((char) (c - 65 + 14));</b>
+<b class="fc">&nbsp;      return 1;</b>
+&nbsp;    }
+<b class="fc">&nbsp;    if (c &lt; &#39; &#39;) {</b>
+<b class="nc">&nbsp;      sb.append(&#39;\0&#39;); //Shift 1 Set</b>
+<b class="nc">&nbsp;      sb.append(c);</b>
+<b class="nc">&nbsp;      return 2;</b>
+&nbsp;    }
+<b class="fc">&nbsp;    if (c &lt;= &#39;/&#39;) {</b>
+<b class="fc">&nbsp;      sb.append(&#39;\1&#39;); //Shift 2 Set</b>
+<b class="fc">&nbsp;      sb.append((char) (c - 33));</b>
+<b class="fc">&nbsp;      return 2;</b>
+&nbsp;    }
+<b class="fc">&nbsp;    if (c &lt;= &#39;@&#39;) {</b>
+<b class="nc">&nbsp;      sb.append(&#39;\1&#39;); //Shift 2 Set</b>
+<b class="nc">&nbsp;      sb.append((char) (c - 58 + 15));</b>
+<b class="nc">&nbsp;      return 2;</b>
+&nbsp;    }
+<b class="fc">&nbsp;    if (c &lt;= &#39;_&#39;) {</b>
+<b class="nc">&nbsp;      sb.append(&#39;\1&#39;); //Shift 2 Set</b>
+<b class="nc">&nbsp;      sb.append((char) (c - 91 + 22));</b>
+<b class="nc">&nbsp;      return 2;</b>
+&nbsp;    }
+<b class="fc">&nbsp;    if (c &lt;= 127) {</b>
+<b class="fc">&nbsp;      sb.append(&#39;\2&#39;); //Shift 3 Set</b>
+<b class="fc">&nbsp;      sb.append((char) (c - 96));</b>
+<b class="fc">&nbsp;      return 2;</b>
+&nbsp;    }
+<b class="fc">&nbsp;    sb.append(&quot;\1\u001e&quot;); //Shift 2, Upper Shift</b>
+<b class="fc">&nbsp;    int len = 2;</b>
+<b class="fc">&nbsp;    len += encodeChar((char) (c - 128), sb);</b>
+<b class="fc">&nbsp;    return len;</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  private static String encodeToCodewords(CharSequence sb) {
+<b class="fc">&nbsp;    int v = (1600 * sb.charAt(0)) + (40 * sb.charAt(1)) + sb.charAt(2) + 1;</b>
+<b class="fc">&nbsp;    char cw1 = (char) (v / 256);</b>
+<b class="fc">&nbsp;    char cw2 = (char) (v % 256);</b>
+<b class="fc">&nbsp;    return new String(new char[] {cw1, cw2});</b>
+&nbsp;  }
+&nbsp;
+&nbsp;}
+</code>
+</pre>
+</div>
+
+<script type="text/javascript">
+(function() {
+    var msie = false, msie9 = false;
+    /*@cc_on
+      msie = true;
+      @if (@_jscript_version >= 9)
+        msie9 = true;
+      @end
+    @*/
+
+    if (!msie || msie && msie9) {
+      hljs.highlightAll()
+      hljs.initLineNumbersOnLoad();
+    }
+})();
+</script>
+
+<div class="footer">
+    
+    <div style="float:right;">generated on 2023-11-12 23:26</div>
+</div>
+</body>
+</html>

@@ -1,0 +1,286 @@
+
+
+
+<!DOCTYPE html>
+<html id="htmlId">
+<head>
+  <meta http-equiv="Content-Type" content="text/html;charset=windows-1252"> 
+  <title>Coverage Report > UPCEReader</title>
+  <style type="text/css">
+    @import "../../css/coverage.css";
+    @import "../../css/idea.min.css";
+  </style>
+  <script type="text/javascript" src="../../js/highlight.min.js"></script>
+  <script type="text/javascript" src="../../js/highlightjs-line-numbers.min.js"></script>
+</head>
+
+<body>
+<div class="content">
+<div class="breadCrumbs">
+Current scope:     <a href="../../index.html">all classes</a>
+    <span class="separator">|</span>
+    <a href="../index.html">com.google.zxing.oned</a>
+</div>
+
+<h1>Coverage Summary for Class: UPCEReader (com.google.zxing.oned)</h1>
+
+<table class="coverageStats">
+<tr>
+  <th class="name">Class</th>
+<th class="coverageStat 
+">
+  Class, %
+</th>
+<th class="coverageStat 
+">
+  Method, %
+</th>
+<th class="coverageStat 
+">
+  Line, %
+</th>
+</tr>
+<tr>
+  <td class="name">UPCEReader</td>
+<td class="coverageStat">
+  <span class="percent">
+    100%
+  </span>
+  <span class="absValue">
+    (1/1)
+  </span>
+</td>
+<td class="coverageStat">
+  <span class="percent">
+    100%
+  </span>
+  <span class="absValue">
+    (8/8)
+  </span>
+</td>
+<td class="coverageStat">
+  <span class="percent">
+    100%
+  </span>
+  <span class="absValue">
+    (55/55)
+  </span>
+</td>
+</tr>
+
+</table>
+
+<br/>
+<br/>
+
+
+<pre>
+<code class="sourceCode" id="sourceCode">&nbsp;/*
+&nbsp; * Copyright 2008 ZXing authors
+&nbsp; *
+&nbsp; * Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
+&nbsp; * you may not use this file except in compliance with the License.
+&nbsp; * You may obtain a copy of the License at
+&nbsp; *
+&nbsp; *      http://www.apache.org/licenses/LICENSE-2.0
+&nbsp; *
+&nbsp; * Unless required by applicable law or agreed to in writing, software
+&nbsp; * distributed under the License is distributed on an &quot;AS IS&quot; BASIS,
+&nbsp; * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+&nbsp; * See the License for the specific language governing permissions and
+&nbsp; * limitations under the License.
+&nbsp; */
+&nbsp;
+&nbsp;package com.google.zxing.oned;
+&nbsp;
+&nbsp;import com.google.zxing.BarcodeFormat;
+&nbsp;import com.google.zxing.FormatException;
+&nbsp;import com.google.zxing.NotFoundException;
+&nbsp;import com.google.zxing.common.BitArray;
+&nbsp;
+&nbsp;/**
+&nbsp; * &lt;p&gt;Implements decoding of the UPC-E format.&lt;/p&gt;
+&nbsp; * &lt;p&gt;&lt;a href=&quot;http://www.barcodeisland.com/upce.phtml&quot;&gt;This&lt;/a&gt; is a great reference for
+&nbsp; * UPC-E information.&lt;/p&gt;
+&nbsp; *
+&nbsp; * @author Sean Owen
+&nbsp; */
+&nbsp;public final class UPCEReader extends UPCEANReader {
+&nbsp;
+&nbsp;  /**
+&nbsp;   * The pattern that marks the middle, and end, of a UPC-E pattern.
+&nbsp;   * There is no &quot;second half&quot; to a UPC-E barcode.
+&nbsp;   */
+<b class="fc">&nbsp;  private static final int[] MIDDLE_END_PATTERN = {1, 1, 1, 1, 1, 1};</b>
+&nbsp;
+&nbsp;  // For an UPC-E barcode, the final digit is represented by the parities used
+&nbsp;  // to encode the middle six digits, according to the table below.
+&nbsp;  //
+&nbsp;  //                Parity of next 6 digits
+&nbsp;  //    Digit   0     1     2     3     4     5
+&nbsp;  //       0    Even   Even  Even Odd  Odd   Odd
+&nbsp;  //       1    Even   Even  Odd  Even Odd   Odd
+&nbsp;  //       2    Even   Even  Odd  Odd  Even  Odd
+&nbsp;  //       3    Even   Even  Odd  Odd  Odd   Even
+&nbsp;  //       4    Even   Odd   Even Even Odd   Odd
+&nbsp;  //       5    Even   Odd   Odd  Even Even  Odd
+&nbsp;  //       6    Even   Odd   Odd  Odd  Even  Even
+&nbsp;  //       7    Even   Odd   Even Odd  Even  Odd
+&nbsp;  //       8    Even   Odd   Even Odd  Odd   Even
+&nbsp;  //       9    Even   Odd   Odd  Even Odd   Even
+&nbsp;  //
+&nbsp;  // The encoding is represented by the following array, which is a bit pattern
+&nbsp;  // using Odd = 0 and Even = 1. For example, 5 is represented by:
+&nbsp;  //
+&nbsp;  //              Odd Even Even Odd Odd Even
+&nbsp;  // in binary:
+&nbsp;  //                0    1    1   0   0    1   == 0x19
+&nbsp;  //
+&nbsp;
+&nbsp;  /**
+&nbsp;   * See {@link #L_AND_G_PATTERNS}; these values similarly represent patterns of
+&nbsp;   * even-odd parity encodings of digits that imply both the number system (0 or 1)
+&nbsp;   * used, and the check digit.
+&nbsp;   */
+<b class="fc">&nbsp;  static final int[][] NUMSYS_AND_CHECK_DIGIT_PATTERNS = {</b>
+&nbsp;      {0x38, 0x34, 0x32, 0x31, 0x2C, 0x26, 0x23, 0x2A, 0x29, 0x25},
+&nbsp;      {0x07, 0x0B, 0x0D, 0x0E, 0x13, 0x19, 0x1C, 0x15, 0x16, 0x1A}
+&nbsp;  };
+&nbsp;
+&nbsp;  private final int[] decodeMiddleCounters;
+&nbsp;
+<b class="fc">&nbsp;  public UPCEReader() {</b>
+<b class="fc">&nbsp;    decodeMiddleCounters = new int[4];</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  @Override
+&nbsp;  protected int decodeMiddle(BitArray row, int[] startRange, StringBuilder result)
+&nbsp;      throws NotFoundException {
+<b class="fc">&nbsp;    int[] counters = decodeMiddleCounters;</b>
+<b class="fc">&nbsp;    counters[0] = 0;</b>
+<b class="fc">&nbsp;    counters[1] = 0;</b>
+<b class="fc">&nbsp;    counters[2] = 0;</b>
+<b class="fc">&nbsp;    counters[3] = 0;</b>
+<b class="fc">&nbsp;    int end = row.getSize();</b>
+<b class="fc">&nbsp;    int rowOffset = startRange[1];</b>
+&nbsp;
+<b class="fc">&nbsp;    int lgPatternFound = 0;</b>
+&nbsp;
+<b class="fc">&nbsp;    for (int x = 0; x &lt; 6 &amp;&amp; rowOffset &lt; end; x++) {</b>
+<b class="fc">&nbsp;      int bestMatch = decodeDigit(row, counters, rowOffset, L_AND_G_PATTERNS);</b>
+<b class="fc">&nbsp;      result.append((char) (&#39;0&#39; + bestMatch % 10));</b>
+<b class="fc">&nbsp;      for (int counter : counters) {</b>
+<b class="fc">&nbsp;        rowOffset += counter;</b>
+&nbsp;      }
+<b class="fc">&nbsp;      if (bestMatch &gt;= 10) {</b>
+<b class="fc">&nbsp;        lgPatternFound |= 1 &lt;&lt; (5 - x);</b>
+&nbsp;      }
+&nbsp;    }
+&nbsp;
+<b class="fc">&nbsp;    determineNumSysAndCheckDigit(result, lgPatternFound);</b>
+&nbsp;
+<b class="fc">&nbsp;    return rowOffset;</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  @Override
+&nbsp;  protected int[] decodeEnd(BitArray row, int endStart) throws NotFoundException {
+<b class="fc">&nbsp;    return findGuardPattern(row, endStart, true, MIDDLE_END_PATTERN);</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  @Override
+&nbsp;  protected boolean checkChecksum(String s) throws FormatException {
+<b class="fc">&nbsp;    return super.checkChecksum(convertUPCEtoUPCA(s));</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  private static void determineNumSysAndCheckDigit(StringBuilder resultString, int lgPatternFound)
+&nbsp;      throws NotFoundException {
+&nbsp;
+<b class="fc">&nbsp;    for (int numSys = 0; numSys &lt;= 1; numSys++) {</b>
+<b class="fc">&nbsp;      for (int d = 0; d &lt; 10; d++) {</b>
+<b class="fc">&nbsp;        if (lgPatternFound == NUMSYS_AND_CHECK_DIGIT_PATTERNS[numSys][d]) {</b>
+<b class="fc">&nbsp;          resultString.insert(0, (char) (&#39;0&#39; + numSys));</b>
+<b class="fc">&nbsp;          resultString.append((char) (&#39;0&#39; + d));</b>
+&nbsp;          return;
+&nbsp;        }
+&nbsp;      }
+&nbsp;    }
+<b class="fc">&nbsp;    throw NotFoundException.getNotFoundInstance();</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  @Override
+&nbsp;  BarcodeFormat getBarcodeFormat() {
+<b class="fc">&nbsp;    return BarcodeFormat.UPC_E;</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  /**
+&nbsp;   * Expands a UPC-E value back into its full, equivalent UPC-A code value.
+&nbsp;   *
+&nbsp;   * @param upce UPC-E code as string of digits
+&nbsp;   * @return equivalent UPC-A code as string of digits
+&nbsp;   */
+&nbsp;  public static String convertUPCEtoUPCA(String upce) {
+<b class="fc">&nbsp;    char[] upceChars = new char[6];</b>
+<b class="fc">&nbsp;    upce.getChars(1, 7, upceChars, 0);</b>
+<b class="fc">&nbsp;    StringBuilder result = new StringBuilder(12);</b>
+<b class="fc">&nbsp;    result.append(upce.charAt(0));</b>
+<b class="fc">&nbsp;    char lastChar = upceChars[5];</b>
+<b class="fc">&nbsp;    switch (lastChar) {</b>
+&nbsp;      case &#39;0&#39;:
+&nbsp;      case &#39;1&#39;:
+&nbsp;      case &#39;2&#39;:
+<b class="fc">&nbsp;        result.append(upceChars, 0, 2);</b>
+<b class="fc">&nbsp;        result.append(lastChar);</b>
+<b class="fc">&nbsp;        result.append(&quot;0000&quot;);</b>
+<b class="fc">&nbsp;        result.append(upceChars, 2, 3);</b>
+<b class="fc">&nbsp;        break;</b>
+&nbsp;      case &#39;3&#39;:
+<b class="fc">&nbsp;        result.append(upceChars, 0, 3);</b>
+<b class="fc">&nbsp;        result.append(&quot;00000&quot;);</b>
+<b class="fc">&nbsp;        result.append(upceChars, 3, 2);</b>
+<b class="fc">&nbsp;        break;</b>
+&nbsp;      case &#39;4&#39;:
+<b class="fc">&nbsp;        result.append(upceChars, 0, 4);</b>
+<b class="fc">&nbsp;        result.append(&quot;00000&quot;);</b>
+<b class="fc">&nbsp;        result.append(upceChars[4]);</b>
+<b class="fc">&nbsp;        break;</b>
+&nbsp;      default:
+<b class="fc">&nbsp;        result.append(upceChars, 0, 5);</b>
+<b class="fc">&nbsp;        result.append(&quot;0000&quot;);</b>
+<b class="fc">&nbsp;        result.append(lastChar);</b>
+&nbsp;        break;
+&nbsp;    }
+&nbsp;    // Only append check digit in conversion if supplied
+<b class="fc">&nbsp;    if (upce.length() &gt;= 8) {</b>
+<b class="fc">&nbsp;      result.append(upce.charAt(7));</b>
+&nbsp;    }
+<b class="fc">&nbsp;    return result.toString();</b>
+&nbsp;  }
+&nbsp;
+&nbsp;}
+</code>
+</pre>
+</div>
+
+<script type="text/javascript">
+(function() {
+    var msie = false, msie9 = false;
+    /*@cc_on
+      msie = true;
+      @if (@_jscript_version >= 9)
+        msie9 = true;
+      @end
+    @*/
+
+    if (!msie || msie && msie9) {
+      hljs.highlightAll()
+      hljs.initLineNumbersOnLoad();
+    }
+})();
+</script>
+
+<div class="footer">
+    
+    <div style="float:right;">generated on 2023-11-12 23:26</div>
+</div>
+</body>
+</html>

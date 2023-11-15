@@ -1,0 +1,447 @@
+
+
+
+<!DOCTYPE html>
+<html id="htmlId">
+<head>
+  <meta http-equiv="Content-Type" content="text/html;charset=windows-1252"> 
+  <title>Coverage Report > CodaBarReader</title>
+  <style type="text/css">
+    @import "../../css/coverage.css";
+    @import "../../css/idea.min.css";
+  </style>
+  <script type="text/javascript" src="../../js/highlight.min.js"></script>
+  <script type="text/javascript" src="../../js/highlightjs-line-numbers.min.js"></script>
+</head>
+
+<body>
+<div class="content">
+<div class="breadCrumbs">
+Current scope:     <a href="../../index.html">all classes</a>
+    <span class="separator">|</span>
+    <a href="../index.html">com.google.zxing.oned</a>
+</div>
+
+<h1>Coverage Summary for Class: CodaBarReader (com.google.zxing.oned)</h1>
+
+<table class="coverageStats">
+<tr>
+  <th class="name">Class</th>
+<th class="coverageStat 
+">
+  Class, %
+</th>
+<th class="coverageStat 
+">
+  Method, %
+</th>
+<th class="coverageStat 
+">
+  Line, %
+</th>
+</tr>
+<tr>
+  <td class="name">CodaBarReader</td>
+<td class="coverageStat">
+  <span class="percent">
+    100%
+  </span>
+  <span class="absValue">
+    (1/1)
+  </span>
+</td>
+<td class="coverageStat">
+  <span class="percent">
+    100%
+  </span>
+  <span class="absValue">
+    (9/9)
+  </span>
+</td>
+<td class="coverageStat">
+  <span class="percent">
+    98.7%
+  </span>
+  <span class="absValue">
+    (147/149)
+  </span>
+</td>
+</tr>
+
+</table>
+
+<br/>
+<br/>
+
+
+<pre>
+<code class="sourceCode" id="sourceCode">&nbsp;/*
+&nbsp; * Copyright 2008 ZXing authors
+&nbsp; *
+&nbsp; * Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
+&nbsp; * you may not use this file except in compliance with the License.
+&nbsp; * You may obtain a copy of the License at
+&nbsp; *
+&nbsp; *      http://www.apache.org/licenses/LICENSE-2.0
+&nbsp; *
+&nbsp; * Unless required by applicable law or agreed to in writing, software
+&nbsp; * distributed under the License is distributed on an &quot;AS IS&quot; BASIS,
+&nbsp; * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+&nbsp; * See the License for the specific language governing permissions and
+&nbsp; * limitations under the License.
+&nbsp; */
+&nbsp;
+&nbsp;package com.google.zxing.oned;
+&nbsp;
+&nbsp;import com.google.zxing.BarcodeFormat;
+&nbsp;import com.google.zxing.DecodeHintType;
+&nbsp;import com.google.zxing.NotFoundException;
+&nbsp;import com.google.zxing.Result;
+&nbsp;import com.google.zxing.ResultMetadataType;
+&nbsp;import com.google.zxing.ResultPoint;
+&nbsp;import com.google.zxing.common.BitArray;
+&nbsp;
+&nbsp;import java.util.Arrays;
+&nbsp;import java.util.Map;
+&nbsp;
+&nbsp;/**
+&nbsp; * &lt;p&gt;Decodes Codabar barcodes.&lt;/p&gt;
+&nbsp; *
+&nbsp; * @author Bas Vijfwinkel
+&nbsp; * @author David Walker
+&nbsp; */
+&nbsp;public final class CodaBarReader extends OneDReader {
+&nbsp;
+&nbsp;  // These values are critical for determining how permissive the decoding
+&nbsp;  // will be. All stripe sizes must be within the window these define, as
+&nbsp;  // compared to the average stripe size.
+&nbsp;  private static final float MAX_ACCEPTABLE = 2.0f;
+&nbsp;  private static final float PADDING = 1.5f;
+&nbsp;
+&nbsp;  private static final String ALPHABET_STRING = &quot;0123456789-$:/.+ABCD&quot;;
+<b class="fc">&nbsp;  static final char[] ALPHABET = ALPHABET_STRING.toCharArray();</b>
+&nbsp;
+&nbsp;  /**
+&nbsp;   * These represent the encodings of characters, as patterns of wide and narrow bars. The 7 least-significant bits of
+&nbsp;   * each int correspond to the pattern of wide and narrow, with 1s representing &quot;wide&quot; and 0s representing narrow.
+&nbsp;   */
+<b class="fc">&nbsp;  static final int[] CHARACTER_ENCODINGS = {</b>
+&nbsp;      0x003, 0x006, 0x009, 0x060, 0x012, 0x042, 0x021, 0x024, 0x030, 0x048, // 0-9
+&nbsp;      0x00c, 0x018, 0x045, 0x051, 0x054, 0x015, 0x01A, 0x029, 0x00B, 0x00E, // -$:/.+ABCD
+&nbsp;  };
+&nbsp;
+&nbsp;  // minimal number of characters that should be present (including start and stop characters)
+&nbsp;  // under normal circumstances this should be set to 3, but can be set higher
+&nbsp;  // as a last-ditch attempt to reduce false positives.
+&nbsp;  private static final int MIN_CHARACTER_LENGTH = 3;
+&nbsp;
+&nbsp;  // official start and end patterns
+<b class="fc">&nbsp;  private static final char[] STARTEND_ENCODING = {&#39;A&#39;, &#39;B&#39;, &#39;C&#39;, &#39;D&#39;};</b>
+&nbsp;  // some Codabar generator allow the Codabar string to be closed by every
+&nbsp;  // character. This will cause lots of false positives!
+&nbsp;
+&nbsp;  // some industries use a checksum standard but this is not part of the original Codabar standard
+&nbsp;  // for more information see : http://www.mecsw.com/specs/codabar.html
+&nbsp;
+&nbsp;  // Keep some instance variables to avoid reallocations
+&nbsp;  private final StringBuilder decodeRowResult;
+&nbsp;  private int[] counters;
+&nbsp;  private int counterLength;
+&nbsp;
+<b class="fc">&nbsp;  public CodaBarReader() {</b>
+<b class="fc">&nbsp;    decodeRowResult = new StringBuilder(20);</b>
+<b class="fc">&nbsp;    counters = new int[80];</b>
+<b class="fc">&nbsp;    counterLength = 0;</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  @Override
+&nbsp;  public Result decodeRow(int rowNumber, BitArray row, Map&lt;DecodeHintType,?&gt; hints) throws NotFoundException {
+&nbsp;
+<b class="fc">&nbsp;    Arrays.fill(counters, 0);</b>
+<b class="fc">&nbsp;    setCounters(row);</b>
+<b class="fc">&nbsp;    int startOffset = findStartPattern();</b>
+<b class="fc">&nbsp;    int nextStart = startOffset;</b>
+&nbsp;
+<b class="fc">&nbsp;    decodeRowResult.setLength(0);</b>
+&nbsp;    do {
+<b class="fc">&nbsp;      int charOffset = toNarrowWidePattern(nextStart);</b>
+<b class="fc">&nbsp;      if (charOffset == -1) {</b>
+<b class="fc">&nbsp;        throw NotFoundException.getNotFoundInstance();</b>
+&nbsp;      }
+&nbsp;      // Hack: We store the position in the alphabet table into a
+&nbsp;      // StringBuilder, so that we can access the decoded patterns in
+&nbsp;      // validatePattern. We&#39;ll translate to the actual characters later.
+<b class="fc">&nbsp;      decodeRowResult.append((char) charOffset);</b>
+<b class="fc">&nbsp;      nextStart += 8;</b>
+&nbsp;      // Stop as soon as we see the end character.
+<b class="fc">&nbsp;      if (decodeRowResult.length() &gt; 1 &amp;&amp;</b>
+<b class="fc">&nbsp;          arrayContains(STARTEND_ENCODING, ALPHABET[charOffset])) {</b>
+<b class="fc">&nbsp;        break;</b>
+&nbsp;      }
+<b class="fc">&nbsp;    } while (nextStart &lt; counterLength); // no fixed end pattern so keep on reading while data is available</b>
+&nbsp;
+&nbsp;    // Look for whitespace after pattern:
+<b class="fc">&nbsp;    int trailingWhitespace = counters[nextStart - 1];</b>
+<b class="fc">&nbsp;    int lastPatternSize = 0;</b>
+<b class="fc">&nbsp;    for (int i = -8; i &lt; -1; i++) {</b>
+<b class="fc">&nbsp;      lastPatternSize += counters[nextStart + i];</b>
+&nbsp;    }
+&nbsp;
+&nbsp;    // We need to see whitespace equal to 50% of the last pattern size,
+&nbsp;    // otherwise this is probably a false positive. The exception is if we are
+&nbsp;    // at the end of the row. (I.e. the barcode barely fits.)
+<b class="fc">&nbsp;    if (nextStart &lt; counterLength &amp;&amp; trailingWhitespace &lt; lastPatternSize / 2) {</b>
+<b class="fc">&nbsp;      throw NotFoundException.getNotFoundInstance();</b>
+&nbsp;    }
+&nbsp;
+<b class="fc">&nbsp;    validatePattern(startOffset);</b>
+&nbsp;
+&nbsp;    // Translate character table offsets to actual characters.
+<b class="fc">&nbsp;    for (int i = 0; i &lt; decodeRowResult.length(); i++) {</b>
+<b class="fc">&nbsp;      decodeRowResult.setCharAt(i, ALPHABET[decodeRowResult.charAt(i)]);</b>
+&nbsp;    }
+&nbsp;    // Ensure a valid start and end character
+<b class="fc">&nbsp;    char startchar = decodeRowResult.charAt(0);</b>
+<b class="fc">&nbsp;    if (!arrayContains(STARTEND_ENCODING, startchar)) {</b>
+<b class="nc">&nbsp;      throw NotFoundException.getNotFoundInstance();</b>
+&nbsp;    }
+<b class="fc">&nbsp;    char endchar = decodeRowResult.charAt(decodeRowResult.length() - 1);</b>
+<b class="fc">&nbsp;    if (!arrayContains(STARTEND_ENCODING, endchar)) {</b>
+<b class="fc">&nbsp;      throw NotFoundException.getNotFoundInstance();</b>
+&nbsp;    }
+&nbsp;
+&nbsp;    // remove stop/start characters character and check if a long enough string is contained
+<b class="fc">&nbsp;    if (decodeRowResult.length() &lt;= MIN_CHARACTER_LENGTH) {</b>
+&nbsp;      // Almost surely a false positive ( start + stop + at least 1 character)
+<b class="fc">&nbsp;      throw NotFoundException.getNotFoundInstance();</b>
+&nbsp;    }
+&nbsp;
+<b class="fc">&nbsp;    if (hints == null || !hints.containsKey(DecodeHintType.RETURN_CODABAR_START_END)) {</b>
+<b class="fc">&nbsp;      decodeRowResult.deleteCharAt(decodeRowResult.length() - 1);</b>
+<b class="fc">&nbsp;      decodeRowResult.deleteCharAt(0);</b>
+&nbsp;    }
+&nbsp;
+<b class="fc">&nbsp;    int runningCount = 0;</b>
+<b class="fc">&nbsp;    for (int i = 0; i &lt; startOffset; i++) {</b>
+<b class="fc">&nbsp;      runningCount += counters[i];</b>
+&nbsp;    }
+<b class="fc">&nbsp;    float left = runningCount;</b>
+<b class="fc">&nbsp;    for (int i = startOffset; i &lt; nextStart - 1; i++) {</b>
+<b class="fc">&nbsp;      runningCount += counters[i];</b>
+&nbsp;    }
+<b class="fc">&nbsp;    float right = runningCount;</b>
+&nbsp;
+<b class="fc">&nbsp;    Result result = new Result(</b>
+<b class="fc">&nbsp;        decodeRowResult.toString(),</b>
+&nbsp;        null,
+&nbsp;        new ResultPoint[]{
+&nbsp;            new ResultPoint(left, rowNumber),
+&nbsp;            new ResultPoint(right, rowNumber)},
+&nbsp;        BarcodeFormat.CODABAR);
+<b class="fc">&nbsp;    result.putMetadata(ResultMetadataType.SYMBOLOGY_IDENTIFIER, &quot;]F0&quot;);</b>
+<b class="fc">&nbsp;    return result;</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  private void validatePattern(int start) throws NotFoundException {
+&nbsp;    // First, sum up the total size of our four categories of stripe sizes;
+<b class="fc">&nbsp;    int[] sizes = {0, 0, 0, 0};</b>
+<b class="fc">&nbsp;    int[] counts = {0, 0, 0, 0};</b>
+<b class="fc">&nbsp;    int end = decodeRowResult.length() - 1;</b>
+&nbsp;
+&nbsp;    // We break out of this loop in the middle, in order to handle
+&nbsp;    // inter-character spaces properly.
+<b class="fc">&nbsp;    int pos = start;</b>
+<b class="fc">&nbsp;    for (int i = 0; i &lt;= end; i++) {</b>
+<b class="fc">&nbsp;      int pattern = CHARACTER_ENCODINGS[decodeRowResult.charAt(i)];</b>
+<b class="fc">&nbsp;      for (int j = 6; j &gt;= 0; j--) {</b>
+&nbsp;        // Even j = bars, while odd j = spaces. Categories 2 and 3 are for
+&nbsp;        // long stripes, while 0 and 1 are for short stripes.
+<b class="fc">&nbsp;        int category = (j &amp; 1) + (pattern &amp; 1) * 2;</b>
+<b class="fc">&nbsp;        sizes[category] += counters[pos + j];</b>
+<b class="fc">&nbsp;        counts[category]++;</b>
+<b class="fc">&nbsp;        pattern &gt;&gt;= 1;</b>
+&nbsp;      }
+&nbsp;      // We ignore the inter-character space - it could be of any size.
+<b class="fc">&nbsp;      pos += 8;</b>
+&nbsp;    }
+&nbsp;
+&nbsp;    // Calculate our allowable size thresholds using fixed-point math.
+<b class="fc">&nbsp;    float[] maxes = new float[4];</b>
+<b class="fc">&nbsp;    float[] mins = new float[4];</b>
+&nbsp;    // Define the threshold of acceptability to be the midpoint between the
+&nbsp;    // average small stripe and the average large stripe. No stripe lengths
+&nbsp;    // should be on the &quot;wrong&quot; side of that line.
+<b class="fc">&nbsp;    for (int i = 0; i &lt; 2; i++) {</b>
+<b class="fc">&nbsp;      mins[i] = 0.0f;  // Accept arbitrarily small &quot;short&quot; stripes.</b>
+<b class="fc">&nbsp;      mins[i + 2] = ((float) sizes[i] / counts[i] + (float) sizes[i + 2] / counts[i + 2]) / 2.0f;</b>
+<b class="fc">&nbsp;      maxes[i] = mins[i + 2];</b>
+<b class="fc">&nbsp;      maxes[i + 2] = (sizes[i + 2] * MAX_ACCEPTABLE + PADDING) / counts[i + 2];</b>
+&nbsp;    }
+&nbsp;
+&nbsp;    // Now verify that all of the stripes are within the thresholds.
+<b class="fc">&nbsp;    pos = start;</b>
+<b class="fc">&nbsp;    for (int i = 0; i &lt;= end; i++) {</b>
+<b class="fc">&nbsp;      int pattern = CHARACTER_ENCODINGS[decodeRowResult.charAt(i)];</b>
+<b class="fc">&nbsp;      for (int j = 6; j &gt;= 0; j--) {</b>
+&nbsp;        // Even j = bars, while odd j = spaces. Categories 2 and 3 are for
+&nbsp;        // long stripes, while 0 and 1 are for short stripes.
+<b class="fc">&nbsp;        int category = (j &amp; 1) + (pattern &amp; 1) * 2;</b>
+<b class="fc">&nbsp;        int size = counters[pos + j];</b>
+<b class="fc">&nbsp;        if (size &lt; mins[category] || size &gt; maxes[category]) {</b>
+<b class="fc">&nbsp;          throw NotFoundException.getNotFoundInstance();</b>
+&nbsp;        }
+<b class="fc">&nbsp;        pattern &gt;&gt;= 1;</b>
+&nbsp;      }
+<b class="fc">&nbsp;      pos += 8;</b>
+&nbsp;    }
+&nbsp;  }
+&nbsp;
+&nbsp;  /**
+&nbsp;   * Records the size of all runs of white and black pixels, starting with white.
+&nbsp;   * This is just like recordPattern, except it records all the counters, and
+&nbsp;   * uses our builtin &quot;counters&quot; member for storage.
+&nbsp;   * @param row row to count from
+&nbsp;   */
+&nbsp;  private void setCounters(BitArray row) throws NotFoundException {
+<b class="fc">&nbsp;    counterLength = 0;</b>
+&nbsp;    // Start from the first white bit.
+<b class="fc">&nbsp;    int i = row.getNextUnset(0);</b>
+<b class="fc">&nbsp;    int end = row.getSize();</b>
+<b class="fc">&nbsp;    if (i &gt;= end) {</b>
+<b class="nc">&nbsp;      throw NotFoundException.getNotFoundInstance();</b>
+&nbsp;    }
+<b class="fc">&nbsp;    boolean isWhite = true;</b>
+<b class="fc">&nbsp;    int count = 0;</b>
+<b class="fc">&nbsp;    while (i &lt; end) {</b>
+<b class="fc">&nbsp;      if (row.get(i) != isWhite) {</b>
+<b class="fc">&nbsp;        count++;</b>
+&nbsp;      } else {
+<b class="fc">&nbsp;        counterAppend(count);</b>
+<b class="fc">&nbsp;        count = 1;</b>
+<b class="fc">&nbsp;        isWhite = !isWhite;</b>
+&nbsp;      }
+<b class="fc">&nbsp;      i++;</b>
+&nbsp;    }
+<b class="fc">&nbsp;    counterAppend(count);</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  private void counterAppend(int e) {
+<b class="fc">&nbsp;    counters[counterLength] = e;</b>
+<b class="fc">&nbsp;    counterLength++;</b>
+<b class="fc">&nbsp;    if (counterLength &gt;= counters.length) {</b>
+<b class="fc">&nbsp;      int[] temp = new int[counterLength * 2];</b>
+<b class="fc">&nbsp;      System.arraycopy(counters, 0, temp, 0, counterLength);</b>
+<b class="fc">&nbsp;      counters = temp;</b>
+&nbsp;    }
+&nbsp;  }
+&nbsp;
+&nbsp;  private int findStartPattern() throws NotFoundException {
+<b class="fc">&nbsp;    for (int i = 1; i &lt; counterLength; i += 2) {</b>
+<b class="fc">&nbsp;      int charOffset = toNarrowWidePattern(i);</b>
+<b class="fc">&nbsp;      if (charOffset != -1 &amp;&amp; arrayContains(STARTEND_ENCODING, ALPHABET[charOffset])) {</b>
+&nbsp;        // Look for whitespace before start pattern, &gt;= 50% of width of start pattern
+&nbsp;        // We make an exception if the whitespace is the first element.
+<b class="fc">&nbsp;        int patternSize = 0;</b>
+<b class="fc">&nbsp;        for (int j = i; j &lt; i + 7; j++) {</b>
+<b class="fc">&nbsp;          patternSize += counters[j];</b>
+&nbsp;        }
+<b class="fc">&nbsp;        if (i == 1 || counters[i - 1] &gt;= patternSize / 2) {</b>
+<b class="fc">&nbsp;          return i;</b>
+&nbsp;        }
+&nbsp;      }
+&nbsp;    }
+<b class="fc">&nbsp;    throw NotFoundException.getNotFoundInstance();</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  static boolean arrayContains(char[] array, char key) {
+<b class="fc">&nbsp;    if (array != null) {</b>
+<b class="fc">&nbsp;      for (char c : array) {</b>
+<b class="fc">&nbsp;        if (c == key) {</b>
+<b class="fc">&nbsp;          return true;</b>
+&nbsp;        }
+&nbsp;      }
+&nbsp;    }
+<b class="fc">&nbsp;    return false;</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  // Assumes that counters[position] is a bar.
+&nbsp;  private int toNarrowWidePattern(int position) {
+<b class="fc">&nbsp;    int end = position + 7;</b>
+<b class="fc">&nbsp;    if (end &gt;= counterLength) {</b>
+<b class="fc">&nbsp;      return -1;</b>
+&nbsp;    }
+&nbsp;
+<b class="fc">&nbsp;    int[] theCounters = counters;</b>
+&nbsp;
+<b class="fc">&nbsp;    int maxBar = 0;</b>
+<b class="fc">&nbsp;    int minBar = Integer.MAX_VALUE;</b>
+<b class="fc">&nbsp;    for (int j = position; j &lt; end; j += 2) {</b>
+<b class="fc">&nbsp;      int currentCounter = theCounters[j];</b>
+<b class="fc">&nbsp;      if (currentCounter &lt; minBar) {</b>
+<b class="fc">&nbsp;        minBar = currentCounter;</b>
+&nbsp;      }
+<b class="fc">&nbsp;      if (currentCounter &gt; maxBar) {</b>
+<b class="fc">&nbsp;        maxBar = currentCounter;</b>
+&nbsp;      }
+&nbsp;    }
+<b class="fc">&nbsp;    int thresholdBar = (minBar + maxBar) / 2;</b>
+&nbsp;
+<b class="fc">&nbsp;    int maxSpace = 0;</b>
+<b class="fc">&nbsp;    int minSpace = Integer.MAX_VALUE;</b>
+<b class="fc">&nbsp;    for (int j = position + 1; j &lt; end; j += 2) {</b>
+<b class="fc">&nbsp;      int currentCounter = theCounters[j];</b>
+<b class="fc">&nbsp;      if (currentCounter &lt; minSpace) {</b>
+<b class="fc">&nbsp;        minSpace = currentCounter;</b>
+&nbsp;      }
+<b class="fc">&nbsp;      if (currentCounter &gt; maxSpace) {</b>
+<b class="fc">&nbsp;        maxSpace = currentCounter;</b>
+&nbsp;      }
+&nbsp;    }
+<b class="fc">&nbsp;    int thresholdSpace = (minSpace + maxSpace) / 2;</b>
+&nbsp;
+<b class="fc">&nbsp;    int bitmask = 1 &lt;&lt; 7;</b>
+<b class="fc">&nbsp;    int pattern = 0;</b>
+<b class="fc">&nbsp;    for (int i = 0; i &lt; 7; i++) {</b>
+<b class="fc">&nbsp;      int threshold = (i &amp; 1) == 0 ? thresholdBar : thresholdSpace;</b>
+<b class="fc">&nbsp;      bitmask &gt;&gt;= 1;</b>
+<b class="fc">&nbsp;      if (theCounters[position + i] &gt; threshold) {</b>
+<b class="fc">&nbsp;        pattern |= bitmask;</b>
+&nbsp;      }
+&nbsp;    }
+&nbsp;
+<b class="fc">&nbsp;    for (int i = 0; i &lt; CHARACTER_ENCODINGS.length; i++) {</b>
+<b class="fc">&nbsp;      if (CHARACTER_ENCODINGS[i] == pattern) {</b>
+<b class="fc">&nbsp;        return i;</b>
+&nbsp;      }
+&nbsp;    }
+<b class="fc">&nbsp;    return -1;</b>
+&nbsp;  }
+&nbsp;
+&nbsp;}
+</code>
+</pre>
+</div>
+
+<script type="text/javascript">
+(function() {
+    var msie = false, msie9 = false;
+    /*@cc_on
+      msie = true;
+      @if (@_jscript_version >= 9)
+        msie9 = true;
+      @end
+    @*/
+
+    if (!msie || msie && msie9) {
+      hljs.highlightAll()
+      hljs.initLineNumbersOnLoad();
+    }
+})();
+</script>
+
+<div class="footer">
+    
+    <div style="float:right;">generated on 2023-11-12 23:26</div>
+</div>
+</body>
+</html>

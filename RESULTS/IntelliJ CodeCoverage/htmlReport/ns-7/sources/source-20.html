@@ -1,0 +1,478 @@
+
+
+
+<!DOCTYPE html>
+<html id="htmlId">
+<head>
+  <meta http-equiv="Content-Type" content="text/html;charset=windows-1252"> 
+  <title>Coverage Report > VCardResultParser</title>
+  <style type="text/css">
+    @import "../../css/coverage.css";
+    @import "../../css/idea.min.css";
+  </style>
+  <script type="text/javascript" src="../../js/highlight.min.js"></script>
+  <script type="text/javascript" src="../../js/highlightjs-line-numbers.min.js"></script>
+</head>
+
+<body>
+<div class="content">
+<div class="breadCrumbs">
+Current scope:     <a href="../../index.html">all classes</a>
+    <span class="separator">|</span>
+    <a href="../index.html">com.google.zxing.client.result</a>
+</div>
+
+<h1>Coverage Summary for Class: VCardResultParser (com.google.zxing.client.result)</h1>
+
+<table class="coverageStats">
+<tr>
+  <th class="name">Class</th>
+<th class="coverageStat 
+">
+  Class, %
+</th>
+<th class="coverageStat 
+">
+  Method, %
+</th>
+<th class="coverageStat 
+">
+  Line, %
+</th>
+</tr>
+<tr>
+  <td class="name">VCardResultParser</td>
+<td class="coverageStat">
+  <span class="percent">
+    100%
+  </span>
+  <span class="absValue">
+    (1/1)
+  </span>
+</td>
+<td class="coverageStat">
+  <span class="percent">
+    92.3%
+  </span>
+  <span class="absValue">
+    (12/13)
+  </span>
+</td>
+<td class="coverageStat">
+  <span class="percent">
+    94.8%
+  </span>
+  <span class="absValue">
+    (200/211)
+  </span>
+</td>
+</tr>
+
+</table>
+
+<br/>
+<br/>
+
+
+<pre>
+<code class="sourceCode" id="sourceCode">&nbsp;/*
+&nbsp; * Copyright 2008 ZXing authors
+&nbsp; *
+&nbsp; * Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
+&nbsp; * you may not use this file except in compliance with the License.
+&nbsp; * You may obtain a copy of the License at
+&nbsp; *
+&nbsp; *      http://www.apache.org/licenses/LICENSE-2.0
+&nbsp; *
+&nbsp; * Unless required by applicable law or agreed to in writing, software
+&nbsp; * distributed under the License is distributed on an &quot;AS IS&quot; BASIS,
+&nbsp; * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+&nbsp; * See the License for the specific language governing permissions and
+&nbsp; * limitations under the License.
+&nbsp; */
+&nbsp;
+&nbsp;package com.google.zxing.client.result;
+&nbsp;
+&nbsp;import com.google.zxing.Result;
+&nbsp;
+&nbsp;import java.io.ByteArrayOutputStream;
+&nbsp;import java.io.UnsupportedEncodingException;
+&nbsp;import java.net.URI;
+&nbsp;import java.nio.charset.StandardCharsets;
+&nbsp;import java.util.ArrayList;
+&nbsp;import java.util.Collection;
+&nbsp;import java.util.List;
+&nbsp;import java.util.regex.Matcher;
+&nbsp;import java.util.regex.Pattern;
+&nbsp;
+&nbsp;/**
+&nbsp; * Parses contact information formatted according to the VCard (2.1) format. This is not a complete
+&nbsp; * implementation but should parse information as commonly encoded in 2D barcodes.
+&nbsp; *
+&nbsp; * @author Sean Owen
+&nbsp; */
+<b class="fc">&nbsp;public final class VCardResultParser extends ResultParser {</b>
+&nbsp;
+<b class="fc">&nbsp;  private static final Pattern BEGIN_VCARD = Pattern.compile(&quot;BEGIN:VCARD&quot;, Pattern.CASE_INSENSITIVE);</b>
+<b class="fc">&nbsp;  private static final Pattern VCARD_LIKE_DATE = Pattern.compile(&quot;\\d{4}-?\\d{2}-?\\d{2}&quot;);</b>
+<b class="fc">&nbsp;  private static final Pattern CR_LF_SPACE_TAB = Pattern.compile(&quot;\r\n[ \t]&quot;);</b>
+<b class="fc">&nbsp;  private static final Pattern NEWLINE_ESCAPE = Pattern.compile(&quot;\\\\[nN]&quot;);</b>
+<b class="fc">&nbsp;  private static final Pattern VCARD_ESCAPES = Pattern.compile(&quot;\\\\([,;\\\\])&quot;);</b>
+<b class="fc">&nbsp;  private static final Pattern EQUALS = Pattern.compile(&quot;=&quot;);</b>
+<b class="fc">&nbsp;  private static final Pattern SEMICOLON = Pattern.compile(&quot;;&quot;);</b>
+<b class="fc">&nbsp;  private static final Pattern UNESCAPED_SEMICOLONS = Pattern.compile(&quot;(?&lt;!\\\\);+&quot;);</b>
+<b class="fc">&nbsp;  private static final Pattern COMMA = Pattern.compile(&quot;,&quot;);</b>
+<b class="fc">&nbsp;  private static final Pattern SEMICOLON_OR_COMMA = Pattern.compile(&quot;[;,]&quot;);</b>
+&nbsp;
+&nbsp;  @Override
+&nbsp;  public AddressBookParsedResult parse(Result result) {
+&nbsp;    // Although we should insist on the raw text ending with &quot;END:VCARD&quot;, there&#39;s no reason
+&nbsp;    // to throw out everything else we parsed just because this was omitted. In fact, Eclair
+&nbsp;    // is doing just that, and we can&#39;t parse its contacts without this leniency.
+<b class="fc">&nbsp;    String rawText = getMassagedText(result);</b>
+<b class="fc">&nbsp;    Matcher m = BEGIN_VCARD.matcher(rawText);</b>
+<b class="fc">&nbsp;    if (!m.find() || m.start() != 0) {</b>
+<b class="fc">&nbsp;      return null;</b>
+&nbsp;    }
+<b class="fc">&nbsp;    List&lt;List&lt;String&gt;&gt; names = matchVCardPrefixedField(&quot;FN&quot;, rawText, true, false);</b>
+<b class="fc">&nbsp;    if (names == null) {</b>
+&nbsp;      // If no display names found, look for regular name fields and format them
+<b class="fc">&nbsp;      names = matchVCardPrefixedField(&quot;N&quot;, rawText, true, false);</b>
+<b class="fc">&nbsp;      formatNames(names);</b>
+&nbsp;    }
+<b class="fc">&nbsp;    List&lt;String&gt; nicknameString = matchSingleVCardPrefixedField(&quot;NICKNAME&quot;, rawText, true, false);</b>
+<b class="fc">&nbsp;    String[] nicknames = nicknameString == null ? null : COMMA.split(nicknameString.get(0));</b>
+<b class="fc">&nbsp;    List&lt;List&lt;String&gt;&gt; phoneNumbers = matchVCardPrefixedField(&quot;TEL&quot;, rawText, true, false);</b>
+<b class="fc">&nbsp;    List&lt;List&lt;String&gt;&gt; emails = matchVCardPrefixedField(&quot;EMAIL&quot;, rawText, true, false);</b>
+<b class="fc">&nbsp;    List&lt;String&gt; note = matchSingleVCardPrefixedField(&quot;NOTE&quot;, rawText, false, false);</b>
+<b class="fc">&nbsp;    List&lt;List&lt;String&gt;&gt; addresses = matchVCardPrefixedField(&quot;ADR&quot;, rawText, true, true);</b>
+<b class="fc">&nbsp;    List&lt;String&gt; org = matchSingleVCardPrefixedField(&quot;ORG&quot;, rawText, true, true);</b>
+<b class="fc">&nbsp;    List&lt;String&gt; birthday = matchSingleVCardPrefixedField(&quot;BDAY&quot;, rawText, true, false);</b>
+<b class="fc">&nbsp;    if (birthday != null &amp;&amp; !isLikeVCardDate(birthday.get(0))) {</b>
+<b class="nc">&nbsp;      birthday = null;</b>
+&nbsp;    }
+<b class="fc">&nbsp;    List&lt;String&gt; title = matchSingleVCardPrefixedField(&quot;TITLE&quot;, rawText, true, false);</b>
+<b class="fc">&nbsp;    List&lt;List&lt;String&gt;&gt; urls = matchVCardPrefixedField(&quot;URL&quot;, rawText, true, false);</b>
+<b class="fc">&nbsp;    List&lt;String&gt; instantMessenger = matchSingleVCardPrefixedField(&quot;IMPP&quot;, rawText, true, false);</b>
+<b class="fc">&nbsp;    List&lt;String&gt; geoString = matchSingleVCardPrefixedField(&quot;GEO&quot;, rawText, true, false);</b>
+<b class="fc">&nbsp;    String[] geo = geoString == null ? null : SEMICOLON_OR_COMMA.split(geoString.get(0));</b>
+<b class="fc">&nbsp;    if (geo != null &amp;&amp; geo.length != 2) {</b>
+<b class="nc">&nbsp;      geo = null;</b>
+&nbsp;    }
+<b class="fc">&nbsp;    return new AddressBookParsedResult(toPrimaryValues(names),</b>
+&nbsp;                                       nicknames,
+&nbsp;                                       null, 
+<b class="fc">&nbsp;                                       toPrimaryValues(phoneNumbers), </b>
+<b class="fc">&nbsp;                                       toTypes(phoneNumbers),</b>
+<b class="fc">&nbsp;                                       toPrimaryValues(emails),</b>
+<b class="fc">&nbsp;                                       toTypes(emails),</b>
+<b class="fc">&nbsp;                                       toPrimaryValue(instantMessenger),</b>
+<b class="fc">&nbsp;                                       toPrimaryValue(note),</b>
+<b class="fc">&nbsp;                                       toPrimaryValues(addresses),</b>
+<b class="fc">&nbsp;                                       toTypes(addresses),</b>
+<b class="fc">&nbsp;                                       toPrimaryValue(org),</b>
+<b class="fc">&nbsp;                                       toPrimaryValue(birthday),</b>
+<b class="fc">&nbsp;                                       toPrimaryValue(title),</b>
+<b class="fc">&nbsp;                                       toPrimaryValues(urls),</b>
+&nbsp;                                       geo);
+&nbsp;  }
+&nbsp;
+&nbsp;  static List&lt;List&lt;String&gt;&gt; matchVCardPrefixedField(CharSequence prefix,
+&nbsp;                                                    String rawText,
+&nbsp;                                                    boolean trim,
+&nbsp;                                                    boolean parseFieldDivider) {
+<b class="fc">&nbsp;    List&lt;List&lt;String&gt;&gt; matches = null;</b>
+<b class="fc">&nbsp;    int i = 0;</b>
+<b class="fc">&nbsp;    int max = rawText.length();</b>
+&nbsp;
+<b class="fc">&nbsp;    while (i &lt; max) {</b>
+&nbsp;
+&nbsp;      // At start or after newline, match prefix, followed by optional metadata 
+&nbsp;      // (led by ;) ultimately ending in colon
+<b class="fc">&nbsp;      Matcher matcher = Pattern.compile(&quot;(?:^|\n)&quot; + prefix + &quot;(?:;([^:]*))?:&quot;,</b>
+<b class="fc">&nbsp;                                        Pattern.CASE_INSENSITIVE).matcher(rawText);</b>
+<b class="fc">&nbsp;      if (i &gt; 0) {</b>
+<b class="fc">&nbsp;        i--; // Find from i-1 not i since looking at the preceding character</b>
+&nbsp;      }
+<b class="fc">&nbsp;      if (!matcher.find(i)) {</b>
+<b class="fc">&nbsp;        break;</b>
+&nbsp;      }
+<b class="fc">&nbsp;      i = matcher.end(0); // group 0 = whole pattern; end(0) is past final colon</b>
+&nbsp;
+<b class="fc">&nbsp;      String metadataString = matcher.group(1); // group 1 = metadata substring</b>
+<b class="fc">&nbsp;      List&lt;String&gt; metadata = null;</b>
+<b class="fc">&nbsp;      boolean quotedPrintable = false;</b>
+<b class="fc">&nbsp;      String quotedPrintableCharset = null;</b>
+<b class="fc">&nbsp;      String valueType = null;</b>
+<b class="fc">&nbsp;      if (metadataString != null) {</b>
+<b class="fc">&nbsp;        for (String metadatum : SEMICOLON.split(metadataString)) {</b>
+<b class="fc">&nbsp;          if (metadata == null) {</b>
+<b class="fc">&nbsp;            metadata = new ArrayList&lt;&gt;(1);</b>
+&nbsp;          }
+<b class="fc">&nbsp;          metadata.add(metadatum);</b>
+<b class="fc">&nbsp;          String[] metadatumTokens = EQUALS.split(metadatum, 2);</b>
+<b class="fc">&nbsp;          if (metadatumTokens.length &gt; 1) {</b>
+<b class="fc">&nbsp;            String key = metadatumTokens[0];</b>
+<b class="fc">&nbsp;            String value = metadatumTokens[1];</b>
+<b class="fc">&nbsp;            if (&quot;ENCODING&quot;.equalsIgnoreCase(key) &amp;&amp; &quot;QUOTED-PRINTABLE&quot;.equalsIgnoreCase(value)) {</b>
+<b class="fc">&nbsp;              quotedPrintable = true;</b>
+<b class="fc">&nbsp;            } else if (&quot;CHARSET&quot;.equalsIgnoreCase(key)) {</b>
+<b class="fc">&nbsp;              quotedPrintableCharset = value;</b>
+<b class="fc">&nbsp;            } else if (&quot;VALUE&quot;.equalsIgnoreCase(key)) {</b>
+<b class="fc">&nbsp;              valueType = value;</b>
+&nbsp;            }
+&nbsp;          }
+&nbsp;        }
+&nbsp;      }
+&nbsp;
+<b class="fc">&nbsp;      int matchStart = i; // Found the start of a match here</b>
+&nbsp;
+<b class="fc">&nbsp;      while ((i = rawText.indexOf(&#39;\n&#39;, i)) &gt;= 0) { // Really, end in \r\n</b>
+<b class="fc">&nbsp;        if (i &lt; rawText.length() - 1 &amp;&amp;           // But if followed by tab or space,</b>
+<b class="fc">&nbsp;            (rawText.charAt(i + 1) == &#39; &#39; ||        // this is only a continuation</b>
+<b class="fc">&nbsp;             rawText.charAt(i + 1) == &#39;\t&#39;)) {</b>
+<b class="fc">&nbsp;          i += 2; // Skip \n and continutation whitespace</b>
+<b class="fc">&nbsp;        } else if (quotedPrintable &amp;&amp;             // If preceded by = in quoted printable</b>
+<b class="fc">&nbsp;                   ((i &gt;= 1 &amp;&amp; rawText.charAt(i - 1) == &#39;=&#39;) || // this is a continuation</b>
+<b class="fc">&nbsp;                    (i &gt;= 2 &amp;&amp; rawText.charAt(i - 2) == &#39;=&#39;))) {</b>
+<b class="fc">&nbsp;          i++; // Skip \n</b>
+&nbsp;        } else {
+&nbsp;          break;
+&nbsp;        }
+&nbsp;      }
+&nbsp;
+<b class="fc">&nbsp;      if (i &lt; 0) {</b>
+&nbsp;        // No terminating end character? uh, done. Set i such that loop terminates and break
+<b class="nc">&nbsp;        i = max;</b>
+<b class="fc">&nbsp;      } else if (i &gt; matchStart) {</b>
+&nbsp;        // found a match
+<b class="fc">&nbsp;        if (matches == null) {</b>
+<b class="fc">&nbsp;          matches = new ArrayList&lt;&gt;(1); // lazy init</b>
+&nbsp;        }
+<b class="fc">&nbsp;        if (i &gt;= 1 &amp;&amp; rawText.charAt(i - 1) == &#39;\r&#39;) {</b>
+<b class="fc">&nbsp;          i--; // Back up over \r, which really should be there</b>
+&nbsp;        }
+<b class="fc">&nbsp;        String element = rawText.substring(matchStart, i);</b>
+<b class="fc">&nbsp;        if (trim) {</b>
+<b class="fc">&nbsp;          element = element.trim();</b>
+&nbsp;        }
+<b class="fc">&nbsp;        if (quotedPrintable) {</b>
+<b class="fc">&nbsp;          element = decodeQuotedPrintable(element, quotedPrintableCharset);</b>
+<b class="fc">&nbsp;          if (parseFieldDivider) {</b>
+<b class="fc">&nbsp;            element = UNESCAPED_SEMICOLONS.matcher(element).replaceAll(&quot;\n&quot;).trim();</b>
+&nbsp;          }
+&nbsp;        } else {
+<b class="fc">&nbsp;          if (parseFieldDivider) {</b>
+<b class="fc">&nbsp;            element = UNESCAPED_SEMICOLONS.matcher(element).replaceAll(&quot;\n&quot;).trim();</b>
+&nbsp;          }
+<b class="fc">&nbsp;          element = CR_LF_SPACE_TAB.matcher(element).replaceAll(&quot;&quot;);</b>
+<b class="fc">&nbsp;          element = NEWLINE_ESCAPE.matcher(element).replaceAll(&quot;\n&quot;);</b>
+<b class="fc">&nbsp;          element = VCARD_ESCAPES.matcher(element).replaceAll(&quot;$1&quot;);</b>
+&nbsp;        }
+&nbsp;        // Only handle VALUE=uri specially
+<b class="fc">&nbsp;        if (&quot;uri&quot;.equals(valueType)) {</b>
+&nbsp;          // Don&#39;t actually support dereferencing URIs, but use scheme-specific part not URI
+&nbsp;          // as value, to support tel: and mailto:
+&nbsp;          try {
+<b class="fc">&nbsp;            element = URI.create(element).getSchemeSpecificPart();</b>
+<b class="nc">&nbsp;          } catch (IllegalArgumentException iae) {</b>
+&nbsp;            // ignore
+<b class="fc">&nbsp;          }</b>
+&nbsp;        }
+<b class="fc">&nbsp;        if (metadata == null) {</b>
+<b class="fc">&nbsp;          List&lt;String&gt; match = new ArrayList&lt;&gt;(1);</b>
+<b class="fc">&nbsp;          match.add(element);</b>
+<b class="fc">&nbsp;          matches.add(match);</b>
+<b class="fc">&nbsp;        } else {</b>
+<b class="fc">&nbsp;          metadata.add(0, element);</b>
+<b class="fc">&nbsp;          matches.add(metadata);</b>
+&nbsp;        }
+<b class="fc">&nbsp;        i++;</b>
+<b class="fc">&nbsp;      } else {</b>
+<b class="nc">&nbsp;        i++;</b>
+&nbsp;      }
+&nbsp;
+<b class="fc">&nbsp;    }</b>
+&nbsp;
+<b class="fc">&nbsp;    return matches;</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  private static String decodeQuotedPrintable(CharSequence value, String charset) {
+<b class="fc">&nbsp;    int length = value.length();</b>
+<b class="fc">&nbsp;    StringBuilder result = new StringBuilder(length);</b>
+<b class="fc">&nbsp;    ByteArrayOutputStream fragmentBuffer = new ByteArrayOutputStream();</b>
+<b class="fc">&nbsp;    for (int i = 0; i &lt; length; i++) {</b>
+<b class="fc">&nbsp;      char c = value.charAt(i);</b>
+<b class="fc">&nbsp;      switch (c) {</b>
+&nbsp;        case &#39;\r&#39;:
+&nbsp;        case &#39;\n&#39;:
+<b class="fc">&nbsp;          break;</b>
+&nbsp;        case &#39;=&#39;:
+<b class="fc">&nbsp;          if (i &lt; length - 2) {</b>
+<b class="fc">&nbsp;            char nextChar = value.charAt(i + 1);</b>
+<b class="fc">&nbsp;            if (nextChar != &#39;\r&#39; &amp;&amp; nextChar != &#39;\n&#39;) {</b>
+<b class="fc">&nbsp;              char nextNextChar = value.charAt(i + 2);</b>
+<b class="fc">&nbsp;              int firstDigit = parseHexDigit(nextChar);</b>
+<b class="fc">&nbsp;              int secondDigit = parseHexDigit(nextNextChar);</b>
+<b class="fc">&nbsp;              if (firstDigit &gt;= 0 &amp;&amp; secondDigit &gt;= 0) {</b>
+<b class="fc">&nbsp;                fragmentBuffer.write((firstDigit &lt;&lt; 4) + secondDigit);</b>
+&nbsp;              } // else ignore it, assume it was incorrectly encoded
+<b class="fc">&nbsp;              i += 2;</b>
+&nbsp;            }
+<b class="fc">&nbsp;          }</b>
+&nbsp;          break;
+&nbsp;        default:
+<b class="fc">&nbsp;          maybeAppendFragment(fragmentBuffer, charset, result);</b>
+<b class="fc">&nbsp;          result.append(c);</b>
+&nbsp;      }
+&nbsp;    }
+<b class="fc">&nbsp;    maybeAppendFragment(fragmentBuffer, charset, result);</b>
+<b class="fc">&nbsp;    return result.toString();</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  private static void maybeAppendFragment(ByteArrayOutputStream fragmentBuffer,
+&nbsp;                                          String charset,
+&nbsp;                                          StringBuilder result) {
+<b class="fc">&nbsp;    if (fragmentBuffer.size() &gt; 0) {</b>
+<b class="fc">&nbsp;      byte[] fragmentBytes = fragmentBuffer.toByteArray();</b>
+&nbsp;      String fragment;
+<b class="fc">&nbsp;      if (charset == null) {</b>
+<b class="nc">&nbsp;        fragment = new String(fragmentBytes, StandardCharsets.UTF_8);</b>
+&nbsp;      } else {
+&nbsp;        try {
+<b class="fc">&nbsp;          fragment = new String(fragmentBytes, charset);</b>
+<b class="nc">&nbsp;        } catch (UnsupportedEncodingException e) {</b>
+<b class="nc">&nbsp;          fragment = new String(fragmentBytes, StandardCharsets.UTF_8);</b>
+<b class="fc">&nbsp;        }</b>
+&nbsp;      }
+<b class="fc">&nbsp;      fragmentBuffer.reset();</b>
+<b class="fc">&nbsp;      result.append(fragment);</b>
+&nbsp;    }
+&nbsp;  }
+&nbsp;
+&nbsp;  static List&lt;String&gt; matchSingleVCardPrefixedField(CharSequence prefix,
+&nbsp;                                                    String rawText,
+&nbsp;                                                    boolean trim,
+&nbsp;                                                    boolean parseFieldDivider) {
+<b class="fc">&nbsp;    List&lt;List&lt;String&gt;&gt; values = matchVCardPrefixedField(prefix, rawText, trim, parseFieldDivider);</b>
+<b class="fc">&nbsp;    return values == null || values.isEmpty() ? null : values.get(0);</b>
+&nbsp;  }
+&nbsp;  
+&nbsp;  private static String toPrimaryValue(List&lt;String&gt; list) {
+<b class="fc">&nbsp;    return list == null || list.isEmpty() ? null : list.get(0);</b>
+&nbsp;  }
+&nbsp;  
+&nbsp;  private static String[] toPrimaryValues(Collection&lt;List&lt;String&gt;&gt; lists) {
+<b class="fc">&nbsp;    if (lists == null || lists.isEmpty()) {</b>
+<b class="fc">&nbsp;      return null;</b>
+&nbsp;    }
+<b class="fc">&nbsp;    List&lt;String&gt; result = new ArrayList&lt;&gt;(lists.size());</b>
+<b class="fc">&nbsp;    for (List&lt;String&gt; list : lists) {</b>
+<b class="fc">&nbsp;      String value = list.get(0);</b>
+<b class="fc">&nbsp;      if (value != null &amp;&amp; !value.isEmpty()) {</b>
+<b class="fc">&nbsp;        result.add(value);</b>
+&nbsp;      }
+<b class="fc">&nbsp;    }</b>
+<b class="fc">&nbsp;    return result.toArray(EMPTY_STR_ARRAY);</b>
+&nbsp;  }
+&nbsp;  
+&nbsp;  private static String[] toTypes(Collection&lt;List&lt;String&gt;&gt; lists) {
+<b class="fc">&nbsp;    if (lists == null || lists.isEmpty()) {</b>
+<b class="fc">&nbsp;      return null;</b>
+&nbsp;    }
+<b class="fc">&nbsp;    List&lt;String&gt; result = new ArrayList&lt;&gt;(lists.size());</b>
+<b class="fc">&nbsp;    for (List&lt;String&gt; list : lists) {</b>
+<b class="fc">&nbsp;      String value = list.get(0);</b>
+<b class="fc">&nbsp;      if (value != null &amp;&amp; !value.isEmpty()) {</b>
+<b class="fc">&nbsp;        String type = null;</b>
+<b class="fc">&nbsp;        for (int i = 1; i &lt; list.size(); i++) {</b>
+<b class="fc">&nbsp;          String metadatum = list.get(i);</b>
+<b class="fc">&nbsp;          int equals = metadatum.indexOf(&#39;=&#39;);</b>
+<b class="fc">&nbsp;          if (equals &lt; 0) {</b>
+&nbsp;            // take the whole thing as a usable label
+<b class="fc">&nbsp;            type = metadatum;</b>
+<b class="fc">&nbsp;            break;</b>
+&nbsp;          }
+<b class="fc">&nbsp;          if (&quot;TYPE&quot;.equalsIgnoreCase(metadatum.substring(0, equals))) {</b>
+<b class="nc">&nbsp;            type = metadatum.substring(equals + 1);</b>
+<b class="nc">&nbsp;            break;</b>
+&nbsp;          }
+&nbsp;        }
+<b class="fc">&nbsp;        result.add(type);</b>
+&nbsp;      }
+<b class="fc">&nbsp;    }</b>
+<b class="fc">&nbsp;    return result.toArray(EMPTY_STR_ARRAY);</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  private static boolean isLikeVCardDate(CharSequence value) {
+<b class="nc">&nbsp;    return value == null || VCARD_LIKE_DATE.matcher(value).matches();</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  /**
+&nbsp;   * Formats name fields of the form &quot;Public;John;Q.;Reverend;III&quot; into a form like
+&nbsp;   * &quot;Reverend John Q. Public III&quot;.
+&nbsp;   *
+&nbsp;   * @param names name values to format, in place
+&nbsp;   */
+&nbsp;  private static void formatNames(Iterable&lt;List&lt;String&gt;&gt; names) {
+<b class="fc">&nbsp;    if (names != null) {</b>
+<b class="fc">&nbsp;      for (List&lt;String&gt; list : names) {</b>
+<b class="fc">&nbsp;        String name = list.get(0);</b>
+<b class="fc">&nbsp;        String[] components = new String[5];</b>
+<b class="fc">&nbsp;        int start = 0;</b>
+&nbsp;        int end;
+<b class="fc">&nbsp;        int componentIndex = 0;</b>
+<b class="fc">&nbsp;        while (componentIndex &lt; components.length - 1 &amp;&amp; (end = name.indexOf(&#39;;&#39;, start)) &gt;= 0) {</b>
+<b class="fc">&nbsp;          components[componentIndex] = name.substring(start, end);</b>
+<b class="fc">&nbsp;          componentIndex++;</b>
+<b class="fc">&nbsp;          start = end + 1;</b>
+&nbsp;        }
+<b class="fc">&nbsp;        components[componentIndex] = name.substring(start);</b>
+<b class="fc">&nbsp;        StringBuilder newName = new StringBuilder(100);</b>
+<b class="fc">&nbsp;        maybeAppendComponent(components, 3, newName);</b>
+<b class="fc">&nbsp;        maybeAppendComponent(components, 1, newName);</b>
+<b class="fc">&nbsp;        maybeAppendComponent(components, 2, newName);</b>
+<b class="fc">&nbsp;        maybeAppendComponent(components, 0, newName);</b>
+<b class="fc">&nbsp;        maybeAppendComponent(components, 4, newName);</b>
+<b class="fc">&nbsp;        list.set(0, newName.toString().trim());</b>
+<b class="fc">&nbsp;      }</b>
+&nbsp;    }
+&nbsp;  }
+&nbsp;
+&nbsp;  private static void maybeAppendComponent(String[] components, int i, StringBuilder newName) {
+<b class="fc">&nbsp;    if (components[i] != null &amp;&amp; !components[i].isEmpty()) {</b>
+<b class="fc">&nbsp;      if (newName.length() &gt; 0) {</b>
+<b class="fc">&nbsp;        newName.append(&#39; &#39;);</b>
+&nbsp;      }
+<b class="fc">&nbsp;      newName.append(components[i]);</b>
+&nbsp;    }
+&nbsp;  }
+&nbsp;
+&nbsp;}
+</code>
+</pre>
+</div>
+
+<script type="text/javascript">
+(function() {
+    var msie = false, msie9 = false;
+    /*@cc_on
+      msie = true;
+      @if (@_jscript_version >= 9)
+        msie9 = true;
+      @end
+    @*/
+
+    if (!msie || msie && msie9) {
+      hljs.highlightAll()
+      hljs.initLineNumbersOnLoad();
+    }
+})();
+</script>
+
+<div class="footer">
+    
+    <div style="float:right;">generated on 2023-11-12 23:26</div>
+</div>
+</body>
+</html>

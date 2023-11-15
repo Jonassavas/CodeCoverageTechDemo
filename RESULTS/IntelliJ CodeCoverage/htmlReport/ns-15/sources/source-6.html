@@ -1,0 +1,191 @@
+
+
+
+<!DOCTYPE html>
+<html id="htmlId">
+<head>
+  <meta http-equiv="Content-Type" content="text/html;charset=windows-1252"> 
+  <title>Coverage Report > RSSUtils</title>
+  <style type="text/css">
+    @import "../../css/coverage.css";
+    @import "../../css/idea.min.css";
+  </style>
+  <script type="text/javascript" src="../../js/highlight.min.js"></script>
+  <script type="text/javascript" src="../../js/highlightjs-line-numbers.min.js"></script>
+</head>
+
+<body>
+<div class="content">
+<div class="breadCrumbs">
+Current scope:     <a href="../../index.html">all classes</a>
+    <span class="separator">|</span>
+    <a href="../index.html">com.google.zxing.oned.rss</a>
+</div>
+
+<h1>Coverage Summary for Class: RSSUtils (com.google.zxing.oned.rss)</h1>
+
+<table class="coverageStats">
+<tr>
+  <th class="name">Class</th>
+<th class="coverageStat 
+">
+  Class, %
+</th>
+<th class="coverageStat 
+">
+  Method, %
+</th>
+<th class="coverageStat 
+">
+  Line, %
+</th>
+</tr>
+<tr>
+  <td class="name">RSSUtils</td>
+<td class="coverageStat">
+  <span class="percent">
+    100%
+  </span>
+  <span class="absValue">
+    (1/1)
+  </span>
+</td>
+<td class="coverageStat">
+  <span class="percent">
+    100%
+  </span>
+  <span class="absValue">
+    (2/2)
+  </span>
+</td>
+<td class="coverageStat">
+  <span class="percent">
+    95%
+  </span>
+  <span class="absValue">
+    (38/40)
+  </span>
+</td>
+</tr>
+
+</table>
+
+<br/>
+<br/>
+
+
+<pre>
+<code class="sourceCode" id="sourceCode">&nbsp;/*
+&nbsp; * Copyright 2009 ZXing authors
+&nbsp; *
+&nbsp; * Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
+&nbsp; * you may not use this file except in compliance with the License.
+&nbsp; * You may obtain a copy of the License at
+&nbsp; *
+&nbsp; *      http://www.apache.org/licenses/LICENSE-2.0
+&nbsp; *
+&nbsp; * Unless required by applicable law or agreed to in writing, software
+&nbsp; * distributed under the License is distributed on an &quot;AS IS&quot; BASIS,
+&nbsp; * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+&nbsp; * See the License for the specific language governing permissions and
+&nbsp; * limitations under the License.
+&nbsp; */
+&nbsp;
+&nbsp;package com.google.zxing.oned.rss;
+&nbsp;
+&nbsp;/** Adapted from listings in ISO/IEC 24724 Appendix B and Appendix G. */
+&nbsp;public final class RSSUtils {
+&nbsp;
+&nbsp;  private RSSUtils() {}
+&nbsp;
+&nbsp;  public static int getRSSvalue(int[] widths, int maxWidth, boolean noNarrow) {
+<b class="fc">&nbsp;    int n = 0;</b>
+<b class="fc">&nbsp;    for (int width : widths) {</b>
+<b class="fc">&nbsp;      n += width;</b>
+&nbsp;    }
+<b class="fc">&nbsp;    int val = 0;</b>
+<b class="fc">&nbsp;    int narrowMask = 0;</b>
+<b class="fc">&nbsp;    int elements = widths.length;</b>
+<b class="fc">&nbsp;    for (int bar = 0; bar &lt; elements - 1; bar++) {</b>
+&nbsp;      int elmWidth;
+<b class="fc">&nbsp;      for (elmWidth = 1, narrowMask |= 1 &lt;&lt; bar;</b>
+<b class="fc">&nbsp;           elmWidth &lt; widths[bar];</b>
+<b class="fc">&nbsp;           elmWidth++, narrowMask &amp;= ~(1 &lt;&lt; bar)) {</b>
+<b class="fc">&nbsp;        int subVal = combins(n - elmWidth - 1, elements - bar - 2);</b>
+<b class="fc">&nbsp;        if (noNarrow &amp;&amp; (narrowMask == 0) &amp;&amp;</b>
+&nbsp;            (n - elmWidth - (elements - bar - 1) &gt;= elements - bar - 1)) {
+<b class="fc">&nbsp;          subVal -= combins(n - elmWidth - (elements - bar),</b>
+&nbsp;                            elements - bar - 2);
+&nbsp;        }
+<b class="fc">&nbsp;        if (elements - bar - 1 &gt; 1) {</b>
+<b class="fc">&nbsp;          int lessVal = 0;</b>
+<b class="fc">&nbsp;          for (int mxwElement = n - elmWidth - (elements - bar - 2);</b>
+<b class="fc">&nbsp;               mxwElement &gt; maxWidth; mxwElement--) {</b>
+<b class="fc">&nbsp;            lessVal += combins(n - elmWidth - mxwElement - 1,</b>
+&nbsp;                               elements - bar - 3);
+&nbsp;          }
+<b class="fc">&nbsp;          subVal -= lessVal * (elements - 1 - bar);</b>
+<b class="fc">&nbsp;        } else if (n - elmWidth &gt; maxWidth) {</b>
+<b class="fc">&nbsp;          subVal--;</b>
+&nbsp;        }
+<b class="fc">&nbsp;        val += subVal;</b>
+&nbsp;      }
+<b class="fc">&nbsp;      n -= elmWidth;</b>
+&nbsp;    }
+<b class="fc">&nbsp;    return val;</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  private static int combins(int n, int r) {
+&nbsp;    int maxDenom;
+&nbsp;    int minDenom;
+<b class="fc">&nbsp;    if (n - r &gt; r) {</b>
+<b class="fc">&nbsp;      minDenom = r;</b>
+<b class="fc">&nbsp;      maxDenom = n - r;</b>
+&nbsp;    } else {
+<b class="fc">&nbsp;      minDenom = n - r;</b>
+<b class="fc">&nbsp;      maxDenom = r;</b>
+&nbsp;    }
+<b class="fc">&nbsp;    int val = 1;</b>
+<b class="fc">&nbsp;    int j = 1;</b>
+<b class="fc">&nbsp;    for (int i = n; i &gt; maxDenom; i--) {</b>
+<b class="fc">&nbsp;      val *= i;</b>
+<b class="fc">&nbsp;      if (j &lt;= minDenom) {</b>
+<b class="fc">&nbsp;        val /= j;</b>
+<b class="fc">&nbsp;        j++;</b>
+&nbsp;      }
+&nbsp;    }
+<b class="fc">&nbsp;    while (j &lt;= minDenom) {</b>
+<b class="nc">&nbsp;      val /= j;</b>
+<b class="nc">&nbsp;      j++;</b>
+&nbsp;    }
+<b class="fc">&nbsp;    return val;</b>
+&nbsp;  }
+&nbsp;
+&nbsp;}
+</code>
+</pre>
+</div>
+
+<script type="text/javascript">
+(function() {
+    var msie = false, msie9 = false;
+    /*@cc_on
+      msie = true;
+      @if (@_jscript_version >= 9)
+        msie9 = true;
+      @end
+    @*/
+
+    if (!msie || msie && msie9) {
+      hljs.highlightAll()
+      hljs.initLineNumbersOnLoad();
+    }
+})();
+</script>
+
+<div class="footer">
+    
+    <div style="float:right;">generated on 2023-11-12 23:26</div>
+</div>
+</body>
+</html>

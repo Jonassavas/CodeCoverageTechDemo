@@ -1,0 +1,726 @@
+
+
+
+<!DOCTYPE html>
+<html id="htmlId">
+<head>
+  <meta http-equiv="Content-Type" content="text/html;charset=windows-1252"> 
+  <title>Coverage Report > Version</title>
+  <style type="text/css">
+    @import "../../css/coverage.css";
+    @import "../../css/idea.min.css";
+  </style>
+  <script type="text/javascript" src="../../js/highlight.min.js"></script>
+  <script type="text/javascript" src="../../js/highlightjs-line-numbers.min.js"></script>
+</head>
+
+<body>
+<div class="content">
+<div class="breadCrumbs">
+Current scope:     <a href="../../index.html">all classes</a>
+    <span class="separator">|</span>
+    <a href="../index.html">com.google.zxing.qrcode.decoder</a>
+</div>
+
+<h1>Coverage Summary for Class: Version (com.google.zxing.qrcode.decoder)</h1>
+
+<table class="coverageStats">
+
+<tr>
+  <th class="name">Class</th>
+<th class="coverageStat 
+">
+  Method, %
+</th>
+<th class="coverageStat 
+">
+  Line, %
+</th>
+</tr>
+<tr>
+  <td class="name">Version</td>
+<td class="coverageStat">
+  <span class="percent">
+    100%
+  </span>
+  <span class="absValue">
+    (13/13)
+  </span>
+</td>
+<td class="coverageStat">
+  <span class="percent">
+    94.7%
+  </span>
+  <span class="absValue">
+    (54/57)
+  </span>
+</td>
+</tr>
+  <tr>
+    <td class="name">Version$ECB</td>
+<td class="coverageStat">
+  <span class="percent">
+    100%
+  </span>
+  <span class="absValue">
+    (3/3)
+  </span>
+</td>
+<td class="coverageStat">
+  <span class="percent">
+    100%
+  </span>
+  <span class="absValue">
+    (5/5)
+  </span>
+</td>
+  </tr>
+  <tr>
+    <td class="name">Version$ECBlocks</td>
+<td class="coverageStat">
+  <span class="percent">
+    100%
+  </span>
+  <span class="absValue">
+    (5/5)
+  </span>
+</td>
+<td class="coverageStat">
+  <span class="percent">
+    100%
+  </span>
+  <span class="absValue">
+    (10/10)
+  </span>
+</td>
+  </tr>
+<tr>
+  <td class="name"><strong>Total</strong></td>
+<td class="coverageStat">
+  <span class="percent">
+    100%
+  </span>
+  <span class="absValue">
+    (21/21)
+  </span>
+</td>
+<td class="coverageStat">
+  <span class="percent">
+    95.8%
+  </span>
+  <span class="absValue">
+    (69/72)
+  </span>
+</td>
+</tr>
+</table>
+
+<br/>
+<br/>
+
+
+<pre>
+<code class="sourceCode" id="sourceCode">&nbsp;/*
+&nbsp; * Copyright 2007 ZXing authors
+&nbsp; *
+&nbsp; * Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
+&nbsp; * you may not use this file except in compliance with the License.
+&nbsp; * You may obtain a copy of the License at
+&nbsp; *
+&nbsp; *      http://www.apache.org/licenses/LICENSE-2.0
+&nbsp; *
+&nbsp; * Unless required by applicable law or agreed to in writing, software
+&nbsp; * distributed under the License is distributed on an &quot;AS IS&quot; BASIS,
+&nbsp; * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+&nbsp; * See the License for the specific language governing permissions and
+&nbsp; * limitations under the License.
+&nbsp; */
+&nbsp;
+&nbsp;package com.google.zxing.qrcode.decoder;
+&nbsp;
+&nbsp;import com.google.zxing.FormatException;
+&nbsp;import com.google.zxing.common.BitMatrix;
+&nbsp;
+&nbsp;/**
+&nbsp; * See ISO 18004:2006 Annex D
+&nbsp; *
+&nbsp; * @author Sean Owen
+&nbsp; */
+&nbsp;public final class Version {
+&nbsp;
+&nbsp;  /**
+&nbsp;   * See ISO 18004:2006 Annex D.
+&nbsp;   * Element i represents the raw version bits that specify version i + 7
+&nbsp;   */
+<b class="fc">&nbsp;  private static final int[] VERSION_DECODE_INFO = {</b>
+&nbsp;      0x07C94, 0x085BC, 0x09A99, 0x0A4D3, 0x0BBF6,
+&nbsp;      0x0C762, 0x0D847, 0x0E60D, 0x0F928, 0x10B78,
+&nbsp;      0x1145D, 0x12A17, 0x13532, 0x149A6, 0x15683,
+&nbsp;      0x168C9, 0x177EC, 0x18EC4, 0x191E1, 0x1AFAB,
+&nbsp;      0x1B08E, 0x1CC1A, 0x1D33F, 0x1ED75, 0x1F250,
+&nbsp;      0x209D5, 0x216F0, 0x228BA, 0x2379F, 0x24B0B,
+&nbsp;      0x2542E, 0x26A64, 0x27541, 0x28C69
+&nbsp;  };
+&nbsp;
+<b class="fc">&nbsp;  private static final Version[] VERSIONS = buildVersions();</b>
+&nbsp;
+&nbsp;  private final int versionNumber;
+&nbsp;  private final int[] alignmentPatternCenters;
+&nbsp;  private final ECBlocks[] ecBlocks;
+&nbsp;  private final int totalCodewords;
+&nbsp;
+&nbsp;  private Version(int versionNumber,
+&nbsp;                  int[] alignmentPatternCenters,
+<b class="fc">&nbsp;                  ECBlocks... ecBlocks) {</b>
+<b class="fc">&nbsp;    this.versionNumber = versionNumber;</b>
+<b class="fc">&nbsp;    this.alignmentPatternCenters = alignmentPatternCenters;</b>
+<b class="fc">&nbsp;    this.ecBlocks = ecBlocks;</b>
+<b class="fc">&nbsp;    int total = 0;</b>
+<b class="fc">&nbsp;    int ecCodewords = ecBlocks[0].getECCodewordsPerBlock();</b>
+<b class="fc">&nbsp;    ECB[] ecbArray = ecBlocks[0].getECBlocks();</b>
+<b class="fc">&nbsp;    for (ECB ecBlock : ecbArray) {</b>
+<b class="fc">&nbsp;      total += ecBlock.getCount() * (ecBlock.getDataCodewords() + ecCodewords);</b>
+&nbsp;    }
+<b class="fc">&nbsp;    this.totalCodewords = total;</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  public int getVersionNumber() {
+<b class="fc">&nbsp;    return versionNumber;</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  public int[] getAlignmentPatternCenters() {
+<b class="fc">&nbsp;    return alignmentPatternCenters;</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  public int getTotalCodewords() {
+<b class="fc">&nbsp;    return totalCodewords;</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  public int getDimensionForVersion() {
+<b class="fc">&nbsp;    return 17 + 4 * versionNumber;</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  public ECBlocks getECBlocksForLevel(ErrorCorrectionLevel ecLevel) {
+<b class="fc">&nbsp;    return ecBlocks[ecLevel.ordinal()];</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  /**
+&nbsp;   * &lt;p&gt;Deduces version information purely from QR Code dimensions.&lt;/p&gt;
+&nbsp;   *
+&nbsp;   * @param dimension dimension in modules
+&nbsp;   * @return Version for a QR Code of that dimension
+&nbsp;   * @throws FormatException if dimension is not 1 mod 4
+&nbsp;   */
+&nbsp;  public static Version getProvisionalVersionForDimension(int dimension) throws FormatException {
+<b class="fc">&nbsp;    if (dimension % 4 != 1) {</b>
+<b class="nc">&nbsp;      throw FormatException.getFormatInstance();</b>
+&nbsp;    }
+&nbsp;    try {
+<b class="fc">&nbsp;      return getVersionForNumber((dimension - 17) / 4);</b>
+<b class="nc">&nbsp;    } catch (IllegalArgumentException ignored) {</b>
+<b class="nc">&nbsp;      throw FormatException.getFormatInstance();</b>
+&nbsp;    }
+&nbsp;  }
+&nbsp;
+&nbsp;  public static Version getVersionForNumber(int versionNumber) {
+<b class="fc">&nbsp;    if (versionNumber &lt; 1 || versionNumber &gt; 40) {</b>
+<b class="fc">&nbsp;      throw new IllegalArgumentException();</b>
+&nbsp;    }
+<b class="fc">&nbsp;    return VERSIONS[versionNumber - 1];</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  static Version decodeVersionInformation(int versionBits) {
+<b class="fc">&nbsp;    int bestDifference = Integer.MAX_VALUE;</b>
+<b class="fc">&nbsp;    int bestVersion = 0;</b>
+<b class="fc">&nbsp;    for (int i = 0; i &lt; VERSION_DECODE_INFO.length; i++) {</b>
+<b class="fc">&nbsp;      int targetVersion = VERSION_DECODE_INFO[i];</b>
+&nbsp;      // Do the version info bits match exactly? done.
+<b class="fc">&nbsp;      if (targetVersion == versionBits) {</b>
+<b class="fc">&nbsp;        return getVersionForNumber(i + 7);</b>
+&nbsp;      }
+&nbsp;      // Otherwise see if this is the closest to a real version info bit string
+&nbsp;      // we have seen so far
+<b class="fc">&nbsp;      int bitsDifference = FormatInformation.numBitsDiffering(versionBits, targetVersion);</b>
+<b class="fc">&nbsp;      if (bitsDifference &lt; bestDifference) {</b>
+<b class="fc">&nbsp;        bestVersion = i + 7;</b>
+<b class="fc">&nbsp;        bestDifference = bitsDifference;</b>
+&nbsp;      }
+&nbsp;    }
+&nbsp;    // We can tolerate up to 3 bits of error since no two version info codewords will
+&nbsp;    // differ in less than 8 bits.
+<b class="fc">&nbsp;    if (bestDifference &lt;= 3) {</b>
+<b class="fc">&nbsp;      return getVersionForNumber(bestVersion);</b>
+&nbsp;    }
+&nbsp;    // If we didn&#39;t find a close enough match, fail
+<b class="fc">&nbsp;    return null;</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  /**
+&nbsp;   * See ISO 18004:2006 Annex E
+&nbsp;   */
+&nbsp;  BitMatrix buildFunctionPattern() {
+<b class="fc">&nbsp;    int dimension = getDimensionForVersion();</b>
+<b class="fc">&nbsp;    BitMatrix bitMatrix = new BitMatrix(dimension);</b>
+&nbsp;
+&nbsp;    // Top left finder pattern + separator + format
+<b class="fc">&nbsp;    bitMatrix.setRegion(0, 0, 9, 9);</b>
+&nbsp;    // Top right finder pattern + separator + format
+<b class="fc">&nbsp;    bitMatrix.setRegion(dimension - 8, 0, 8, 9);</b>
+&nbsp;    // Bottom left finder pattern + separator + format
+<b class="fc">&nbsp;    bitMatrix.setRegion(0, dimension - 8, 9, 8);</b>
+&nbsp;
+&nbsp;    // Alignment patterns
+<b class="fc">&nbsp;    int max = alignmentPatternCenters.length;</b>
+<b class="fc">&nbsp;    for (int x = 0; x &lt; max; x++) {</b>
+<b class="fc">&nbsp;      int i = alignmentPatternCenters[x] - 2;</b>
+<b class="fc">&nbsp;      for (int y = 0; y &lt; max; y++) {</b>
+<b class="fc">&nbsp;        if ((x != 0 || (y != 0 &amp;&amp; y != max - 1)) &amp;&amp; (x != max - 1 || y != 0)) {</b>
+<b class="fc">&nbsp;          bitMatrix.setRegion(alignmentPatternCenters[y] - 2, i, 5, 5);</b>
+&nbsp;        }
+&nbsp;        // else no o alignment patterns near the three finder patterns
+&nbsp;      }
+&nbsp;    }
+&nbsp;
+&nbsp;    // Vertical timing pattern
+<b class="fc">&nbsp;    bitMatrix.setRegion(6, 9, 1, dimension - 17);</b>
+&nbsp;    // Horizontal timing pattern
+<b class="fc">&nbsp;    bitMatrix.setRegion(9, 6, dimension - 17, 1);</b>
+&nbsp;
+<b class="fc">&nbsp;    if (versionNumber &gt; 6) {</b>
+&nbsp;      // Version info, top right
+<b class="fc">&nbsp;      bitMatrix.setRegion(dimension - 11, 0, 3, 6);</b>
+&nbsp;      // Version info, bottom left
+<b class="fc">&nbsp;      bitMatrix.setRegion(0, dimension - 11, 6, 3);</b>
+&nbsp;    }
+&nbsp;
+<b class="fc">&nbsp;    return bitMatrix;</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  /**
+&nbsp;   * &lt;p&gt;Encapsulates a set of error-correction blocks in one symbol version. Most versions will
+&nbsp;   * use blocks of differing sizes within one version, so, this encapsulates the parameters for
+&nbsp;   * each set of blocks. It also holds the number of error-correction codewords per block since it
+&nbsp;   * will be the same across all blocks within one version.&lt;/p&gt;
+&nbsp;   */
+&nbsp;  public static final class ECBlocks {
+&nbsp;    private final int ecCodewordsPerBlock;
+&nbsp;    private final ECB[] ecBlocks;
+&nbsp;
+<b class="fc">&nbsp;    ECBlocks(int ecCodewordsPerBlock, ECB... ecBlocks) {</b>
+<b class="fc">&nbsp;      this.ecCodewordsPerBlock = ecCodewordsPerBlock;</b>
+<b class="fc">&nbsp;      this.ecBlocks = ecBlocks;</b>
+&nbsp;    }
+&nbsp;
+&nbsp;    public int getECCodewordsPerBlock() {
+<b class="fc">&nbsp;      return ecCodewordsPerBlock;</b>
+&nbsp;    }
+&nbsp;
+&nbsp;    public int getNumBlocks() {
+<b class="fc">&nbsp;      int total = 0;</b>
+<b class="fc">&nbsp;      for (ECB ecBlock : ecBlocks) {</b>
+<b class="fc">&nbsp;        total += ecBlock.getCount();</b>
+&nbsp;      }
+<b class="fc">&nbsp;      return total;</b>
+&nbsp;    }
+&nbsp;
+&nbsp;    public int getTotalECCodewords() {
+<b class="fc">&nbsp;      return ecCodewordsPerBlock * getNumBlocks();</b>
+&nbsp;    }
+&nbsp;
+&nbsp;    public ECB[] getECBlocks() {
+<b class="fc">&nbsp;      return ecBlocks;</b>
+&nbsp;    }
+&nbsp;  }
+&nbsp;
+&nbsp;  /**
+&nbsp;   * &lt;p&gt;Encapsulates the parameters for one error-correction block in one symbol version.
+&nbsp;   * This includes the number of data codewords, and the number of times a block with these
+&nbsp;   * parameters is used consecutively in the QR code version&#39;s format.&lt;/p&gt;
+&nbsp;   */
+&nbsp;  public static final class ECB {
+&nbsp;    private final int count;
+&nbsp;    private final int dataCodewords;
+&nbsp;
+<b class="fc">&nbsp;    ECB(int count, int dataCodewords) {</b>
+<b class="fc">&nbsp;      this.count = count;</b>
+<b class="fc">&nbsp;      this.dataCodewords = dataCodewords;</b>
+&nbsp;    }
+&nbsp;
+&nbsp;    public int getCount() {
+<b class="fc">&nbsp;      return count;</b>
+&nbsp;    }
+&nbsp;
+&nbsp;    public int getDataCodewords() {
+<b class="fc">&nbsp;      return dataCodewords;</b>
+&nbsp;    }
+&nbsp;  }
+&nbsp;
+&nbsp;  @Override
+&nbsp;  public String toString() {
+<b class="fc">&nbsp;    return String.valueOf(versionNumber);</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  /**
+&nbsp;   * See ISO 18004:2006 6.5.1 Table 9
+&nbsp;   */
+&nbsp;  private static Version[] buildVersions() {
+<b class="fc">&nbsp;    return new Version[]{</b>
+&nbsp;        new Version(1, new int[]{},
+&nbsp;            new ECBlocks(7, new ECB(1, 19)),
+&nbsp;            new ECBlocks(10, new ECB(1, 16)),
+&nbsp;            new ECBlocks(13, new ECB(1, 13)),
+&nbsp;            new ECBlocks(17, new ECB(1, 9))),
+&nbsp;        new Version(2, new int[]{6, 18},
+&nbsp;            new ECBlocks(10, new ECB(1, 34)),
+&nbsp;            new ECBlocks(16, new ECB(1, 28)),
+&nbsp;            new ECBlocks(22, new ECB(1, 22)),
+&nbsp;            new ECBlocks(28, new ECB(1, 16))),
+&nbsp;        new Version(3, new int[]{6, 22},
+&nbsp;            new ECBlocks(15, new ECB(1, 55)),
+&nbsp;            new ECBlocks(26, new ECB(1, 44)),
+&nbsp;            new ECBlocks(18, new ECB(2, 17)),
+&nbsp;            new ECBlocks(22, new ECB(2, 13))),
+&nbsp;        new Version(4, new int[]{6, 26},
+&nbsp;            new ECBlocks(20, new ECB(1, 80)),
+&nbsp;            new ECBlocks(18, new ECB(2, 32)),
+&nbsp;            new ECBlocks(26, new ECB(2, 24)),
+&nbsp;            new ECBlocks(16, new ECB(4, 9))),
+&nbsp;        new Version(5, new int[]{6, 30},
+&nbsp;            new ECBlocks(26, new ECB(1, 108)),
+&nbsp;            new ECBlocks(24, new ECB(2, 43)),
+&nbsp;            new ECBlocks(18, new ECB(2, 15),
+&nbsp;                new ECB(2, 16)),
+&nbsp;            new ECBlocks(22, new ECB(2, 11),
+&nbsp;                new ECB(2, 12))),
+&nbsp;        new Version(6, new int[]{6, 34},
+&nbsp;            new ECBlocks(18, new ECB(2, 68)),
+&nbsp;            new ECBlocks(16, new ECB(4, 27)),
+&nbsp;            new ECBlocks(24, new ECB(4, 19)),
+&nbsp;            new ECBlocks(28, new ECB(4, 15))),
+&nbsp;        new Version(7, new int[]{6, 22, 38},
+&nbsp;            new ECBlocks(20, new ECB(2, 78)),
+&nbsp;            new ECBlocks(18, new ECB(4, 31)),
+&nbsp;            new ECBlocks(18, new ECB(2, 14),
+&nbsp;                new ECB(4, 15)),
+&nbsp;            new ECBlocks(26, new ECB(4, 13),
+&nbsp;                new ECB(1, 14))),
+&nbsp;        new Version(8, new int[]{6, 24, 42},
+&nbsp;            new ECBlocks(24, new ECB(2, 97)),
+&nbsp;            new ECBlocks(22, new ECB(2, 38),
+&nbsp;                new ECB(2, 39)),
+&nbsp;            new ECBlocks(22, new ECB(4, 18),
+&nbsp;                new ECB(2, 19)),
+&nbsp;            new ECBlocks(26, new ECB(4, 14),
+&nbsp;                new ECB(2, 15))),
+&nbsp;        new Version(9, new int[]{6, 26, 46},
+&nbsp;            new ECBlocks(30, new ECB(2, 116)),
+&nbsp;            new ECBlocks(22, new ECB(3, 36),
+&nbsp;                new ECB(2, 37)),
+&nbsp;            new ECBlocks(20, new ECB(4, 16),
+&nbsp;                new ECB(4, 17)),
+&nbsp;            new ECBlocks(24, new ECB(4, 12),
+&nbsp;                new ECB(4, 13))),
+&nbsp;        new Version(10, new int[]{6, 28, 50},
+&nbsp;            new ECBlocks(18, new ECB(2, 68),
+&nbsp;                new ECB(2, 69)),
+&nbsp;            new ECBlocks(26, new ECB(4, 43),
+&nbsp;                new ECB(1, 44)),
+&nbsp;            new ECBlocks(24, new ECB(6, 19),
+&nbsp;                new ECB(2, 20)),
+&nbsp;            new ECBlocks(28, new ECB(6, 15),
+&nbsp;                new ECB(2, 16))),
+&nbsp;        new Version(11, new int[]{6, 30, 54},
+&nbsp;            new ECBlocks(20, new ECB(4, 81)),
+&nbsp;            new ECBlocks(30, new ECB(1, 50),
+&nbsp;                new ECB(4, 51)),
+&nbsp;            new ECBlocks(28, new ECB(4, 22),
+&nbsp;                new ECB(4, 23)),
+&nbsp;            new ECBlocks(24, new ECB(3, 12),
+&nbsp;                new ECB(8, 13))),
+&nbsp;        new Version(12, new int[]{6, 32, 58},
+&nbsp;            new ECBlocks(24, new ECB(2, 92),
+&nbsp;                new ECB(2, 93)),
+&nbsp;            new ECBlocks(22, new ECB(6, 36),
+&nbsp;                new ECB(2, 37)),
+&nbsp;            new ECBlocks(26, new ECB(4, 20),
+&nbsp;                new ECB(6, 21)),
+&nbsp;            new ECBlocks(28, new ECB(7, 14),
+&nbsp;                new ECB(4, 15))),
+&nbsp;        new Version(13, new int[]{6, 34, 62},
+&nbsp;            new ECBlocks(26, new ECB(4, 107)),
+&nbsp;            new ECBlocks(22, new ECB(8, 37),
+&nbsp;                new ECB(1, 38)),
+&nbsp;            new ECBlocks(24, new ECB(8, 20),
+&nbsp;                new ECB(4, 21)),
+&nbsp;            new ECBlocks(22, new ECB(12, 11),
+&nbsp;                new ECB(4, 12))),
+&nbsp;        new Version(14, new int[]{6, 26, 46, 66},
+&nbsp;            new ECBlocks(30, new ECB(3, 115),
+&nbsp;                new ECB(1, 116)),
+&nbsp;            new ECBlocks(24, new ECB(4, 40),
+&nbsp;                new ECB(5, 41)),
+&nbsp;            new ECBlocks(20, new ECB(11, 16),
+&nbsp;                new ECB(5, 17)),
+&nbsp;            new ECBlocks(24, new ECB(11, 12),
+&nbsp;                new ECB(5, 13))),
+&nbsp;        new Version(15, new int[]{6, 26, 48, 70},
+&nbsp;            new ECBlocks(22, new ECB(5, 87),
+&nbsp;                new ECB(1, 88)),
+&nbsp;            new ECBlocks(24, new ECB(5, 41),
+&nbsp;                new ECB(5, 42)),
+&nbsp;            new ECBlocks(30, new ECB(5, 24),
+&nbsp;                new ECB(7, 25)),
+&nbsp;            new ECBlocks(24, new ECB(11, 12),
+&nbsp;                new ECB(7, 13))),
+&nbsp;        new Version(16, new int[]{6, 26, 50, 74},
+&nbsp;            new ECBlocks(24, new ECB(5, 98),
+&nbsp;                new ECB(1, 99)),
+&nbsp;            new ECBlocks(28, new ECB(7, 45),
+&nbsp;                new ECB(3, 46)),
+&nbsp;            new ECBlocks(24, new ECB(15, 19),
+&nbsp;                new ECB(2, 20)),
+&nbsp;            new ECBlocks(30, new ECB(3, 15),
+&nbsp;                new ECB(13, 16))),
+&nbsp;        new Version(17, new int[]{6, 30, 54, 78},
+&nbsp;            new ECBlocks(28, new ECB(1, 107),
+&nbsp;                new ECB(5, 108)),
+&nbsp;            new ECBlocks(28, new ECB(10, 46),
+&nbsp;                new ECB(1, 47)),
+&nbsp;            new ECBlocks(28, new ECB(1, 22),
+&nbsp;                new ECB(15, 23)),
+&nbsp;            new ECBlocks(28, new ECB(2, 14),
+&nbsp;                new ECB(17, 15))),
+&nbsp;        new Version(18, new int[]{6, 30, 56, 82},
+&nbsp;            new ECBlocks(30, new ECB(5, 120),
+&nbsp;                new ECB(1, 121)),
+&nbsp;            new ECBlocks(26, new ECB(9, 43),
+&nbsp;                new ECB(4, 44)),
+&nbsp;            new ECBlocks(28, new ECB(17, 22),
+&nbsp;                new ECB(1, 23)),
+&nbsp;            new ECBlocks(28, new ECB(2, 14),
+&nbsp;                new ECB(19, 15))),
+&nbsp;        new Version(19, new int[]{6, 30, 58, 86},
+&nbsp;            new ECBlocks(28, new ECB(3, 113),
+&nbsp;                new ECB(4, 114)),
+&nbsp;            new ECBlocks(26, new ECB(3, 44),
+&nbsp;                new ECB(11, 45)),
+&nbsp;            new ECBlocks(26, new ECB(17, 21),
+&nbsp;                new ECB(4, 22)),
+&nbsp;            new ECBlocks(26, new ECB(9, 13),
+&nbsp;                new ECB(16, 14))),
+&nbsp;        new Version(20, new int[]{6, 34, 62, 90},
+&nbsp;            new ECBlocks(28, new ECB(3, 107),
+&nbsp;                new ECB(5, 108)),
+&nbsp;            new ECBlocks(26, new ECB(3, 41),
+&nbsp;                new ECB(13, 42)),
+&nbsp;            new ECBlocks(30, new ECB(15, 24),
+&nbsp;                new ECB(5, 25)),
+&nbsp;            new ECBlocks(28, new ECB(15, 15),
+&nbsp;                new ECB(10, 16))),
+&nbsp;        new Version(21, new int[]{6, 28, 50, 72, 94},
+&nbsp;            new ECBlocks(28, new ECB(4, 116),
+&nbsp;                new ECB(4, 117)),
+&nbsp;            new ECBlocks(26, new ECB(17, 42)),
+&nbsp;            new ECBlocks(28, new ECB(17, 22),
+&nbsp;                new ECB(6, 23)),
+&nbsp;            new ECBlocks(30, new ECB(19, 16),
+&nbsp;                new ECB(6, 17))),
+&nbsp;        new Version(22, new int[]{6, 26, 50, 74, 98},
+&nbsp;            new ECBlocks(28, new ECB(2, 111),
+&nbsp;                new ECB(7, 112)),
+&nbsp;            new ECBlocks(28, new ECB(17, 46)),
+&nbsp;            new ECBlocks(30, new ECB(7, 24),
+&nbsp;                new ECB(16, 25)),
+&nbsp;            new ECBlocks(24, new ECB(34, 13))),
+&nbsp;        new Version(23, new int[]{6, 30, 54, 78, 102},
+&nbsp;            new ECBlocks(30, new ECB(4, 121),
+&nbsp;                new ECB(5, 122)),
+&nbsp;            new ECBlocks(28, new ECB(4, 47),
+&nbsp;                new ECB(14, 48)),
+&nbsp;            new ECBlocks(30, new ECB(11, 24),
+&nbsp;                new ECB(14, 25)),
+&nbsp;            new ECBlocks(30, new ECB(16, 15),
+&nbsp;                new ECB(14, 16))),
+&nbsp;        new Version(24, new int[]{6, 28, 54, 80, 106},
+&nbsp;            new ECBlocks(30, new ECB(6, 117),
+&nbsp;                new ECB(4, 118)),
+&nbsp;            new ECBlocks(28, new ECB(6, 45),
+&nbsp;                new ECB(14, 46)),
+&nbsp;            new ECBlocks(30, new ECB(11, 24),
+&nbsp;                new ECB(16, 25)),
+&nbsp;            new ECBlocks(30, new ECB(30, 16),
+&nbsp;                new ECB(2, 17))),
+&nbsp;        new Version(25, new int[]{6, 32, 58, 84, 110},
+&nbsp;            new ECBlocks(26, new ECB(8, 106),
+&nbsp;                new ECB(4, 107)),
+&nbsp;            new ECBlocks(28, new ECB(8, 47),
+&nbsp;                new ECB(13, 48)),
+&nbsp;            new ECBlocks(30, new ECB(7, 24),
+&nbsp;                new ECB(22, 25)),
+&nbsp;            new ECBlocks(30, new ECB(22, 15),
+&nbsp;                new ECB(13, 16))),
+&nbsp;        new Version(26, new int[]{6, 30, 58, 86, 114},
+&nbsp;            new ECBlocks(28, new ECB(10, 114),
+&nbsp;                new ECB(2, 115)),
+&nbsp;            new ECBlocks(28, new ECB(19, 46),
+&nbsp;                new ECB(4, 47)),
+&nbsp;            new ECBlocks(28, new ECB(28, 22),
+&nbsp;                new ECB(6, 23)),
+&nbsp;            new ECBlocks(30, new ECB(33, 16),
+&nbsp;                new ECB(4, 17))),
+&nbsp;        new Version(27, new int[]{6, 34, 62, 90, 118},
+&nbsp;            new ECBlocks(30, new ECB(8, 122),
+&nbsp;                new ECB(4, 123)),
+&nbsp;            new ECBlocks(28, new ECB(22, 45),
+&nbsp;                new ECB(3, 46)),
+&nbsp;            new ECBlocks(30, new ECB(8, 23),
+&nbsp;                new ECB(26, 24)),
+&nbsp;            new ECBlocks(30, new ECB(12, 15),
+&nbsp;                new ECB(28, 16))),
+&nbsp;        new Version(28, new int[]{6, 26, 50, 74, 98, 122},
+&nbsp;            new ECBlocks(30, new ECB(3, 117),
+&nbsp;                new ECB(10, 118)),
+&nbsp;            new ECBlocks(28, new ECB(3, 45),
+&nbsp;                new ECB(23, 46)),
+&nbsp;            new ECBlocks(30, new ECB(4, 24),
+&nbsp;                new ECB(31, 25)),
+&nbsp;            new ECBlocks(30, new ECB(11, 15),
+&nbsp;                new ECB(31, 16))),
+&nbsp;        new Version(29, new int[]{6, 30, 54, 78, 102, 126},
+&nbsp;            new ECBlocks(30, new ECB(7, 116),
+&nbsp;                new ECB(7, 117)),
+&nbsp;            new ECBlocks(28, new ECB(21, 45),
+&nbsp;                new ECB(7, 46)),
+&nbsp;            new ECBlocks(30, new ECB(1, 23),
+&nbsp;                new ECB(37, 24)),
+&nbsp;            new ECBlocks(30, new ECB(19, 15),
+&nbsp;                new ECB(26, 16))),
+&nbsp;        new Version(30, new int[]{6, 26, 52, 78, 104, 130},
+&nbsp;            new ECBlocks(30, new ECB(5, 115),
+&nbsp;                new ECB(10, 116)),
+&nbsp;            new ECBlocks(28, new ECB(19, 47),
+&nbsp;                new ECB(10, 48)),
+&nbsp;            new ECBlocks(30, new ECB(15, 24),
+&nbsp;                new ECB(25, 25)),
+&nbsp;            new ECBlocks(30, new ECB(23, 15),
+&nbsp;                new ECB(25, 16))),
+&nbsp;        new Version(31, new int[]{6, 30, 56, 82, 108, 134},
+&nbsp;            new ECBlocks(30, new ECB(13, 115),
+&nbsp;                new ECB(3, 116)),
+&nbsp;            new ECBlocks(28, new ECB(2, 46),
+&nbsp;                new ECB(29, 47)),
+&nbsp;            new ECBlocks(30, new ECB(42, 24),
+&nbsp;                new ECB(1, 25)),
+&nbsp;            new ECBlocks(30, new ECB(23, 15),
+&nbsp;                new ECB(28, 16))),
+&nbsp;        new Version(32, new int[]{6, 34, 60, 86, 112, 138},
+&nbsp;            new ECBlocks(30, new ECB(17, 115)),
+&nbsp;            new ECBlocks(28, new ECB(10, 46),
+&nbsp;                new ECB(23, 47)),
+&nbsp;            new ECBlocks(30, new ECB(10, 24),
+&nbsp;                new ECB(35, 25)),
+&nbsp;            new ECBlocks(30, new ECB(19, 15),
+&nbsp;                new ECB(35, 16))),
+&nbsp;        new Version(33, new int[]{6, 30, 58, 86, 114, 142},
+&nbsp;            new ECBlocks(30, new ECB(17, 115),
+&nbsp;                new ECB(1, 116)),
+&nbsp;            new ECBlocks(28, new ECB(14, 46),
+&nbsp;                new ECB(21, 47)),
+&nbsp;            new ECBlocks(30, new ECB(29, 24),
+&nbsp;                new ECB(19, 25)),
+&nbsp;            new ECBlocks(30, new ECB(11, 15),
+&nbsp;                new ECB(46, 16))),
+&nbsp;        new Version(34, new int[]{6, 34, 62, 90, 118, 146},
+&nbsp;            new ECBlocks(30, new ECB(13, 115),
+&nbsp;                new ECB(6, 116)),
+&nbsp;            new ECBlocks(28, new ECB(14, 46),
+&nbsp;                new ECB(23, 47)),
+&nbsp;            new ECBlocks(30, new ECB(44, 24),
+&nbsp;                new ECB(7, 25)),
+&nbsp;            new ECBlocks(30, new ECB(59, 16),
+&nbsp;                new ECB(1, 17))),
+&nbsp;        new Version(35, new int[]{6, 30, 54, 78, 102, 126, 150},
+&nbsp;            new ECBlocks(30, new ECB(12, 121),
+&nbsp;                new ECB(7, 122)),
+&nbsp;            new ECBlocks(28, new ECB(12, 47),
+&nbsp;                new ECB(26, 48)),
+&nbsp;            new ECBlocks(30, new ECB(39, 24),
+&nbsp;                new ECB(14, 25)),
+&nbsp;            new ECBlocks(30, new ECB(22, 15),
+&nbsp;                new ECB(41, 16))),
+&nbsp;        new Version(36, new int[]{6, 24, 50, 76, 102, 128, 154},
+&nbsp;            new ECBlocks(30, new ECB(6, 121),
+&nbsp;                new ECB(14, 122)),
+&nbsp;            new ECBlocks(28, new ECB(6, 47),
+&nbsp;                new ECB(34, 48)),
+&nbsp;            new ECBlocks(30, new ECB(46, 24),
+&nbsp;                new ECB(10, 25)),
+&nbsp;            new ECBlocks(30, new ECB(2, 15),
+&nbsp;                new ECB(64, 16))),
+&nbsp;        new Version(37, new int[]{6, 28, 54, 80, 106, 132, 158},
+&nbsp;            new ECBlocks(30, new ECB(17, 122),
+&nbsp;                new ECB(4, 123)),
+&nbsp;            new ECBlocks(28, new ECB(29, 46),
+&nbsp;                new ECB(14, 47)),
+&nbsp;            new ECBlocks(30, new ECB(49, 24),
+&nbsp;                new ECB(10, 25)),
+&nbsp;            new ECBlocks(30, new ECB(24, 15),
+&nbsp;                new ECB(46, 16))),
+&nbsp;        new Version(38, new int[]{6, 32, 58, 84, 110, 136, 162},
+&nbsp;            new ECBlocks(30, new ECB(4, 122),
+&nbsp;                new ECB(18, 123)),
+&nbsp;            new ECBlocks(28, new ECB(13, 46),
+&nbsp;                new ECB(32, 47)),
+&nbsp;            new ECBlocks(30, new ECB(48, 24),
+&nbsp;                new ECB(14, 25)),
+&nbsp;            new ECBlocks(30, new ECB(42, 15),
+&nbsp;                new ECB(32, 16))),
+&nbsp;        new Version(39, new int[]{6, 26, 54, 82, 110, 138, 166},
+&nbsp;            new ECBlocks(30, new ECB(20, 117),
+&nbsp;                new ECB(4, 118)),
+&nbsp;            new ECBlocks(28, new ECB(40, 47),
+&nbsp;                new ECB(7, 48)),
+&nbsp;            new ECBlocks(30, new ECB(43, 24),
+&nbsp;                new ECB(22, 25)),
+&nbsp;            new ECBlocks(30, new ECB(10, 15),
+&nbsp;                new ECB(67, 16))),
+&nbsp;        new Version(40, new int[]{6, 30, 58, 86, 114, 142, 170},
+&nbsp;            new ECBlocks(30, new ECB(19, 118),
+&nbsp;                new ECB(6, 119)),
+&nbsp;            new ECBlocks(28, new ECB(18, 47),
+&nbsp;                new ECB(31, 48)),
+&nbsp;            new ECBlocks(30, new ECB(34, 24),
+&nbsp;                new ECB(34, 25)),
+&nbsp;            new ECBlocks(30, new ECB(20, 15),
+&nbsp;                new ECB(61, 16)))
+&nbsp;    };
+&nbsp;  }
+&nbsp;
+&nbsp;}
+</code>
+</pre>
+</div>
+
+<script type="text/javascript">
+(function() {
+    var msie = false, msie9 = false;
+    /*@cc_on
+      msie = true;
+      @if (@_jscript_version >= 9)
+        msie9 = true;
+      @end
+    @*/
+
+    if (!msie || msie && msie9) {
+      hljs.highlightAll()
+      hljs.initLineNumbersOnLoad();
+    }
+})();
+</script>
+
+<div class="footer">
+    
+    <div style="float:right;">generated on 2023-11-12 23:26</div>
+</div>
+</body>
+</html>

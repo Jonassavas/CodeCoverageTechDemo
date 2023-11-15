@@ -1,0 +1,193 @@
+
+
+
+<!DOCTYPE html>
+<html id="htmlId">
+<head>
+  <meta http-equiv="Content-Type" content="text/html;charset=windows-1252"> 
+  <title>Coverage Report > AddressBookAUResultParser</title>
+  <style type="text/css">
+    @import "../../css/coverage.css";
+    @import "../../css/idea.min.css";
+  </style>
+  <script type="text/javascript" src="../../js/highlight.min.js"></script>
+  <script type="text/javascript" src="../../js/highlightjs-line-numbers.min.js"></script>
+</head>
+
+<body>
+<div class="content">
+<div class="breadCrumbs">
+Current scope:     <a href="../../index.html">all classes</a>
+    <span class="separator">|</span>
+    <a href="../index.html">com.google.zxing.client.result</a>
+</div>
+
+<h1>Coverage Summary for Class: AddressBookAUResultParser (com.google.zxing.client.result)</h1>
+
+<table class="coverageStats">
+<tr>
+  <th class="name">Class</th>
+<th class="coverageStat 
+">
+  Class, %
+</th>
+<th class="coverageStat 
+">
+  Method, %
+</th>
+<th class="coverageStat 
+">
+  Line, %
+</th>
+</tr>
+<tr>
+  <td class="name">AddressBookAUResultParser</td>
+<td class="coverageStat">
+  <span class="percent">
+    100%
+  </span>
+  <span class="absValue">
+    (1/1)
+  </span>
+</td>
+<td class="coverageStat">
+  <span class="percent">
+    100%
+  </span>
+  <span class="absValue">
+    (3/3)
+  </span>
+</td>
+<td class="coverageStat">
+  <span class="percent">
+    100%
+  </span>
+  <span class="absValue">
+    (23/23)
+  </span>
+</td>
+</tr>
+
+</table>
+
+<br/>
+<br/>
+
+
+<pre>
+<code class="sourceCode" id="sourceCode">&nbsp;/*
+&nbsp; * Copyright 2008 ZXing authors
+&nbsp; *
+&nbsp; * Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
+&nbsp; * you may not use this file except in compliance with the License.
+&nbsp; * You may obtain a copy of the License at
+&nbsp; *
+&nbsp; *      http://www.apache.org/licenses/LICENSE-2.0
+&nbsp; *
+&nbsp; * Unless required by applicable law or agreed to in writing, software
+&nbsp; * distributed under the License is distributed on an &quot;AS IS&quot; BASIS,
+&nbsp; * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+&nbsp; * See the License for the specific language governing permissions and
+&nbsp; * limitations under the License.
+&nbsp; */
+&nbsp;
+&nbsp;package com.google.zxing.client.result;
+&nbsp;
+&nbsp;import com.google.zxing.Result;
+&nbsp;
+&nbsp;import java.util.ArrayList;
+&nbsp;import java.util.List;
+&nbsp;
+&nbsp;/**
+&nbsp; * Implements KDDI AU&#39;s address book format. See
+&nbsp; * &lt;a href=&quot;http://www.au.kddi.com/ezfactory/tec/two_dimensions/index.html&quot;&gt;
+&nbsp; * http://www.au.kddi.com/ezfactory/tec/two_dimensions/index.html&lt;/a&gt;.
+&nbsp; * (Thanks to Yuzo for translating!)
+&nbsp; *
+&nbsp; * @author Sean Owen
+&nbsp; */
+<b class="fc">&nbsp;public final class AddressBookAUResultParser extends ResultParser {</b>
+&nbsp;
+&nbsp;  @Override
+&nbsp;  public AddressBookParsedResult parse(Result result) {
+<b class="fc">&nbsp;    String rawText = getMassagedText(result);</b>
+&nbsp;    // MEMORY is mandatory; seems like a decent indicator, as does end-of-record separator CR/LF
+<b class="fc">&nbsp;    if (!rawText.contains(&quot;MEMORY&quot;) || !rawText.contains(&quot;\r\n&quot;)) {</b>
+<b class="fc">&nbsp;      return null;</b>
+&nbsp;    }
+&nbsp;
+&nbsp;    // NAME1 and NAME2 have specific uses, namely written name and pronunciation, respectively.
+&nbsp;    // Therefore we treat them specially instead of as an array of names.
+<b class="fc">&nbsp;    String name = matchSinglePrefixedField(&quot;NAME1:&quot;, rawText, &#39;\r&#39;, true);</b>
+<b class="fc">&nbsp;    String pronunciation = matchSinglePrefixedField(&quot;NAME2:&quot;, rawText, &#39;\r&#39;, true);</b>
+&nbsp;
+<b class="fc">&nbsp;    String[] phoneNumbers = matchMultipleValuePrefix(&quot;TEL&quot;, rawText);</b>
+<b class="fc">&nbsp;    String[] emails = matchMultipleValuePrefix(&quot;MAIL&quot;, rawText);</b>
+<b class="fc">&nbsp;    String note = matchSinglePrefixedField(&quot;MEMORY:&quot;, rawText, &#39;\r&#39;, false);</b>
+<b class="fc">&nbsp;    String address = matchSinglePrefixedField(&quot;ADD:&quot;, rawText, &#39;\r&#39;, true);</b>
+<b class="fc">&nbsp;    String[] addresses = address == null ? null : new String[] {address};</b>
+<b class="fc">&nbsp;    return new AddressBookParsedResult(maybeWrap(name),</b>
+&nbsp;                                       null,
+&nbsp;                                       pronunciation,
+&nbsp;                                       phoneNumbers,
+&nbsp;                                       null,
+&nbsp;                                       emails,
+&nbsp;                                       null,
+&nbsp;                                       null,
+&nbsp;                                       note,
+&nbsp;                                       addresses,
+&nbsp;                                       null,
+&nbsp;                                       null,
+&nbsp;                                       null,
+&nbsp;                                       null,
+&nbsp;                                       null,
+&nbsp;                                       null);
+&nbsp;  }
+&nbsp;
+&nbsp;  private static String[] matchMultipleValuePrefix(String prefix, String rawText) {
+<b class="fc">&nbsp;    List&lt;String&gt; values = null;</b>
+&nbsp;    // For now, always 3, and always trim
+<b class="fc">&nbsp;    for (int i = 1; i &lt;= 3; i++) {</b>
+<b class="fc">&nbsp;      String value = matchSinglePrefixedField(prefix + i + &#39;:&#39;, rawText, &#39;\r&#39;, true);</b>
+<b class="fc">&nbsp;      if (value == null) {</b>
+<b class="fc">&nbsp;        break;</b>
+&nbsp;      }
+<b class="fc">&nbsp;      if (values == null) {</b>
+<b class="fc">&nbsp;        values = new ArrayList&lt;&gt;(3); // lazy init</b>
+&nbsp;      }
+<b class="fc">&nbsp;      values.add(value);</b>
+&nbsp;    }
+<b class="fc">&nbsp;    if (values == null) {</b>
+<b class="fc">&nbsp;      return null;</b>
+&nbsp;    }
+<b class="fc">&nbsp;    return values.toArray(EMPTY_STR_ARRAY);</b>
+&nbsp;  }
+&nbsp;
+&nbsp;}
+</code>
+</pre>
+</div>
+
+<script type="text/javascript">
+(function() {
+    var msie = false, msie9 = false;
+    /*@cc_on
+      msie = true;
+      @if (@_jscript_version >= 9)
+        msie9 = true;
+      @end
+    @*/
+
+    if (!msie || msie && msie9) {
+      hljs.highlightAll()
+      hljs.initLineNumbersOnLoad();
+    }
+})();
+</script>
+
+<div class="footer">
+    
+    <div style="float:right;">generated on 2023-11-12 23:26</div>
+</div>
+</body>
+</html>

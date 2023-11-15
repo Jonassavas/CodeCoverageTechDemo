@@ -1,0 +1,403 @@
+
+
+
+<!DOCTYPE html>
+<html id="htmlId">
+<head>
+  <meta http-equiv="Content-Type" content="text/html;charset=windows-1252"> 
+  <title>Coverage Report > DetectionResult</title>
+  <style type="text/css">
+    @import "../../css/coverage.css";
+    @import "../../css/idea.min.css";
+  </style>
+  <script type="text/javascript" src="../../js/highlight.min.js"></script>
+  <script type="text/javascript" src="../../js/highlightjs-line-numbers.min.js"></script>
+</head>
+
+<body>
+<div class="content">
+<div class="breadCrumbs">
+Current scope:     <a href="../../index.html">all classes</a>
+    <span class="separator">|</span>
+    <a href="../index.html">com.google.zxing.pdf417.decoder</a>
+</div>
+
+<h1>Coverage Summary for Class: DetectionResult (com.google.zxing.pdf417.decoder)</h1>
+
+<table class="coverageStats">
+<tr>
+  <th class="name">Class</th>
+<th class="coverageStat 
+">
+  Class, %
+</th>
+<th class="coverageStat 
+">
+  Method, %
+</th>
+<th class="coverageStat 
+">
+  Line, %
+</th>
+</tr>
+<tr>
+  <td class="name">DetectionResult</td>
+<td class="coverageStat">
+  <span class="percent">
+    100%
+  </span>
+  <span class="absValue">
+    (1/1)
+  </span>
+</td>
+<td class="coverageStat">
+  <span class="percent">
+    94.7%
+  </span>
+  <span class="absValue">
+    (18/19)
+  </span>
+</td>
+<td class="coverageStat">
+  <span class="percent">
+    85.3%
+  </span>
+  <span class="absValue">
+    (122/143)
+  </span>
+</td>
+</tr>
+
+</table>
+
+<br/>
+<br/>
+
+
+<pre>
+<code class="sourceCode" id="sourceCode">&nbsp;/*
+&nbsp; * Copyright 2013 ZXing authors
+&nbsp; *
+&nbsp; * Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
+&nbsp; * you may not use this file except in compliance with the License.
+&nbsp; * You may obtain a copy of the License at
+&nbsp; *
+&nbsp; *      http://www.apache.org/licenses/LICENSE-2.0
+&nbsp; *
+&nbsp; * Unless required by applicable law or agreed to in writing, software
+&nbsp; * distributed under the License is distributed on an &quot;AS IS&quot; BASIS,
+&nbsp; * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+&nbsp; * See the License for the specific language governing permissions and
+&nbsp; * limitations under the License.
+&nbsp; */
+&nbsp;
+&nbsp;package com.google.zxing.pdf417.decoder;
+&nbsp;
+&nbsp;import com.google.zxing.pdf417.PDF417Common;
+&nbsp;
+&nbsp;import java.util.Formatter;
+&nbsp;
+&nbsp;/**
+&nbsp; * @author Guenther Grau
+&nbsp; */
+&nbsp;final class DetectionResult {
+&nbsp;
+&nbsp;  private static final int ADJUST_ROW_NUMBER_SKIP = 2;
+&nbsp;
+&nbsp;  private final BarcodeMetadata barcodeMetadata;
+&nbsp;  private final DetectionResultColumn[] detectionResultColumns;
+&nbsp;  private BoundingBox boundingBox;
+&nbsp;  private final int barcodeColumnCount;
+&nbsp;
+<b class="fc">&nbsp;  DetectionResult(BarcodeMetadata barcodeMetadata, BoundingBox boundingBox) {</b>
+<b class="fc">&nbsp;    this.barcodeMetadata = barcodeMetadata;</b>
+<b class="fc">&nbsp;    this.barcodeColumnCount = barcodeMetadata.getColumnCount();</b>
+<b class="fc">&nbsp;    this.boundingBox = boundingBox;</b>
+<b class="fc">&nbsp;    detectionResultColumns = new DetectionResultColumn[barcodeColumnCount + 2];</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  DetectionResultColumn[] getDetectionResultColumns() {
+<b class="fc">&nbsp;    adjustIndicatorColumnRowNumbers(detectionResultColumns[0]);</b>
+<b class="fc">&nbsp;    adjustIndicatorColumnRowNumbers(detectionResultColumns[barcodeColumnCount + 1]);</b>
+<b class="fc">&nbsp;    int unadjustedCodewordCount = PDF417Common.MAX_CODEWORDS_IN_BARCODE;</b>
+&nbsp;    int previousUnadjustedCount;
+&nbsp;    do {
+<b class="fc">&nbsp;      previousUnadjustedCount = unadjustedCodewordCount;</b>
+<b class="fc">&nbsp;      unadjustedCodewordCount = adjustRowNumbers();</b>
+<b class="fc">&nbsp;    } while (unadjustedCodewordCount &gt; 0 &amp;&amp; unadjustedCodewordCount &lt; previousUnadjustedCount);</b>
+<b class="fc">&nbsp;    return detectionResultColumns;</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  private void adjustIndicatorColumnRowNumbers(DetectionResultColumn detectionResultColumn) {
+<b class="fc">&nbsp;    if (detectionResultColumn != null) {</b>
+<b class="fc">&nbsp;      ((DetectionResultRowIndicatorColumn) detectionResultColumn)</b>
+<b class="fc">&nbsp;          .adjustCompleteIndicatorColumnRowNumbers(barcodeMetadata);</b>
+&nbsp;    }
+&nbsp;  }
+&nbsp;
+&nbsp;  // TODO ensure that no detected codewords with unknown row number are left
+&nbsp;  // we should be able to estimate the row height and use it as a hint for the row number
+&nbsp;  // we should also fill the rows top to bottom and bottom to top
+&nbsp;  /**
+&nbsp;   * @return number of codewords which don&#39;t have a valid row number. Note that the count is not accurate as codewords
+&nbsp;   * will be counted several times. It just serves as an indicator to see when we can stop adjusting row numbers
+&nbsp;   */
+&nbsp;  private int adjustRowNumbers() {
+<b class="fc">&nbsp;    int unadjustedCount = adjustRowNumbersByRow();</b>
+<b class="fc">&nbsp;    if (unadjustedCount == 0) {</b>
+<b class="fc">&nbsp;      return 0;</b>
+&nbsp;    }
+<b class="fc">&nbsp;    for (int barcodeColumn = 1; barcodeColumn &lt; barcodeColumnCount + 1; barcodeColumn++) {</b>
+<b class="fc">&nbsp;      Codeword[] codewords = detectionResultColumns[barcodeColumn].getCodewords();</b>
+<b class="fc">&nbsp;      for (int codewordsRow = 0; codewordsRow &lt; codewords.length; codewordsRow++) {</b>
+<b class="fc">&nbsp;        if (codewords[codewordsRow] == null) {</b>
+<b class="fc">&nbsp;          continue;</b>
+&nbsp;        }
+<b class="fc">&nbsp;        if (!codewords[codewordsRow].hasValidRowNumber()) {</b>
+<b class="fc">&nbsp;          adjustRowNumbers(barcodeColumn, codewordsRow, codewords);</b>
+&nbsp;        }
+&nbsp;      }
+&nbsp;    }
+<b class="fc">&nbsp;    return unadjustedCount;</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  private int adjustRowNumbersByRow() {
+<b class="fc">&nbsp;    adjustRowNumbersFromBothRI();</b>
+&nbsp;    // TODO we should only do full row adjustments if row numbers of left and right row indicator column match.
+&nbsp;    // Maybe it&#39;s even better to calculated the height (in codeword rows) and divide it by the number of barcode
+&nbsp;    // rows. This, together with the LRI and RRI row numbers should allow us to get a good estimate where a row
+&nbsp;    // number starts and ends.
+<b class="fc">&nbsp;    int unadjustedCount = adjustRowNumbersFromLRI();</b>
+<b class="fc">&nbsp;    return unadjustedCount + adjustRowNumbersFromRRI();</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  private void adjustRowNumbersFromBothRI() {
+<b class="fc">&nbsp;    if (detectionResultColumns[0] == null || detectionResultColumns[barcodeColumnCount + 1] == null) {</b>
+&nbsp;      return;
+&nbsp;    }
+<b class="fc">&nbsp;    Codeword[] LRIcodewords = detectionResultColumns[0].getCodewords();</b>
+<b class="fc">&nbsp;    Codeword[] RRIcodewords = detectionResultColumns[barcodeColumnCount + 1].getCodewords();</b>
+<b class="fc">&nbsp;    for (int codewordsRow = 0; codewordsRow &lt; LRIcodewords.length; codewordsRow++) {</b>
+<b class="fc">&nbsp;      if (LRIcodewords[codewordsRow] != null &amp;&amp;</b>
+&nbsp;          RRIcodewords[codewordsRow] != null &amp;&amp;
+<b class="fc">&nbsp;          LRIcodewords[codewordsRow].getRowNumber() == RRIcodewords[codewordsRow].getRowNumber()) {</b>
+<b class="fc">&nbsp;        for (int barcodeColumn = 1; barcodeColumn &lt;= barcodeColumnCount; barcodeColumn++) {</b>
+<b class="fc">&nbsp;          Codeword codeword = detectionResultColumns[barcodeColumn].getCodewords()[codewordsRow];</b>
+<b class="fc">&nbsp;          if (codeword == null) {</b>
+<b class="fc">&nbsp;            continue;</b>
+&nbsp;          }
+<b class="fc">&nbsp;          codeword.setRowNumber(LRIcodewords[codewordsRow].getRowNumber());</b>
+<b class="fc">&nbsp;          if (!codeword.hasValidRowNumber()) {</b>
+<b class="fc">&nbsp;            detectionResultColumns[barcodeColumn].getCodewords()[codewordsRow] = null;</b>
+&nbsp;          }
+&nbsp;        }
+&nbsp;      }
+&nbsp;    }
+&nbsp;  }
+&nbsp;
+&nbsp;  private int adjustRowNumbersFromRRI() {
+<b class="fc">&nbsp;    if (detectionResultColumns[barcodeColumnCount + 1] == null) {</b>
+<b class="nc">&nbsp;      return 0;</b>
+&nbsp;    }
+<b class="fc">&nbsp;    int unadjustedCount = 0;</b>
+<b class="fc">&nbsp;    Codeword[] codewords = detectionResultColumns[barcodeColumnCount + 1].getCodewords();</b>
+<b class="fc">&nbsp;    for (int codewordsRow = 0; codewordsRow &lt; codewords.length; codewordsRow++) {</b>
+<b class="fc">&nbsp;      if (codewords[codewordsRow] == null) {</b>
+<b class="fc">&nbsp;        continue;</b>
+&nbsp;      }
+<b class="fc">&nbsp;      int rowIndicatorRowNumber = codewords[codewordsRow].getRowNumber();</b>
+<b class="fc">&nbsp;      int invalidRowCounts = 0;</b>
+<b class="fc">&nbsp;      for (int barcodeColumn = barcodeColumnCount + 1;</b>
+<b class="fc">&nbsp;           barcodeColumn &gt; 0 &amp;&amp; invalidRowCounts &lt; ADJUST_ROW_NUMBER_SKIP;</b>
+<b class="fc">&nbsp;           barcodeColumn--) {</b>
+<b class="fc">&nbsp;        Codeword codeword = detectionResultColumns[barcodeColumn].getCodewords()[codewordsRow];</b>
+<b class="fc">&nbsp;        if (codeword != null) {</b>
+<b class="fc">&nbsp;          invalidRowCounts = adjustRowNumberIfValid(rowIndicatorRowNumber, invalidRowCounts, codeword);</b>
+<b class="fc">&nbsp;          if (!codeword.hasValidRowNumber()) {</b>
+<b class="fc">&nbsp;            unadjustedCount++;</b>
+&nbsp;          }
+&nbsp;        }
+&nbsp;      }
+&nbsp;    }
+<b class="fc">&nbsp;    return unadjustedCount;</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  private int adjustRowNumbersFromLRI() {
+<b class="fc">&nbsp;    if (detectionResultColumns[0] == null) {</b>
+<b class="nc">&nbsp;      return 0;</b>
+&nbsp;    }
+<b class="fc">&nbsp;    int unadjustedCount = 0;</b>
+<b class="fc">&nbsp;    Codeword[] codewords = detectionResultColumns[0].getCodewords();</b>
+<b class="fc">&nbsp;    for (int codewordsRow = 0; codewordsRow &lt; codewords.length; codewordsRow++) {</b>
+<b class="fc">&nbsp;      if (codewords[codewordsRow] == null) {</b>
+<b class="fc">&nbsp;        continue;</b>
+&nbsp;      }
+<b class="fc">&nbsp;      int rowIndicatorRowNumber = codewords[codewordsRow].getRowNumber();</b>
+<b class="fc">&nbsp;      int invalidRowCounts = 0;</b>
+<b class="fc">&nbsp;      for (int barcodeColumn = 1;</b>
+<b class="fc">&nbsp;           barcodeColumn &lt; barcodeColumnCount + 1 &amp;&amp; invalidRowCounts &lt; ADJUST_ROW_NUMBER_SKIP;</b>
+<b class="fc">&nbsp;           barcodeColumn++) {</b>
+<b class="fc">&nbsp;        Codeword codeword = detectionResultColumns[barcodeColumn].getCodewords()[codewordsRow];</b>
+<b class="fc">&nbsp;        if (codeword != null) {</b>
+<b class="fc">&nbsp;          invalidRowCounts = adjustRowNumberIfValid(rowIndicatorRowNumber, invalidRowCounts, codeword);</b>
+<b class="fc">&nbsp;          if (!codeword.hasValidRowNumber()) {</b>
+<b class="fc">&nbsp;            unadjustedCount++;</b>
+&nbsp;          }
+&nbsp;        }
+&nbsp;      }
+&nbsp;    }
+<b class="fc">&nbsp;    return unadjustedCount;</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  private static int adjustRowNumberIfValid(int rowIndicatorRowNumber, int invalidRowCounts, Codeword codeword) {
+<b class="fc">&nbsp;    if (codeword == null) {</b>
+<b class="nc">&nbsp;      return invalidRowCounts;</b>
+&nbsp;    }
+<b class="fc">&nbsp;    if (!codeword.hasValidRowNumber()) {</b>
+<b class="fc">&nbsp;      if (codeword.isValidRowNumber(rowIndicatorRowNumber)) {</b>
+<b class="fc">&nbsp;        codeword.setRowNumber(rowIndicatorRowNumber);</b>
+<b class="fc">&nbsp;        invalidRowCounts = 0;</b>
+&nbsp;      } else {
+<b class="fc">&nbsp;        ++invalidRowCounts;</b>
+&nbsp;      }
+&nbsp;    }
+<b class="fc">&nbsp;    return invalidRowCounts;</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  private void adjustRowNumbers(int barcodeColumn, int codewordsRow, Codeword[] codewords) {
+<b class="fc">&nbsp;    Codeword codeword = codewords[codewordsRow];</b>
+<b class="fc">&nbsp;    Codeword[] previousColumnCodewords = detectionResultColumns[barcodeColumn - 1].getCodewords();</b>
+<b class="fc">&nbsp;    Codeword[] nextColumnCodewords = previousColumnCodewords;</b>
+<b class="fc">&nbsp;    if (detectionResultColumns[barcodeColumn + 1] != null) {</b>
+<b class="fc">&nbsp;      nextColumnCodewords = detectionResultColumns[barcodeColumn + 1].getCodewords();</b>
+&nbsp;    }
+&nbsp;
+<b class="fc">&nbsp;    Codeword[] otherCodewords = new Codeword[14];</b>
+&nbsp;
+<b class="fc">&nbsp;    otherCodewords[2] = previousColumnCodewords[codewordsRow];</b>
+<b class="fc">&nbsp;    otherCodewords[3] = nextColumnCodewords[codewordsRow];</b>
+&nbsp;
+<b class="fc">&nbsp;    if (codewordsRow &gt; 0) {</b>
+<b class="fc">&nbsp;      otherCodewords[0] = codewords[codewordsRow - 1];</b>
+<b class="fc">&nbsp;      otherCodewords[4] = previousColumnCodewords[codewordsRow - 1];</b>
+<b class="fc">&nbsp;      otherCodewords[5] = nextColumnCodewords[codewordsRow - 1];</b>
+&nbsp;    }
+<b class="fc">&nbsp;    if (codewordsRow &gt; 1) {</b>
+<b class="fc">&nbsp;      otherCodewords[8] = codewords[codewordsRow - 2];</b>
+<b class="fc">&nbsp;      otherCodewords[10] = previousColumnCodewords[codewordsRow - 2];</b>
+<b class="fc">&nbsp;      otherCodewords[11] = nextColumnCodewords[codewordsRow - 2];</b>
+&nbsp;    }
+<b class="fc">&nbsp;    if (codewordsRow &lt; codewords.length - 1) {</b>
+<b class="fc">&nbsp;      otherCodewords[1] = codewords[codewordsRow + 1];</b>
+<b class="fc">&nbsp;      otherCodewords[6] = previousColumnCodewords[codewordsRow + 1];</b>
+<b class="fc">&nbsp;      otherCodewords[7] = nextColumnCodewords[codewordsRow + 1];</b>
+&nbsp;    }
+<b class="fc">&nbsp;    if (codewordsRow &lt; codewords.length - 2) {</b>
+<b class="fc">&nbsp;      otherCodewords[9] = codewords[codewordsRow + 2];</b>
+<b class="fc">&nbsp;      otherCodewords[12] = previousColumnCodewords[codewordsRow + 2];</b>
+<b class="fc">&nbsp;      otherCodewords[13] = nextColumnCodewords[codewordsRow + 2];</b>
+&nbsp;    }
+<b class="fc">&nbsp;    for (Codeword otherCodeword : otherCodewords) {</b>
+<b class="fc">&nbsp;      if (adjustRowNumber(codeword, otherCodeword)) {</b>
+&nbsp;        return;
+&nbsp;      }
+&nbsp;    }
+&nbsp;  }
+&nbsp;
+&nbsp;  /**
+&nbsp;   * @return true, if row number was adjusted, false otherwise
+&nbsp;   */
+&nbsp;  private static boolean adjustRowNumber(Codeword codeword, Codeword otherCodeword) {
+<b class="fc">&nbsp;    if (otherCodeword == null) {</b>
+<b class="fc">&nbsp;      return false;</b>
+&nbsp;    }
+<b class="fc">&nbsp;    if (otherCodeword.hasValidRowNumber() &amp;&amp; otherCodeword.getBucket() == codeword.getBucket()) {</b>
+<b class="fc">&nbsp;      codeword.setRowNumber(otherCodeword.getRowNumber());</b>
+<b class="fc">&nbsp;      return true;</b>
+&nbsp;    }
+<b class="fc">&nbsp;    return false;</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  int getBarcodeColumnCount() {
+<b class="fc">&nbsp;    return barcodeColumnCount;</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  int getBarcodeRowCount() {
+<b class="fc">&nbsp;    return barcodeMetadata.getRowCount();</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  int getBarcodeECLevel() {
+<b class="fc">&nbsp;    return barcodeMetadata.getErrorCorrectionLevel();</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  void setBoundingBox(BoundingBox boundingBox) {
+<b class="fc">&nbsp;    this.boundingBox = boundingBox;</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  BoundingBox getBoundingBox() {
+<b class="fc">&nbsp;    return boundingBox;</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  void setDetectionResultColumn(int barcodeColumn, DetectionResultColumn detectionResultColumn) {
+<b class="fc">&nbsp;    detectionResultColumns[barcodeColumn] = detectionResultColumn;</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  DetectionResultColumn getDetectionResultColumn(int barcodeColumn) {
+<b class="fc">&nbsp;    return detectionResultColumns[barcodeColumn];</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  @Override
+&nbsp;  public String toString() {
+<b class="nc">&nbsp;    DetectionResultColumn rowIndicatorColumn = detectionResultColumns[0];</b>
+<b class="nc">&nbsp;    if (rowIndicatorColumn == null) {</b>
+<b class="nc">&nbsp;      rowIndicatorColumn = detectionResultColumns[barcodeColumnCount + 1];</b>
+&nbsp;    }
+<b class="nc">&nbsp;    try (Formatter formatter = new Formatter()) {</b>
+<b class="nc">&nbsp;      for (int codewordsRow = 0; codewordsRow &lt; rowIndicatorColumn.getCodewords().length; codewordsRow++) {</b>
+<b class="nc">&nbsp;        formatter.format(&quot;CW %3d:&quot;, codewordsRow);</b>
+<b class="nc">&nbsp;        for (int barcodeColumn = 0; barcodeColumn &lt; barcodeColumnCount + 2; barcodeColumn++) {</b>
+<b class="nc">&nbsp;          if (detectionResultColumns[barcodeColumn] == null) {</b>
+<b class="nc">&nbsp;            formatter.format(&quot;    |   &quot;);</b>
+<b class="nc">&nbsp;            continue;</b>
+&nbsp;          }
+<b class="nc">&nbsp;          Codeword codeword = detectionResultColumns[barcodeColumn].getCodewords()[codewordsRow];</b>
+<b class="nc">&nbsp;          if (codeword == null) {</b>
+<b class="nc">&nbsp;            formatter.format(&quot;    |   &quot;);</b>
+<b class="nc">&nbsp;            continue;</b>
+&nbsp;          }
+<b class="nc">&nbsp;          formatter.format(&quot; %3d|%3d&quot;, codeword.getRowNumber(), codeword.getValue());</b>
+&nbsp;        }
+<b class="nc">&nbsp;        formatter.format(&quot;%n&quot;);</b>
+&nbsp;      }
+<b class="nc">&nbsp;      return formatter.toString();</b>
+<b class="nc">&nbsp;    }</b>
+&nbsp;  }
+&nbsp;
+&nbsp;}
+</code>
+</pre>
+</div>
+
+<script type="text/javascript">
+(function() {
+    var msie = false, msie9 = false;
+    /*@cc_on
+      msie = true;
+      @if (@_jscript_version >= 9)
+        msie9 = true;
+      @end
+    @*/
+
+    if (!msie || msie && msie9) {
+      hljs.highlightAll()
+      hljs.initLineNumbersOnLoad();
+    }
+})();
+</script>
+
+<div class="footer">
+    
+    <div style="float:right;">generated on 2023-11-12 23:26</div>
+</div>
+</body>
+</html>

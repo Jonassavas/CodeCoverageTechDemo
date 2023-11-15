@@ -1,0 +1,230 @@
+
+
+
+<!DOCTYPE html>
+<html id="htmlId">
+<head>
+  <meta http-equiv="Content-Type" content="text/html;charset=windows-1252"> 
+  <title>Coverage Report > DecoderConfig</title>
+  <style type="text/css">
+    @import "../../css/coverage.css";
+    @import "../../css/idea.min.css";
+  </style>
+  <script type="text/javascript" src="../../js/highlight.min.js"></script>
+  <script type="text/javascript" src="../../js/highlightjs-line-numbers.min.js"></script>
+</head>
+
+<body>
+<div class="content">
+<div class="breadCrumbs">
+Current scope:     <a href="../../index.html">all classes</a>
+    <span class="separator">|</span>
+    <a href="../index.html">com.google.zxing.client.j2se</a>
+</div>
+
+<h1>Coverage Summary for Class: DecoderConfig (com.google.zxing.client.j2se)</h1>
+
+<table class="coverageStats">
+<tr>
+  <th class="name">Class</th>
+<th class="coverageStat 
+">
+  Class, %
+</th>
+<th class="coverageStat 
+">
+  Method, %
+</th>
+<th class="coverageStat 
+">
+  Line, %
+</th>
+</tr>
+<tr>
+  <td class="name">DecoderConfig</td>
+<td class="coverageStat">
+  <span class="percent">
+    0%
+  </span>
+  <span class="absValue">
+    (0/1)
+  </span>
+</td>
+<td class="coverageStat">
+  <span class="percent">
+    0%
+  </span>
+  <span class="absValue">
+    (0/2)
+  </span>
+</td>
+<td class="coverageStat">
+  <span class="percent">
+    0%
+  </span>
+  <span class="absValue">
+    (0/13)
+  </span>
+</td>
+</tr>
+
+</table>
+
+<br/>
+<br/>
+
+
+<pre>
+<code class="sourceCode" id="sourceCode">&nbsp;/*
+&nbsp; * Copyright 2011 ZXing authors
+&nbsp; *
+&nbsp; * Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
+&nbsp; * you may not use this file except in compliance with the License.
+&nbsp; * You may obtain a copy of the License at
+&nbsp; *
+&nbsp; *      http://www.apache.org/licenses/LICENSE-2.0
+&nbsp; *
+&nbsp; * Unless required by applicable law or agreed to in writing, software
+&nbsp; * distributed under the License is distributed on an &quot;AS IS&quot; BASIS,
+&nbsp; * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+&nbsp; * See the License for the specific language governing permissions and
+&nbsp; * limitations under the License.
+&nbsp; */
+&nbsp;
+&nbsp;package com.google.zxing.client.j2se;
+&nbsp;
+&nbsp;import com.beust.jcommander.Parameter;
+&nbsp;import com.beust.jcommander.validators.PositiveInteger;
+&nbsp;import com.google.zxing.BarcodeFormat;
+&nbsp;import com.google.zxing.DecodeHintType;
+&nbsp;
+&nbsp;import java.util.ArrayList;
+&nbsp;import java.util.Arrays;
+&nbsp;import java.util.Collections;
+&nbsp;import java.util.EnumMap;
+&nbsp;import java.util.List;
+&nbsp;import java.util.Map;
+&nbsp;
+<b class="nc">&nbsp;final class DecoderConfig {</b>
+&nbsp;
+&nbsp;  @Parameter(names = &quot;--try_harder&quot;,
+&nbsp;      description = &quot;Use the TRY_HARDER hint, default is normal mode&quot;)
+&nbsp;  boolean tryHarder;
+&nbsp;
+&nbsp;  @Parameter(names = &quot;--pure_barcode&quot;,
+&nbsp;      description = &quot;Input image is a pure monochrome barcode image, not a photo&quot;)
+&nbsp;  boolean pureBarcode;
+&nbsp;
+&nbsp;  @Parameter(names = &quot;--products_only&quot;,
+&nbsp;      description = &quot;Only decode the UPC and EAN families of barcodes&quot;)
+&nbsp;  boolean productsOnly;
+&nbsp;
+&nbsp;  @Parameter(names = &quot;--dump_results&quot;,
+&nbsp;      description = &quot;Write the decoded contents to input.txt&quot;)
+&nbsp;  boolean dumpResults;
+&nbsp;
+&nbsp;  @Parameter(names = &quot;--dump_black_point&quot;,
+&nbsp;      description = &quot;Compare black point algorithms with dump as input.mono.png&quot;)
+&nbsp;  boolean dumpBlackPoint;
+&nbsp;
+&nbsp;  @Parameter(names = &quot;--multi&quot;,
+&nbsp;      description = &quot;Scans image for multiple barcodes&quot;)
+&nbsp;  boolean multi;
+&nbsp;
+&nbsp;  @Parameter(names = &quot;--brief&quot;,
+&nbsp;      description = &quot;Only output one line per file, omitting the contents&quot;)
+&nbsp;  boolean brief;
+&nbsp;
+&nbsp;  @Parameter(names = &quot;--raw&quot;,
+&nbsp;      description = &quot;Output raw bitstream, before decoding symbols&quot;)
+&nbsp;  boolean outputRaw;
+&nbsp;
+&nbsp;  @Parameter(names = &quot;--recursive&quot;,
+&nbsp;      description = &quot;Descend into subdirectories&quot;)
+&nbsp;  boolean recursive;
+&nbsp;
+&nbsp;  @Parameter(names = &quot;--crop&quot;,
+&nbsp;      description = &quot; Only examine cropped region of input image(s)&quot;,
+&nbsp;      arity = 4,
+&nbsp;      validateWith = PositiveInteger.class)
+&nbsp;  List&lt;Integer&gt; crop;
+&nbsp;
+&nbsp;  @Parameter(names = &quot;--possible_formats&quot;,
+&nbsp;      description = &quot;Formats to decode, where format is any value in BarcodeFormat&quot;,
+&nbsp;      variableArity = true)
+&nbsp;  List&lt;BarcodeFormat&gt; possibleFormats;
+&nbsp;
+&nbsp;  @Parameter(names = &quot;--help&quot;,
+&nbsp;      description = &quot;Prints this help message&quot;,
+&nbsp;      help = true)
+&nbsp;  boolean help;
+&nbsp;
+&nbsp;  @Parameter(description = &quot;(URIs to decode)&quot;, required = true, variableArity = true)
+&nbsp;  List&lt;String&gt; inputPaths;
+&nbsp;
+&nbsp;  Map&lt;DecodeHintType,?&gt; buildHints() {
+<b class="nc">&nbsp;    List&lt;BarcodeFormat&gt; finalPossibleFormats = possibleFormats;</b>
+<b class="nc">&nbsp;    if (finalPossibleFormats == null || finalPossibleFormats.isEmpty()) {</b>
+<b class="nc">&nbsp;      finalPossibleFormats = new ArrayList&lt;&gt;(Arrays.asList(</b>
+&nbsp;          BarcodeFormat.UPC_A,
+&nbsp;          BarcodeFormat.UPC_E,
+&nbsp;          BarcodeFormat.EAN_13,
+&nbsp;          BarcodeFormat.EAN_8,
+&nbsp;          BarcodeFormat.RSS_14,
+&nbsp;          BarcodeFormat.RSS_EXPANDED
+&nbsp;      ));
+<b class="nc">&nbsp;      if (!productsOnly) {</b>
+<b class="nc">&nbsp;        finalPossibleFormats.addAll(Arrays.asList(</b>
+&nbsp;            BarcodeFormat.CODE_39,
+&nbsp;            BarcodeFormat.CODE_93,
+&nbsp;            BarcodeFormat.CODE_128,
+&nbsp;            BarcodeFormat.ITF,
+&nbsp;            BarcodeFormat.QR_CODE,
+&nbsp;            BarcodeFormat.DATA_MATRIX,
+&nbsp;            BarcodeFormat.AZTEC,
+&nbsp;            BarcodeFormat.PDF_417,
+&nbsp;            BarcodeFormat.CODABAR,
+&nbsp;            BarcodeFormat.MAXICODE
+&nbsp;        ));
+&nbsp;      }
+&nbsp;    }
+&nbsp;
+<b class="nc">&nbsp;    Map&lt;DecodeHintType, Object&gt; hints = new EnumMap&lt;&gt;(DecodeHintType.class);</b>
+<b class="nc">&nbsp;    hints.put(DecodeHintType.POSSIBLE_FORMATS, finalPossibleFormats);</b>
+<b class="nc">&nbsp;    if (tryHarder) {</b>
+<b class="nc">&nbsp;      hints.put(DecodeHintType.TRY_HARDER, Boolean.TRUE);</b>
+&nbsp;    }
+<b class="nc">&nbsp;    if (pureBarcode) {</b>
+<b class="nc">&nbsp;      hints.put(DecodeHintType.PURE_BARCODE, Boolean.TRUE);</b>
+&nbsp;    }
+<b class="nc">&nbsp;    return Collections.unmodifiableMap(hints);</b>
+&nbsp;  }
+&nbsp;
+&nbsp;}
+</code>
+</pre>
+</div>
+
+<script type="text/javascript">
+(function() {
+    var msie = false, msie9 = false;
+    /*@cc_on
+      msie = true;
+      @if (@_jscript_version >= 9)
+        msie9 = true;
+      @end
+    @*/
+
+    if (!msie || msie && msie9) {
+      hljs.highlightAll()
+      hljs.initLineNumbersOnLoad();
+    }
+})();
+</script>
+
+<div class="footer">
+    
+    <div style="float:right;">generated on 2023-11-12 23:26</div>
+</div>
+</body>
+</html>

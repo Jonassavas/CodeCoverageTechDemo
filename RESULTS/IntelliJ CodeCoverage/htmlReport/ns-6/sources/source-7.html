@@ -1,0 +1,247 @@
+
+
+
+<!DOCTYPE html>
+<html id="htmlId">
+<head>
+  <meta http-equiv="Content-Type" content="text/html;charset=windows-1252"> 
+  <title>Coverage Report > GUIRunner</title>
+  <style type="text/css">
+    @import "../../css/coverage.css";
+    @import "../../css/idea.min.css";
+  </style>
+  <script type="text/javascript" src="../../js/highlight.min.js"></script>
+  <script type="text/javascript" src="../../js/highlightjs-line-numbers.min.js"></script>
+</head>
+
+<body>
+<div class="content">
+<div class="breadCrumbs">
+Current scope:     <a href="../../index.html">all classes</a>
+    <span class="separator">|</span>
+    <a href="../index.html">com.google.zxing.client.j2se</a>
+</div>
+
+<h1>Coverage Summary for Class: GUIRunner (com.google.zxing.client.j2se)</h1>
+
+<table class="coverageStats">
+
+<tr>
+  <th class="name">Class</th>
+<th class="coverageStat 
+">
+  Method, %
+</th>
+<th class="coverageStat 
+">
+  Line, %
+</th>
+</tr>
+<tr>
+  <td class="name">GUIRunner</td>
+<td class="coverageStat">
+  <span class="percent">
+    0%
+  </span>
+  <span class="absValue">
+    (0/5)
+  </span>
+</td>
+<td class="coverageStat">
+  <span class="percent">
+    0%
+  </span>
+  <span class="absValue">
+    (0/38)
+  </span>
+</td>
+</tr>
+  <tr>
+    <td class="name">GUIRunner$1</td>
+<td class="coverageStat">
+  <span class="percent">
+    0%
+  </span>
+  <span class="absValue">
+    (0/2)
+  </span>
+</td>
+<td class="coverageStat">
+  <span class="percent">
+    0%
+  </span>
+  <span class="absValue">
+    (0/4)
+  </span>
+</td>
+  </tr>
+<tr>
+  <td class="name"><strong>Total</strong></td>
+<td class="coverageStat">
+  <span class="percent">
+    0%
+  </span>
+  <span class="absValue">
+    (0/7)
+  </span>
+</td>
+<td class="coverageStat">
+  <span class="percent">
+    0%
+  </span>
+  <span class="absValue">
+    (0/42)
+  </span>
+</td>
+</tr>
+</table>
+
+<br/>
+<br/>
+
+
+<pre>
+<code class="sourceCode" id="sourceCode">&nbsp;/*
+&nbsp; * Copyright 2008 ZXing authors
+&nbsp; *
+&nbsp; * Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
+&nbsp; * you may not use this file except in compliance with the License.
+&nbsp; * You may obtain a copy of the License at
+&nbsp; *
+&nbsp; *      http://www.apache.org/licenses/LICENSE-2.0
+&nbsp; *
+&nbsp; * Unless required by applicable law or agreed to in writing, software
+&nbsp; * distributed under the License is distributed on an &quot;AS IS&quot; BASIS,
+&nbsp; * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+&nbsp; * See the License for the specific language governing permissions and
+&nbsp; * limitations under the License.
+&nbsp; */
+&nbsp;
+&nbsp;package com.google.zxing.client.j2se;
+&nbsp;
+&nbsp;import com.google.zxing.BinaryBitmap;
+&nbsp;import com.google.zxing.LuminanceSource;
+&nbsp;import com.google.zxing.MultiFormatReader;
+&nbsp;import com.google.zxing.ReaderException;
+&nbsp;import com.google.zxing.Result;
+&nbsp;import com.google.zxing.common.HybridBinarizer;
+&nbsp;
+&nbsp;import java.awt.Container;
+&nbsp;import java.awt.Dimension;
+&nbsp;import java.awt.FlowLayout;
+&nbsp;import java.awt.image.BufferedImage;
+&nbsp;import java.io.IOException;
+&nbsp;import java.net.MalformedURLException;
+&nbsp;import java.nio.file.Path;
+&nbsp;
+&nbsp;import javax.swing.Icon;
+&nbsp;import javax.swing.ImageIcon;
+&nbsp;import javax.swing.JFileChooser;
+&nbsp;import javax.swing.JFrame;
+&nbsp;import javax.swing.JLabel;
+&nbsp;import javax.swing.JPanel;
+&nbsp;import javax.swing.JTextArea;
+&nbsp;import javax.swing.SwingUtilities;
+&nbsp;import javax.swing.WindowConstants;
+&nbsp;import javax.swing.text.JTextComponent;
+&nbsp;
+&nbsp;/**
+&nbsp; * &lt;p&gt;Simple GUI frontend to the library. Right now, only decodes a local file.
+&nbsp; * This definitely needs some improvement. Just throwing something down to start.&lt;/p&gt;
+&nbsp; *
+&nbsp; * @author Sean Owen
+&nbsp; */
+<b class="nc">&nbsp;public final class GUIRunner extends JFrame {</b>
+&nbsp;
+&nbsp;  private final JLabel imageLabel;
+&nbsp;  private final JTextComponent textArea;
+&nbsp;
+<b class="nc">&nbsp;  private GUIRunner() {</b>
+<b class="nc">&nbsp;    imageLabel = new JLabel();</b>
+<b class="nc">&nbsp;    textArea = new JTextArea();</b>
+<b class="nc">&nbsp;    textArea.setEditable(false);</b>
+<b class="nc">&nbsp;    textArea.setMaximumSize(new Dimension(400, 200));</b>
+<b class="nc">&nbsp;    Container panel = new JPanel();</b>
+<b class="nc">&nbsp;    panel.setLayout(new FlowLayout());</b>
+<b class="nc">&nbsp;    panel.add(imageLabel);</b>
+<b class="nc">&nbsp;    panel.add(textArea);</b>
+<b class="nc">&nbsp;    setTitle(&quot;ZXing&quot;);</b>
+<b class="nc">&nbsp;    setSize(400, 400);</b>
+<b class="nc">&nbsp;    setDefaultCloseOperation(WindowConstants.EXIT_ON_CLOSE);</b>
+<b class="nc">&nbsp;    setContentPane(panel);</b>
+<b class="nc">&nbsp;    setLocationRelativeTo(null);</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  public static void main(String[] args) throws MalformedURLException {
+<b class="nc">&nbsp;    SwingUtilities.invokeLater(new Runnable() {</b>
+&nbsp;      public void run() {
+<b class="nc">&nbsp;        GUIRunner runner = new GUIRunner();</b>
+<b class="nc">&nbsp;        runner.setVisible(true);</b>
+<b class="nc">&nbsp;        runner.chooseImage();</b>
+&nbsp;      }
+&nbsp;    });
+&nbsp;
+&nbsp;  }
+&nbsp;
+&nbsp;  private void chooseImage() {
+<b class="nc">&nbsp;    JFileChooser fileChooser = new JFileChooser();</b>
+<b class="nc">&nbsp;    fileChooser.showOpenDialog(this);</b>
+<b class="nc">&nbsp;    Path file = fileChooser.getSelectedFile().toPath();</b>
+&nbsp;    Icon imageIcon;
+&nbsp;    try {
+<b class="nc">&nbsp;      imageIcon = new ImageIcon(file.toUri().toURL());</b>
+<b class="nc">&nbsp;    } catch (MalformedURLException muee) {</b>
+<b class="nc">&nbsp;      throw new IllegalArgumentException(muee);</b>
+<b class="nc">&nbsp;    }</b>
+<b class="nc">&nbsp;    setSize(imageIcon.getIconWidth(), imageIcon.getIconHeight() + 100);</b>
+<b class="nc">&nbsp;    imageLabel.setIcon(imageIcon);</b>
+<b class="nc">&nbsp;    String decodeText = getDecodeText(file);</b>
+<b class="nc">&nbsp;    textArea.setText(decodeText);</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  private static String getDecodeText(Path file) {
+&nbsp;    BufferedImage image;
+&nbsp;    try {
+<b class="nc">&nbsp;      image = ImageReader.readImage(file.toUri());</b>
+<b class="nc">&nbsp;    } catch (IOException ioe) {</b>
+<b class="nc">&nbsp;      return ioe.toString();</b>
+<b class="nc">&nbsp;    }</b>
+<b class="nc">&nbsp;    LuminanceSource source = new BufferedImageLuminanceSource(image);</b>
+<b class="nc">&nbsp;    BinaryBitmap bitmap = new BinaryBitmap(new HybridBinarizer(source));</b>
+&nbsp;    Result result;
+&nbsp;    try {
+<b class="nc">&nbsp;      result = new MultiFormatReader().decode(bitmap);</b>
+<b class="nc">&nbsp;    } catch (ReaderException re) {</b>
+<b class="nc">&nbsp;      return re.toString();</b>
+<b class="nc">&nbsp;    }</b>
+<b class="nc">&nbsp;    return String.valueOf(result.getText());</b>
+&nbsp;  }
+&nbsp;
+&nbsp;}
+</code>
+</pre>
+</div>
+
+<script type="text/javascript">
+(function() {
+    var msie = false, msie9 = false;
+    /*@cc_on
+      msie = true;
+      @if (@_jscript_version >= 9)
+        msie9 = true;
+      @end
+    @*/
+
+    if (!msie || msie && msie9) {
+      hljs.highlightAll()
+      hljs.initLineNumbersOnLoad();
+    }
+})();
+</script>
+
+<div class="footer">
+    
+    <div style="float:right;">generated on 2023-11-12 23:26</div>
+</div>
+</body>
+</html>

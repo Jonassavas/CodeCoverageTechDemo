@@ -1,0 +1,196 @@
+
+
+
+<!DOCTYPE html>
+<html id="htmlId">
+<head>
+  <meta http-equiv="Content-Type" content="text/html;charset=windows-1252"> 
+  <title>Coverage Report > AddressBookDoCoMoResultParser</title>
+  <style type="text/css">
+    @import "../../css/coverage.css";
+    @import "../../css/idea.min.css";
+  </style>
+  <script type="text/javascript" src="../../js/highlight.min.js"></script>
+  <script type="text/javascript" src="../../js/highlightjs-line-numbers.min.js"></script>
+</head>
+
+<body>
+<div class="content">
+<div class="breadCrumbs">
+Current scope:     <a href="../../index.html">all classes</a>
+    <span class="separator">|</span>
+    <a href="../index.html">com.google.zxing.client.result</a>
+</div>
+
+<h1>Coverage Summary for Class: AddressBookDoCoMoResultParser (com.google.zxing.client.result)</h1>
+
+<table class="coverageStats">
+<tr>
+  <th class="name">Class</th>
+<th class="coverageStat 
+">
+  Class, %
+</th>
+<th class="coverageStat 
+">
+  Method, %
+</th>
+<th class="coverageStat 
+">
+  Line, %
+</th>
+</tr>
+<tr>
+  <td class="name">AddressBookDoCoMoResultParser</td>
+<td class="coverageStat">
+  <span class="percent">
+    100%
+  </span>
+  <span class="absValue">
+    (1/1)
+  </span>
+</td>
+<td class="coverageStat">
+  <span class="percent">
+    100%
+  </span>
+  <span class="absValue">
+    (3/3)
+  </span>
+</td>
+<td class="coverageStat">
+  <span class="percent">
+    91.3%
+  </span>
+  <span class="absValue">
+    (21/23)
+  </span>
+</td>
+</tr>
+
+</table>
+
+<br/>
+<br/>
+
+
+<pre>
+<code class="sourceCode" id="sourceCode">&nbsp;/*
+&nbsp; * Copyright 2007 ZXing authors
+&nbsp; *
+&nbsp; * Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
+&nbsp; * you may not use this file except in compliance with the License.
+&nbsp; * You may obtain a copy of the License at
+&nbsp; *
+&nbsp; *      http://www.apache.org/licenses/LICENSE-2.0
+&nbsp; *
+&nbsp; * Unless required by applicable law or agreed to in writing, software
+&nbsp; * distributed under the License is distributed on an &quot;AS IS&quot; BASIS,
+&nbsp; * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+&nbsp; * See the License for the specific language governing permissions and
+&nbsp; * limitations under the License.
+&nbsp; */
+&nbsp;
+&nbsp;package com.google.zxing.client.result;
+&nbsp;
+&nbsp;import com.google.zxing.Result;
+&nbsp;
+&nbsp;/**
+&nbsp; * Implements the &quot;MECARD&quot; address book entry format.
+&nbsp; *
+&nbsp; * Supported keys: N, SOUND, TEL, EMAIL, NOTE, ADR, BDAY, URL, plus ORG
+&nbsp; * Unsupported keys: TEL-AV, NICKNAME
+&nbsp; *
+&nbsp; * Except for TEL, multiple values for keys are also not supported;
+&nbsp; * the first one found takes precedence.
+&nbsp; *
+&nbsp; * Our understanding of the MECARD format is based on this document:
+&nbsp; *
+&nbsp; * http://www.mobicode.org.tw/files/OMIA%20Mobile%20Bar%20Code%20Standard%20v3.2.1.doc
+&nbsp; *
+&nbsp; * @author Sean Owen
+&nbsp; */
+<b class="fc">&nbsp;public final class AddressBookDoCoMoResultParser extends AbstractDoCoMoResultParser {</b>
+&nbsp;
+&nbsp;  @Override
+&nbsp;  public AddressBookParsedResult parse(Result result) {
+<b class="fc">&nbsp;    String rawText = getMassagedText(result);</b>
+<b class="fc">&nbsp;    if (!rawText.startsWith(&quot;MECARD:&quot;)) {</b>
+<b class="fc">&nbsp;      return null;</b>
+&nbsp;    }
+<b class="fc">&nbsp;    String[] rawName = matchDoCoMoPrefixedField(&quot;N:&quot;, rawText);</b>
+<b class="fc">&nbsp;    if (rawName == null) {</b>
+<b class="nc">&nbsp;      return null;</b>
+&nbsp;    }
+<b class="fc">&nbsp;    String name = parseName(rawName[0]);</b>
+<b class="fc">&nbsp;    String pronunciation = matchSingleDoCoMoPrefixedField(&quot;SOUND:&quot;, rawText, true);</b>
+<b class="fc">&nbsp;    String[] phoneNumbers = matchDoCoMoPrefixedField(&quot;TEL:&quot;, rawText);</b>
+<b class="fc">&nbsp;    String[] emails = matchDoCoMoPrefixedField(&quot;EMAIL:&quot;, rawText);</b>
+<b class="fc">&nbsp;    String note = matchSingleDoCoMoPrefixedField(&quot;NOTE:&quot;, rawText, false);</b>
+<b class="fc">&nbsp;    String[] addresses = matchDoCoMoPrefixedField(&quot;ADR:&quot;, rawText);</b>
+<b class="fc">&nbsp;    String birthday = matchSingleDoCoMoPrefixedField(&quot;BDAY:&quot;, rawText, true);</b>
+<b class="fc">&nbsp;    if (!isStringOfDigits(birthday, 8)) {</b>
+&nbsp;      // No reason to throw out the whole card because the birthday is formatted wrong.
+<b class="fc">&nbsp;      birthday = null;</b>
+&nbsp;    }
+<b class="fc">&nbsp;    String[] urls = matchDoCoMoPrefixedField(&quot;URL:&quot;, rawText);</b>
+&nbsp;
+&nbsp;    // Although ORG may not be strictly legal in MECARD, it does exist in VCARD and we might as well
+&nbsp;    // honor it when found in the wild.
+<b class="fc">&nbsp;    String org = matchSingleDoCoMoPrefixedField(&quot;ORG:&quot;, rawText, true);</b>
+&nbsp;
+<b class="fc">&nbsp;    return new AddressBookParsedResult(maybeWrap(name),</b>
+&nbsp;                                       null,
+&nbsp;                                       pronunciation,
+&nbsp;                                       phoneNumbers,
+&nbsp;                                       null,
+&nbsp;                                       emails,
+&nbsp;                                       null,
+&nbsp;                                       null,
+&nbsp;                                       note,
+&nbsp;                                       addresses,
+&nbsp;                                       null,
+&nbsp;                                       org,
+&nbsp;                                       birthday,
+&nbsp;                                       null,
+&nbsp;                                       urls,
+&nbsp;                                       null);
+&nbsp;  }
+&nbsp;
+&nbsp;  private static String parseName(String name) {
+<b class="fc">&nbsp;    int comma = name.indexOf(&#39;,&#39;);</b>
+<b class="fc">&nbsp;    if (comma &gt;= 0) {</b>
+&nbsp;      // Format may be last,first; switch it around
+<b class="nc">&nbsp;      return name.substring(comma + 1) + &#39; &#39; + name.substring(0, comma);</b>
+&nbsp;    }
+<b class="fc">&nbsp;    return name;</b>
+&nbsp;  }
+&nbsp;
+&nbsp;}
+</code>
+</pre>
+</div>
+
+<script type="text/javascript">
+(function() {
+    var msie = false, msie9 = false;
+    /*@cc_on
+      msie = true;
+      @if (@_jscript_version >= 9)
+        msie9 = true;
+      @end
+    @*/
+
+    if (!msie || msie && msie9) {
+      hljs.highlightAll()
+      hljs.initLineNumbersOnLoad();
+    }
+})();
+</script>
+
+<div class="footer">
+    
+    <div style="float:right;">generated on 2023-11-12 23:26</div>
+</div>
+</body>
+</html>

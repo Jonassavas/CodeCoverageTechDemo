@@ -1,0 +1,738 @@
+
+
+
+<!DOCTYPE html>
+<html id="htmlId">
+<head>
+  <meta http-equiv="Content-Type" content="text/html;charset=windows-1252"> 
+  <title>Coverage Report > PDF417ScanningDecoder</title>
+  <style type="text/css">
+    @import "../../css/coverage.css";
+    @import "../../css/idea.min.css";
+  </style>
+  <script type="text/javascript" src="../../js/highlight.min.js"></script>
+  <script type="text/javascript" src="../../js/highlightjs-line-numbers.min.js"></script>
+</head>
+
+<body>
+<div class="content">
+<div class="breadCrumbs">
+Current scope:     <a href="../../index.html">all classes</a>
+    <span class="separator">|</span>
+    <a href="../index.html">com.google.zxing.pdf417.decoder</a>
+</div>
+
+<h1>Coverage Summary for Class: PDF417ScanningDecoder (com.google.zxing.pdf417.decoder)</h1>
+
+<table class="coverageStats">
+<tr>
+  <th class="name">Class</th>
+<th class="coverageStat 
+">
+  Class, %
+</th>
+<th class="coverageStat 
+">
+  Method, %
+</th>
+<th class="coverageStat 
+">
+  Line, %
+</th>
+</tr>
+<tr>
+  <td class="name">PDF417ScanningDecoder</td>
+<td class="coverageStat">
+  <span class="percent">
+    100%
+  </span>
+  <span class="absValue">
+    (1/1)
+  </span>
+</td>
+<td class="coverageStat">
+  <span class="percent">
+    96%
+  </span>
+  <span class="absValue">
+    (24/25)
+  </span>
+</td>
+<td class="coverageStat">
+  <span class="percent">
+    88.8%
+  </span>
+  <span class="absValue">
+    (254/286)
+  </span>
+</td>
+</tr>
+
+</table>
+
+<br/>
+<br/>
+
+
+<pre>
+<code class="sourceCode" id="sourceCode">&nbsp;/*
+&nbsp; * Copyright 2013 ZXing authors
+&nbsp; *
+&nbsp; * Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
+&nbsp; * you may not use this file except in compliance with the License.
+&nbsp; * You may obtain a copy of the License at
+&nbsp; *
+&nbsp; *      http://www.apache.org/licenses/LICENSE-2.0
+&nbsp; *
+&nbsp; * Unless required by applicable law or agreed to in writing, software
+&nbsp; * distributed under the License is distributed on an &quot;AS IS&quot; BASIS,
+&nbsp; * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+&nbsp; * See the License for the specific language governing permissions and
+&nbsp; * limitations under the License.
+&nbsp; */
+&nbsp;
+&nbsp;package com.google.zxing.pdf417.decoder;
+&nbsp;
+&nbsp;import com.google.zxing.ChecksumException;
+&nbsp;import com.google.zxing.FormatException;
+&nbsp;import com.google.zxing.NotFoundException;
+&nbsp;import com.google.zxing.ResultPoint;
+&nbsp;import com.google.zxing.common.BitMatrix;
+&nbsp;import com.google.zxing.common.DecoderResult;
+&nbsp;import com.google.zxing.common.detector.MathUtils;
+&nbsp;import com.google.zxing.pdf417.PDF417Common;
+&nbsp;import com.google.zxing.pdf417.decoder.ec.ErrorCorrection;
+&nbsp;
+&nbsp;import java.util.ArrayList;
+&nbsp;import java.util.Collection;
+&nbsp;import java.util.Formatter;
+&nbsp;import java.util.List;
+&nbsp;
+&nbsp;/**
+&nbsp; * @author Guenther Grau
+&nbsp; */
+&nbsp;public final class PDF417ScanningDecoder {
+&nbsp;
+&nbsp;  private static final int CODEWORD_SKEW_SIZE = 2;
+&nbsp;
+&nbsp;  private static final int MAX_ERRORS = 3;
+&nbsp;  private static final int MAX_EC_CODEWORDS = 512;
+<b class="fc">&nbsp;  private static final ErrorCorrection errorCorrection = new ErrorCorrection();</b>
+&nbsp;
+&nbsp;  private PDF417ScanningDecoder() {
+&nbsp;  }
+&nbsp;
+&nbsp;  // TODO don&#39;t pass in minCodewordWidth and maxCodewordWidth, pass in barcode columns for start and stop pattern
+&nbsp;  // columns. That way width can be deducted from the pattern column.
+&nbsp;  // This approach also allows to detect more details about the barcode, e.g. if a bar type (white or black) is wider
+&nbsp;  // than it should be. This can happen if the scanner used a bad blackpoint.
+&nbsp;  public static DecoderResult decode(BitMatrix image,
+&nbsp;                                     ResultPoint imageTopLeft,
+&nbsp;                                     ResultPoint imageBottomLeft,
+&nbsp;                                     ResultPoint imageTopRight,
+&nbsp;                                     ResultPoint imageBottomRight,
+&nbsp;                                     int minCodewordWidth,
+&nbsp;                                     int maxCodewordWidth)
+&nbsp;      throws NotFoundException, FormatException, ChecksumException {
+<b class="fc">&nbsp;    BoundingBox boundingBox = new BoundingBox(image, imageTopLeft, imageBottomLeft, imageTopRight, imageBottomRight);</b>
+<b class="fc">&nbsp;    DetectionResultRowIndicatorColumn leftRowIndicatorColumn = null;</b>
+<b class="fc">&nbsp;    DetectionResultRowIndicatorColumn rightRowIndicatorColumn = null;</b>
+&nbsp;    DetectionResult detectionResult;
+<b class="fc">&nbsp;    for (boolean firstPass = true; ; firstPass = false) {</b>
+<b class="fc">&nbsp;      if (imageTopLeft != null) {</b>
+<b class="fc">&nbsp;        leftRowIndicatorColumn = getRowIndicatorColumn(image, boundingBox, imageTopLeft, true, minCodewordWidth,</b>
+&nbsp;            maxCodewordWidth);
+&nbsp;      }
+<b class="fc">&nbsp;      if (imageTopRight != null) {</b>
+<b class="fc">&nbsp;        rightRowIndicatorColumn = getRowIndicatorColumn(image, boundingBox, imageTopRight, false, minCodewordWidth,</b>
+&nbsp;            maxCodewordWidth);
+&nbsp;      }
+<b class="fc">&nbsp;      detectionResult = merge(leftRowIndicatorColumn, rightRowIndicatorColumn);</b>
+<b class="fc">&nbsp;      if (detectionResult == null) {</b>
+<b class="fc">&nbsp;        throw NotFoundException.getNotFoundInstance();</b>
+&nbsp;      }
+<b class="fc">&nbsp;      BoundingBox resultBox = detectionResult.getBoundingBox();</b>
+<b class="fc">&nbsp;      if (firstPass &amp;&amp; resultBox != null &amp;&amp;</b>
+<b class="fc">&nbsp;          (resultBox.getMinY() &lt; boundingBox.getMinY() || resultBox.getMaxY() &gt; boundingBox.getMaxY())) {</b>
+<b class="fc">&nbsp;        boundingBox = resultBox;</b>
+&nbsp;      } else {
+&nbsp;        break;
+&nbsp;      }
+&nbsp;    }
+<b class="fc">&nbsp;    detectionResult.setBoundingBox(boundingBox);</b>
+<b class="fc">&nbsp;    int maxBarcodeColumn = detectionResult.getBarcodeColumnCount() + 1;</b>
+<b class="fc">&nbsp;    detectionResult.setDetectionResultColumn(0, leftRowIndicatorColumn);</b>
+<b class="fc">&nbsp;    detectionResult.setDetectionResultColumn(maxBarcodeColumn, rightRowIndicatorColumn);</b>
+&nbsp;
+<b class="fc">&nbsp;    boolean leftToRight = leftRowIndicatorColumn != null;</b>
+<b class="fc">&nbsp;    for (int barcodeColumnCount = 1; barcodeColumnCount &lt;= maxBarcodeColumn; barcodeColumnCount++) {</b>
+<b class="fc">&nbsp;      int barcodeColumn = leftToRight ? barcodeColumnCount : maxBarcodeColumn - barcodeColumnCount;</b>
+<b class="fc">&nbsp;      if (detectionResult.getDetectionResultColumn(barcodeColumn) != null) {</b>
+&nbsp;        // This will be the case for the opposite row indicator column, which doesn&#39;t need to be decoded again.
+<b class="fc">&nbsp;        continue;</b>
+&nbsp;      }
+&nbsp;      DetectionResultColumn detectionResultColumn;
+<b class="fc">&nbsp;      if (barcodeColumn == 0 || barcodeColumn == maxBarcodeColumn) {</b>
+<b class="fc">&nbsp;        detectionResultColumn = new DetectionResultRowIndicatorColumn(boundingBox, barcodeColumn == 0);</b>
+&nbsp;      } else {
+<b class="fc">&nbsp;        detectionResultColumn = new DetectionResultColumn(boundingBox);</b>
+&nbsp;      }
+<b class="fc">&nbsp;      detectionResult.setDetectionResultColumn(barcodeColumn, detectionResultColumn);</b>
+<b class="fc">&nbsp;      int startColumn = -1;</b>
+<b class="fc">&nbsp;      int previousStartColumn = startColumn;</b>
+&nbsp;      // TODO start at a row for which we know the start position, then detect upwards and downwards from there.
+<b class="fc">&nbsp;      for (int imageRow = boundingBox.getMinY(); imageRow &lt;= boundingBox.getMaxY(); imageRow++) {</b>
+<b class="fc">&nbsp;        startColumn = getStartColumn(detectionResult, barcodeColumn, imageRow, leftToRight);</b>
+<b class="fc">&nbsp;        if (startColumn &lt; 0 || startColumn &gt; boundingBox.getMaxX()) {</b>
+<b class="fc">&nbsp;          if (previousStartColumn == -1) {</b>
+<b class="fc">&nbsp;            continue;</b>
+&nbsp;          }
+<b class="nc">&nbsp;          startColumn = previousStartColumn;</b>
+&nbsp;        }
+<b class="fc">&nbsp;        Codeword codeword = detectCodeword(image, boundingBox.getMinX(), boundingBox.getMaxX(), leftToRight,</b>
+&nbsp;            startColumn, imageRow, minCodewordWidth, maxCodewordWidth);
+<b class="fc">&nbsp;        if (codeword != null) {</b>
+<b class="fc">&nbsp;          detectionResultColumn.setCodeword(imageRow, codeword);</b>
+<b class="fc">&nbsp;          previousStartColumn = startColumn;</b>
+<b class="fc">&nbsp;          minCodewordWidth = Math.min(minCodewordWidth, codeword.getWidth());</b>
+<b class="fc">&nbsp;          maxCodewordWidth = Math.max(maxCodewordWidth, codeword.getWidth());</b>
+&nbsp;        }
+&nbsp;      }
+&nbsp;    }
+<b class="fc">&nbsp;    return createDecoderResult(detectionResult);</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  private static DetectionResult merge(DetectionResultRowIndicatorColumn leftRowIndicatorColumn,
+&nbsp;                                       DetectionResultRowIndicatorColumn rightRowIndicatorColumn)
+&nbsp;      throws NotFoundException {
+<b class="fc">&nbsp;    if (leftRowIndicatorColumn == null &amp;&amp; rightRowIndicatorColumn == null) {</b>
+<b class="nc">&nbsp;      return null;</b>
+&nbsp;    }
+<b class="fc">&nbsp;    BarcodeMetadata barcodeMetadata = getBarcodeMetadata(leftRowIndicatorColumn, rightRowIndicatorColumn);</b>
+<b class="fc">&nbsp;    if (barcodeMetadata == null) {</b>
+<b class="fc">&nbsp;      return null;</b>
+&nbsp;    }
+<b class="fc">&nbsp;    BoundingBox boundingBox = BoundingBox.merge(adjustBoundingBox(leftRowIndicatorColumn),</b>
+<b class="fc">&nbsp;        adjustBoundingBox(rightRowIndicatorColumn));</b>
+<b class="fc">&nbsp;    return new DetectionResult(barcodeMetadata, boundingBox);</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  private static BoundingBox adjustBoundingBox(DetectionResultRowIndicatorColumn rowIndicatorColumn)
+&nbsp;      throws NotFoundException {
+<b class="fc">&nbsp;    if (rowIndicatorColumn == null) {</b>
+<b class="fc">&nbsp;      return null;</b>
+&nbsp;    }
+<b class="fc">&nbsp;    int[] rowHeights = rowIndicatorColumn.getRowHeights();</b>
+<b class="fc">&nbsp;    if (rowHeights == null) {</b>
+<b class="nc">&nbsp;      return null;</b>
+&nbsp;    }
+<b class="fc">&nbsp;    int maxRowHeight = getMax(rowHeights);</b>
+<b class="fc">&nbsp;    int missingStartRows = 0;</b>
+<b class="fc">&nbsp;    for (int rowHeight : rowHeights) {</b>
+<b class="fc">&nbsp;      missingStartRows += maxRowHeight - rowHeight;</b>
+<b class="fc">&nbsp;      if (rowHeight &gt; 0) {</b>
+<b class="fc">&nbsp;        break;</b>
+&nbsp;      }
+&nbsp;    }
+<b class="fc">&nbsp;    Codeword[] codewords = rowIndicatorColumn.getCodewords();</b>
+<b class="fc">&nbsp;    for (int row = 0; missingStartRows &gt; 0 &amp;&amp; codewords[row] == null; row++) {</b>
+<b class="fc">&nbsp;      missingStartRows--;</b>
+&nbsp;    }
+<b class="fc">&nbsp;    int missingEndRows = 0;</b>
+<b class="fc">&nbsp;    for (int row = rowHeights.length - 1; row &gt;= 0; row--) {</b>
+<b class="fc">&nbsp;      missingEndRows += maxRowHeight - rowHeights[row];</b>
+<b class="fc">&nbsp;      if (rowHeights[row] &gt; 0) {</b>
+<b class="fc">&nbsp;        break;</b>
+&nbsp;      }
+&nbsp;    }
+<b class="fc">&nbsp;    for (int row = codewords.length - 1; missingEndRows &gt; 0 &amp;&amp; codewords[row] == null; row--) {</b>
+<b class="fc">&nbsp;      missingEndRows--;</b>
+&nbsp;    }
+<b class="fc">&nbsp;    return rowIndicatorColumn.getBoundingBox().addMissingRows(missingStartRows, missingEndRows,</b>
+<b class="fc">&nbsp;        rowIndicatorColumn.isLeft());</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  private static int getMax(int[] values) {
+<b class="fc">&nbsp;    int maxValue = -1;</b>
+<b class="fc">&nbsp;    for (int value : values) {</b>
+<b class="fc">&nbsp;      maxValue = Math.max(maxValue, value);</b>
+&nbsp;    }
+<b class="fc">&nbsp;    return maxValue;</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  private static BarcodeMetadata getBarcodeMetadata(DetectionResultRowIndicatorColumn leftRowIndicatorColumn,
+&nbsp;                                                    DetectionResultRowIndicatorColumn rightRowIndicatorColumn) {
+&nbsp;    BarcodeMetadata leftBarcodeMetadata;
+<b class="fc">&nbsp;    if (leftRowIndicatorColumn == null ||</b>
+<b class="fc">&nbsp;        (leftBarcodeMetadata = leftRowIndicatorColumn.getBarcodeMetadata()) == null) {</b>
+<b class="fc">&nbsp;      return rightRowIndicatorColumn == null ? null : rightRowIndicatorColumn.getBarcodeMetadata();</b>
+&nbsp;    }
+&nbsp;    BarcodeMetadata rightBarcodeMetadata;
+<b class="fc">&nbsp;    if (rightRowIndicatorColumn == null ||</b>
+<b class="fc">&nbsp;        (rightBarcodeMetadata = rightRowIndicatorColumn.getBarcodeMetadata()) == null) {</b>
+<b class="fc">&nbsp;      return leftBarcodeMetadata;</b>
+&nbsp;    }
+&nbsp;
+<b class="fc">&nbsp;    if (leftBarcodeMetadata.getColumnCount() != rightBarcodeMetadata.getColumnCount() &amp;&amp;</b>
+<b class="nc">&nbsp;        leftBarcodeMetadata.getErrorCorrectionLevel() != rightBarcodeMetadata.getErrorCorrectionLevel() &amp;&amp;</b>
+<b class="nc">&nbsp;        leftBarcodeMetadata.getRowCount() != rightBarcodeMetadata.getRowCount()) {</b>
+<b class="nc">&nbsp;      return null;</b>
+&nbsp;    }
+<b class="fc">&nbsp;    return leftBarcodeMetadata;</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  private static DetectionResultRowIndicatorColumn getRowIndicatorColumn(BitMatrix image,
+&nbsp;                                                                         BoundingBox boundingBox,
+&nbsp;                                                                         ResultPoint startPoint,
+&nbsp;                                                                         boolean leftToRight,
+&nbsp;                                                                         int minCodewordWidth,
+&nbsp;                                                                         int maxCodewordWidth) {
+<b class="fc">&nbsp;    DetectionResultRowIndicatorColumn rowIndicatorColumn = new DetectionResultRowIndicatorColumn(boundingBox,</b>
+&nbsp;        leftToRight);
+<b class="fc">&nbsp;    for (int i = 0; i &lt; 2; i++) {</b>
+<b class="fc">&nbsp;      int increment = i == 0 ? 1 : -1;</b>
+<b class="fc">&nbsp;      int startColumn = (int) startPoint.getX();</b>
+<b class="fc">&nbsp;      for (int imageRow = (int) startPoint.getY(); imageRow &lt;= boundingBox.getMaxY() &amp;&amp;</b>
+<b class="fc">&nbsp;          imageRow &gt;= boundingBox.getMinY(); imageRow += increment) {</b>
+<b class="fc">&nbsp;        Codeword codeword = detectCodeword(image, 0, image.getWidth(), leftToRight, startColumn, imageRow,</b>
+&nbsp;            minCodewordWidth, maxCodewordWidth);
+<b class="fc">&nbsp;        if (codeword != null) {</b>
+<b class="fc">&nbsp;          rowIndicatorColumn.setCodeword(imageRow, codeword);</b>
+<b class="fc">&nbsp;          if (leftToRight) {</b>
+<b class="fc">&nbsp;            startColumn = codeword.getStartX();</b>
+&nbsp;          } else {
+<b class="fc">&nbsp;            startColumn = codeword.getEndX();</b>
+&nbsp;          }
+&nbsp;        }
+&nbsp;      }
+&nbsp;    }
+<b class="fc">&nbsp;    return rowIndicatorColumn;</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  private static void adjustCodewordCount(DetectionResult detectionResult, BarcodeValue[][] barcodeMatrix)
+&nbsp;      throws NotFoundException {
+<b class="fc">&nbsp;    BarcodeValue barcodeMatrix01 = barcodeMatrix[0][1];</b>
+<b class="fc">&nbsp;    int[] numberOfCodewords = barcodeMatrix01.getValue();</b>
+<b class="fc">&nbsp;    int calculatedNumberOfCodewords = detectionResult.getBarcodeColumnCount() *</b>
+<b class="fc">&nbsp;        detectionResult.getBarcodeRowCount() -</b>
+<b class="fc">&nbsp;        getNumberOfECCodeWords(detectionResult.getBarcodeECLevel());</b>
+<b class="fc">&nbsp;    if (numberOfCodewords.length == 0) {</b>
+<b class="fc">&nbsp;      if (calculatedNumberOfCodewords &lt; 1 || calculatedNumberOfCodewords &gt; PDF417Common.MAX_CODEWORDS_IN_BARCODE) {</b>
+<b class="nc">&nbsp;        throw NotFoundException.getNotFoundInstance();</b>
+&nbsp;      }
+<b class="fc">&nbsp;      barcodeMatrix01.setValue(calculatedNumberOfCodewords);</b>
+<b class="fc">&nbsp;    } else if (numberOfCodewords[0] != calculatedNumberOfCodewords &amp;&amp;</b>
+&nbsp;        calculatedNumberOfCodewords &gt;= 1 &amp;&amp;
+&nbsp;        calculatedNumberOfCodewords &lt;= PDF417Common.MAX_CODEWORDS_IN_BARCODE) {
+&nbsp;      // The calculated one is more reliable as it is derived from the row indicator columns
+<b class="nc">&nbsp;      barcodeMatrix01.setValue(calculatedNumberOfCodewords);</b>
+&nbsp;    }
+&nbsp;  }
+&nbsp;
+&nbsp;  private static DecoderResult createDecoderResult(DetectionResult detectionResult) throws FormatException,
+&nbsp;      ChecksumException, NotFoundException {
+<b class="fc">&nbsp;    BarcodeValue[][] barcodeMatrix = createBarcodeMatrix(detectionResult);</b>
+<b class="fc">&nbsp;    adjustCodewordCount(detectionResult, barcodeMatrix);</b>
+<b class="fc">&nbsp;    Collection&lt;Integer&gt; erasures = new ArrayList&lt;&gt;();</b>
+<b class="fc">&nbsp;    int[] codewords = new int[detectionResult.getBarcodeRowCount() * detectionResult.getBarcodeColumnCount()];</b>
+<b class="fc">&nbsp;    List&lt;int[]&gt; ambiguousIndexValuesList = new ArrayList&lt;&gt;();</b>
+<b class="fc">&nbsp;    Collection&lt;Integer&gt; ambiguousIndexesList = new ArrayList&lt;&gt;();</b>
+<b class="fc">&nbsp;    for (int row = 0; row &lt; detectionResult.getBarcodeRowCount(); row++) {</b>
+<b class="fc">&nbsp;      for (int column = 0; column &lt; detectionResult.getBarcodeColumnCount(); column++) {</b>
+<b class="fc">&nbsp;        int[] values = barcodeMatrix[row][column + 1].getValue();</b>
+<b class="fc">&nbsp;        int codewordIndex = row * detectionResult.getBarcodeColumnCount() + column;</b>
+<b class="fc">&nbsp;        if (values.length == 0) {</b>
+<b class="fc">&nbsp;          erasures.add(codewordIndex);</b>
+<b class="fc">&nbsp;        } else if (values.length == 1) {</b>
+<b class="fc">&nbsp;          codewords[codewordIndex] = values[0];</b>
+&nbsp;        } else {
+<b class="fc">&nbsp;          ambiguousIndexesList.add(codewordIndex);</b>
+<b class="fc">&nbsp;          ambiguousIndexValuesList.add(values);</b>
+&nbsp;        }
+&nbsp;      }
+&nbsp;    }
+<b class="fc">&nbsp;    int[][] ambiguousIndexValues = new int[ambiguousIndexValuesList.size()][];</b>
+<b class="fc">&nbsp;    for (int i = 0; i &lt; ambiguousIndexValues.length; i++) {</b>
+<b class="fc">&nbsp;      ambiguousIndexValues[i] = ambiguousIndexValuesList.get(i);</b>
+&nbsp;    }
+<b class="fc">&nbsp;    return createDecoderResultFromAmbiguousValues(detectionResult.getBarcodeECLevel(), codewords,</b>
+<b class="fc">&nbsp;        PDF417Common.toIntArray(erasures), PDF417Common.toIntArray(ambiguousIndexesList), ambiguousIndexValues);</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  /**
+&nbsp;   * This method deals with the fact, that the decoding process doesn&#39;t always yield a single most likely value. The
+&nbsp;   * current error correction implementation doesn&#39;t deal with erasures very well, so it&#39;s better to provide a value
+&nbsp;   * for these ambiguous codewords instead of treating it as an erasure. The problem is that we don&#39;t know which of
+&nbsp;   * the ambiguous values to choose. We try decode using the first value, and if that fails, we use another of the
+&nbsp;   * ambiguous values and try to decode again. This usually only happens on very hard to read and decode barcodes,
+&nbsp;   * so decoding the normal barcodes is not affected by this.
+&nbsp;   *
+&nbsp;   * @param erasureArray contains the indexes of erasures
+&nbsp;   * @param ambiguousIndexes array with the indexes that have more than one most likely value
+&nbsp;   * @param ambiguousIndexValues two dimensional array that contains the ambiguous values. The first dimension must
+&nbsp;   * be the same length as the ambiguousIndexes array
+&nbsp;   */
+&nbsp;  private static DecoderResult createDecoderResultFromAmbiguousValues(int ecLevel,
+&nbsp;                                                                      int[] codewords,
+&nbsp;                                                                      int[] erasureArray,
+&nbsp;                                                                      int[] ambiguousIndexes,
+&nbsp;                                                                      int[][] ambiguousIndexValues)
+&nbsp;      throws FormatException, ChecksumException {
+<b class="fc">&nbsp;    int[] ambiguousIndexCount = new int[ambiguousIndexes.length];</b>
+&nbsp;
+<b class="fc">&nbsp;    int tries = 100;</b>
+<b class="fc">&nbsp;    while (tries-- &gt; 0) {</b>
+<b class="fc">&nbsp;      for (int i = 0; i &lt; ambiguousIndexCount.length; i++) {</b>
+<b class="fc">&nbsp;        codewords[ambiguousIndexes[i]] = ambiguousIndexValues[i][ambiguousIndexCount[i]];</b>
+&nbsp;      }
+&nbsp;      try {
+<b class="fc">&nbsp;        return decodeCodewords(codewords, ecLevel, erasureArray);</b>
+<b class="fc">&nbsp;      } catch (ChecksumException ignored) {</b>
+&nbsp;        //
+&nbsp;      }
+<b class="fc">&nbsp;      if (ambiguousIndexCount.length == 0) {</b>
+<b class="fc">&nbsp;        throw ChecksumException.getChecksumInstance();</b>
+&nbsp;      }
+<b class="fc">&nbsp;      for (int i = 0; i &lt; ambiguousIndexCount.length; i++) {</b>
+<b class="fc">&nbsp;        if (ambiguousIndexCount[i] &lt; ambiguousIndexValues[i].length - 1) {</b>
+<b class="fc">&nbsp;          ambiguousIndexCount[i]++;</b>
+<b class="fc">&nbsp;          break;</b>
+&nbsp;        } else {
+<b class="nc">&nbsp;          ambiguousIndexCount[i] = 0;</b>
+<b class="nc">&nbsp;          if (i == ambiguousIndexCount.length - 1) {</b>
+<b class="nc">&nbsp;            throw ChecksumException.getChecksumInstance();</b>
+&nbsp;          }
+&nbsp;        }
+&nbsp;      }
+&nbsp;    }
+<b class="nc">&nbsp;    throw ChecksumException.getChecksumInstance();</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  private static BarcodeValue[][] createBarcodeMatrix(DetectionResult detectionResult) {
+<b class="fc">&nbsp;    BarcodeValue[][] barcodeMatrix =</b>
+<b class="fc">&nbsp;        new BarcodeValue[detectionResult.getBarcodeRowCount()][detectionResult.getBarcodeColumnCount() + 2];</b>
+<b class="fc">&nbsp;    for (int row = 0; row &lt; barcodeMatrix.length; row++) {</b>
+<b class="fc">&nbsp;      for (int column = 0; column &lt; barcodeMatrix[row].length; column++) {</b>
+<b class="fc">&nbsp;        barcodeMatrix[row][column] = new BarcodeValue();</b>
+&nbsp;      }
+&nbsp;    }
+&nbsp;
+<b class="fc">&nbsp;    int column = 0;</b>
+<b class="fc">&nbsp;    for (DetectionResultColumn detectionResultColumn : detectionResult.getDetectionResultColumns()) {</b>
+<b class="fc">&nbsp;      if (detectionResultColumn != null) {</b>
+<b class="fc">&nbsp;        for (Codeword codeword : detectionResultColumn.getCodewords()) {</b>
+<b class="fc">&nbsp;          if (codeword != null) {</b>
+<b class="fc">&nbsp;            int rowNumber = codeword.getRowNumber();</b>
+<b class="fc">&nbsp;            if (rowNumber &gt;= 0) {</b>
+<b class="fc">&nbsp;              if (rowNumber &gt;= barcodeMatrix.length) {</b>
+&nbsp;                // We have more rows than the barcode metadata allows for, ignore them.
+<b class="fc">&nbsp;                continue;</b>
+&nbsp;              }
+<b class="fc">&nbsp;              barcodeMatrix[rowNumber][column].setValue(codeword.getValue());</b>
+&nbsp;            }
+&nbsp;          }
+&nbsp;        }
+&nbsp;      }
+<b class="fc">&nbsp;      column++;</b>
+&nbsp;    }
+<b class="fc">&nbsp;    return barcodeMatrix;</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  private static boolean isValidBarcodeColumn(DetectionResult detectionResult, int barcodeColumn) {
+<b class="fc">&nbsp;    return barcodeColumn &gt;= 0 &amp;&amp; barcodeColumn &lt;= detectionResult.getBarcodeColumnCount() + 1;</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  private static int getStartColumn(DetectionResult detectionResult,
+&nbsp;                                    int barcodeColumn,
+&nbsp;                                    int imageRow,
+&nbsp;                                    boolean leftToRight) {
+<b class="fc">&nbsp;    int offset = leftToRight ? 1 : -1;</b>
+<b class="fc">&nbsp;    Codeword codeword = null;</b>
+<b class="fc">&nbsp;    if (isValidBarcodeColumn(detectionResult, barcodeColumn - offset)) {</b>
+<b class="fc">&nbsp;      codeword = detectionResult.getDetectionResultColumn(barcodeColumn - offset).getCodeword(imageRow);</b>
+&nbsp;    }
+<b class="fc">&nbsp;    if (codeword != null) {</b>
+<b class="fc">&nbsp;      return leftToRight ? codeword.getEndX() : codeword.getStartX();</b>
+&nbsp;    }
+<b class="fc">&nbsp;    codeword = detectionResult.getDetectionResultColumn(barcodeColumn).getCodewordNearby(imageRow);</b>
+<b class="fc">&nbsp;    if (codeword != null) {</b>
+<b class="fc">&nbsp;      return leftToRight ? codeword.getStartX() : codeword.getEndX();</b>
+&nbsp;    }
+<b class="fc">&nbsp;    if (isValidBarcodeColumn(detectionResult, barcodeColumn - offset)) {</b>
+<b class="fc">&nbsp;      codeword = detectionResult.getDetectionResultColumn(barcodeColumn - offset).getCodewordNearby(imageRow);</b>
+&nbsp;    }
+<b class="fc">&nbsp;    if (codeword != null) {</b>
+<b class="fc">&nbsp;      return leftToRight ? codeword.getEndX() : codeword.getStartX();</b>
+&nbsp;    }
+<b class="fc">&nbsp;    int skippedColumns = 0;</b>
+&nbsp;
+<b class="fc">&nbsp;    while (isValidBarcodeColumn(detectionResult, barcodeColumn - offset)) {</b>
+<b class="fc">&nbsp;      barcodeColumn -= offset;</b>
+<b class="fc">&nbsp;      for (Codeword previousRowCodeword : detectionResult.getDetectionResultColumn(barcodeColumn).getCodewords()) {</b>
+<b class="fc">&nbsp;        if (previousRowCodeword != null) {</b>
+<b class="fc">&nbsp;          return (leftToRight ? previousRowCodeword.getEndX() : previousRowCodeword.getStartX()) +</b>
+&nbsp;              offset *
+&nbsp;              skippedColumns *
+<b class="fc">&nbsp;              (previousRowCodeword.getEndX() - previousRowCodeword.getStartX());</b>
+&nbsp;        }
+&nbsp;      }
+<b class="fc">&nbsp;      skippedColumns++;</b>
+&nbsp;    }
+<b class="nc">&nbsp;    return leftToRight ? detectionResult.getBoundingBox().getMinX() : detectionResult.getBoundingBox().getMaxX();</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  private static Codeword detectCodeword(BitMatrix image,
+&nbsp;                                         int minColumn,
+&nbsp;                                         int maxColumn,
+&nbsp;                                         boolean leftToRight,
+&nbsp;                                         int startColumn,
+&nbsp;                                         int imageRow,
+&nbsp;                                         int minCodewordWidth,
+&nbsp;                                         int maxCodewordWidth) {
+<b class="fc">&nbsp;    startColumn = adjustCodewordStartColumn(image, minColumn, maxColumn, leftToRight, startColumn, imageRow);</b>
+&nbsp;    // we usually know fairly exact now how long a codeword is. We should provide minimum and maximum expected length
+&nbsp;    // and try to adjust the read pixels, e.g. remove single pixel errors or try to cut off exceeding pixels.
+&nbsp;    // min and maxCodewordWidth should not be used as they are calculated for the whole barcode an can be inaccurate
+&nbsp;    // for the current position
+<b class="fc">&nbsp;    int[] moduleBitCount = getModuleBitCount(image, minColumn, maxColumn, leftToRight, startColumn, imageRow);</b>
+<b class="fc">&nbsp;    if (moduleBitCount == null) {</b>
+<b class="fc">&nbsp;      return null;</b>
+&nbsp;    }
+&nbsp;    int endColumn;
+<b class="fc">&nbsp;    int codewordBitCount = MathUtils.sum(moduleBitCount);</b>
+<b class="fc">&nbsp;    if (leftToRight) {</b>
+<b class="fc">&nbsp;      endColumn = startColumn + codewordBitCount;</b>
+&nbsp;    } else {
+<b class="fc">&nbsp;      for (int i = 0; i &lt; moduleBitCount.length / 2; i++) {</b>
+<b class="fc">&nbsp;        int tmpCount = moduleBitCount[i];</b>
+<b class="fc">&nbsp;        moduleBitCount[i] = moduleBitCount[moduleBitCount.length - 1 - i];</b>
+<b class="fc">&nbsp;        moduleBitCount[moduleBitCount.length - 1 - i] = tmpCount;</b>
+&nbsp;      }
+<b class="fc">&nbsp;      endColumn = startColumn;</b>
+<b class="fc">&nbsp;      startColumn = endColumn - codewordBitCount;</b>
+&nbsp;    }
+&nbsp;    // TODO implement check for width and correction of black and white bars
+&nbsp;    // use start (and maybe stop pattern) to determine if black bars are wider than white bars. If so, adjust.
+&nbsp;    // should probably done only for codewords with a lot more than 17 bits.
+&nbsp;    // The following fixes 10-1.png, which has wide black bars and small white bars
+&nbsp;    //    for (int i = 0; i &lt; moduleBitCount.length; i++) {
+&nbsp;    //      if (i % 2 == 0) {
+&nbsp;    //        moduleBitCount[i]--;
+&nbsp;    //      } else {
+&nbsp;    //        moduleBitCount[i]++;
+&nbsp;    //      }
+&nbsp;    //    }
+&nbsp;
+&nbsp;    // We could also use the width of surrounding codewords for more accurate results, but this seems
+&nbsp;    // sufficient for now
+<b class="fc">&nbsp;    if (!checkCodewordSkew(codewordBitCount, minCodewordWidth, maxCodewordWidth)) {</b>
+&nbsp;      // We could try to use the startX and endX position of the codeword in the same column in the previous row,
+&nbsp;      // create the bit count from it and normalize it to 8. This would help with single pixel errors.
+<b class="fc">&nbsp;      return null;</b>
+&nbsp;    }
+&nbsp;
+<b class="fc">&nbsp;    int decodedValue = PDF417CodewordDecoder.getDecodedValue(moduleBitCount);</b>
+<b class="fc">&nbsp;    int codeword = PDF417Common.getCodeword(decodedValue);</b>
+<b class="fc">&nbsp;    if (codeword == -1) {</b>
+<b class="nc">&nbsp;      return null;</b>
+&nbsp;    }
+<b class="fc">&nbsp;    return new Codeword(startColumn, endColumn, getCodewordBucketNumber(decodedValue), codeword);</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  private static int[] getModuleBitCount(BitMatrix image,
+&nbsp;                                         int minColumn,
+&nbsp;                                         int maxColumn,
+&nbsp;                                         boolean leftToRight,
+&nbsp;                                         int startColumn,
+&nbsp;                                         int imageRow) {
+<b class="fc">&nbsp;    int imageColumn = startColumn;</b>
+<b class="fc">&nbsp;    int[] moduleBitCount = new int[8];</b>
+<b class="fc">&nbsp;    int moduleNumber = 0;</b>
+<b class="fc">&nbsp;    int increment = leftToRight ? 1 : -1;</b>
+<b class="fc">&nbsp;    boolean previousPixelValue = leftToRight;</b>
+<b class="fc">&nbsp;    while ((leftToRight ? imageColumn &lt; maxColumn : imageColumn &gt;= minColumn) &amp;&amp;</b>
+&nbsp;           moduleNumber &lt; moduleBitCount.length) {
+<b class="fc">&nbsp;      if (image.get(imageColumn, imageRow) == previousPixelValue) {</b>
+<b class="fc">&nbsp;        moduleBitCount[moduleNumber]++;</b>
+<b class="fc">&nbsp;        imageColumn += increment;</b>
+&nbsp;      } else {
+<b class="fc">&nbsp;        moduleNumber++;</b>
+<b class="fc">&nbsp;        previousPixelValue = !previousPixelValue;</b>
+&nbsp;      }
+&nbsp;    }
+<b class="fc">&nbsp;    if (moduleNumber == moduleBitCount.length ||</b>
+<b class="fc">&nbsp;        ((imageColumn == (leftToRight ? maxColumn : minColumn)) &amp;&amp;</b>
+&nbsp;         moduleNumber == moduleBitCount.length - 1)) {
+<b class="fc">&nbsp;      return moduleBitCount;</b>
+&nbsp;    }
+<b class="fc">&nbsp;    return null;</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  private static int getNumberOfECCodeWords(int barcodeECLevel) {
+<b class="fc">&nbsp;    return 2 &lt;&lt; barcodeECLevel;</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  private static int adjustCodewordStartColumn(BitMatrix image,
+&nbsp;                                               int minColumn,
+&nbsp;                                               int maxColumn,
+&nbsp;                                               boolean leftToRight,
+&nbsp;                                               int codewordStartColumn,
+&nbsp;                                               int imageRow) {
+<b class="fc">&nbsp;    int correctedStartColumn = codewordStartColumn;</b>
+<b class="fc">&nbsp;    int increment = leftToRight ? -1 : 1;</b>
+&nbsp;    // there should be no black pixels before the start column. If there are, then we need to start earlier.
+<b class="fc">&nbsp;    for (int i = 0; i &lt; 2; i++) {</b>
+<b class="fc">&nbsp;      while ((leftToRight ? correctedStartColumn &gt;= minColumn : correctedStartColumn &lt; maxColumn) &amp;&amp;</b>
+<b class="fc">&nbsp;             leftToRight == image.get(correctedStartColumn, imageRow)) {</b>
+<b class="fc">&nbsp;        if (Math.abs(codewordStartColumn - correctedStartColumn) &gt; CODEWORD_SKEW_SIZE) {</b>
+<b class="fc">&nbsp;          return codewordStartColumn;</b>
+&nbsp;        }
+<b class="fc">&nbsp;        correctedStartColumn += increment;</b>
+&nbsp;      }
+<b class="fc">&nbsp;      increment = -increment;</b>
+<b class="fc">&nbsp;      leftToRight = !leftToRight;</b>
+&nbsp;    }
+<b class="fc">&nbsp;    return correctedStartColumn;</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  private static boolean checkCodewordSkew(int codewordSize, int minCodewordWidth, int maxCodewordWidth) {
+<b class="fc">&nbsp;    return minCodewordWidth - CODEWORD_SKEW_SIZE &lt;= codewordSize &amp;&amp;</b>
+&nbsp;        codewordSize &lt;= maxCodewordWidth + CODEWORD_SKEW_SIZE;
+&nbsp;  }
+&nbsp;
+&nbsp;  private static DecoderResult decodeCodewords(int[] codewords, int ecLevel, int[] erasures) throws FormatException,
+&nbsp;      ChecksumException {
+<b class="fc">&nbsp;    if (codewords.length == 0) {</b>
+<b class="nc">&nbsp;      throw FormatException.getFormatInstance();</b>
+&nbsp;    }
+&nbsp;
+<b class="fc">&nbsp;    int numECCodewords = 1 &lt;&lt; (ecLevel + 1);</b>
+<b class="fc">&nbsp;    int correctedErrorsCount = correctErrors(codewords, erasures, numECCodewords);</b>
+<b class="fc">&nbsp;    verifyCodewordCount(codewords, numECCodewords);</b>
+&nbsp;
+&nbsp;    // Decode the codewords
+<b class="fc">&nbsp;    DecoderResult decoderResult = DecodedBitStreamParser.decode(codewords, String.valueOf(ecLevel));</b>
+<b class="fc">&nbsp;    decoderResult.setErrorsCorrected(correctedErrorsCount);</b>
+<b class="fc">&nbsp;    decoderResult.setErasures(erasures.length);</b>
+<b class="fc">&nbsp;    return decoderResult;</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  /**
+&nbsp;   * &lt;p&gt;Given data and error-correction codewords received, possibly corrupted by errors, attempts to
+&nbsp;   * correct the errors in-place.&lt;/p&gt;
+&nbsp;   *
+&nbsp;   * @param codewords   data and error correction codewords
+&nbsp;   * @param erasures positions of any known erasures
+&nbsp;   * @param numECCodewords number of error correction codewords that are available in codewords
+&nbsp;   * @throws ChecksumException if error correction fails
+&nbsp;   */
+&nbsp;  private static int correctErrors(int[] codewords, int[] erasures, int numECCodewords) throws ChecksumException {
+<b class="fc">&nbsp;    if (erasures != null &amp;&amp;</b>
+&nbsp;        erasures.length &gt; numECCodewords / 2 + MAX_ERRORS ||
+&nbsp;        numECCodewords &lt; 0 ||
+&nbsp;        numECCodewords &gt; MAX_EC_CODEWORDS) {
+&nbsp;      // Too many errors or EC Codewords is corrupted
+<b class="fc">&nbsp;      throw ChecksumException.getChecksumInstance();</b>
+&nbsp;    }
+<b class="fc">&nbsp;    return errorCorrection.decode(codewords, numECCodewords, erasures);</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  /**
+&nbsp;   * Verify that all is OK with the codeword array.
+&nbsp;   */
+&nbsp;  private static void verifyCodewordCount(int[] codewords, int numECCodewords) throws FormatException {
+<b class="fc">&nbsp;    if (codewords.length &lt; 4) {</b>
+&nbsp;      // Codeword array size should be at least 4 allowing for
+&nbsp;      // Count CW, At least one Data CW, Error Correction CW, Error Correction CW
+<b class="nc">&nbsp;      throw FormatException.getFormatInstance();</b>
+&nbsp;    }
+&nbsp;    // The first codeword, the Symbol Length Descriptor, shall always encode the total number of data
+&nbsp;    // codewords in the symbol, including the Symbol Length Descriptor itself, data codewords and pad
+&nbsp;    // codewords, but excluding the number of error correction codewords.
+<b class="fc">&nbsp;    int numberOfCodewords = codewords[0];</b>
+<b class="fc">&nbsp;    if (numberOfCodewords &gt; codewords.length) {</b>
+<b class="nc">&nbsp;      throw FormatException.getFormatInstance();</b>
+&nbsp;    }
+<b class="fc">&nbsp;    if (numberOfCodewords == 0) {</b>
+&nbsp;      // Reset to the length of the array - 8 (Allow for at least level 3 Error Correction (8 Error Codewords)
+<b class="nc">&nbsp;      if (numECCodewords &lt; codewords.length) {</b>
+<b class="nc">&nbsp;        codewords[0] = codewords.length - numECCodewords;</b>
+&nbsp;      } else {
+<b class="nc">&nbsp;        throw FormatException.getFormatInstance();</b>
+&nbsp;      }
+&nbsp;    }
+&nbsp;  }
+&nbsp;
+&nbsp;  private static int[] getBitCountForCodeword(int codeword) {
+<b class="fc">&nbsp;    int[] result = new int[8];</b>
+<b class="fc">&nbsp;    int previousValue = 0;</b>
+<b class="fc">&nbsp;    int i = result.length - 1;</b>
+&nbsp;    while (true) {
+<b class="fc">&nbsp;      if ((codeword &amp; 0x1) != previousValue) {</b>
+<b class="fc">&nbsp;        previousValue = codeword &amp; 0x1;</b>
+<b class="fc">&nbsp;        i--;</b>
+<b class="fc">&nbsp;        if (i &lt; 0) {</b>
+<b class="fc">&nbsp;          break;</b>
+&nbsp;        }
+&nbsp;      }
+<b class="fc">&nbsp;      result[i]++;</b>
+<b class="fc">&nbsp;      codeword &gt;&gt;= 1;</b>
+&nbsp;    }
+<b class="fc">&nbsp;    return result;</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  private static int getCodewordBucketNumber(int codeword) {
+<b class="fc">&nbsp;    return getCodewordBucketNumber(getBitCountForCodeword(codeword));</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  private static int getCodewordBucketNumber(int[] moduleBitCount) {
+<b class="fc">&nbsp;    return (moduleBitCount[0] - moduleBitCount[2] + moduleBitCount[4] - moduleBitCount[6] + 9) % 9;</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  public static String toString(BarcodeValue[][] barcodeMatrix) {
+<b class="nc">&nbsp;    try (Formatter formatter = new Formatter()) {</b>
+<b class="nc">&nbsp;      for (int row = 0; row &lt; barcodeMatrix.length; row++) {</b>
+<b class="nc">&nbsp;        formatter.format(&quot;Row %2d: &quot;, row);</b>
+<b class="nc">&nbsp;        for (int column = 0; column &lt; barcodeMatrix[row].length; column++) {</b>
+<b class="nc">&nbsp;          BarcodeValue barcodeValue = barcodeMatrix[row][column];</b>
+<b class="nc">&nbsp;          if (barcodeValue.getValue().length == 0) {</b>
+<b class="nc">&nbsp;            formatter.format(&quot;        &quot;, (Object[]) null);</b>
+&nbsp;          } else {
+<b class="nc">&nbsp;            formatter.format(&quot;%4d(%2d)&quot;, barcodeValue.getValue()[0],</b>
+<b class="nc">&nbsp;                barcodeValue.getConfidence(barcodeValue.getValue()[0]));</b>
+&nbsp;          }
+&nbsp;        }
+<b class="nc">&nbsp;        formatter.format(&quot;%n&quot;);</b>
+&nbsp;      }
+<b class="nc">&nbsp;      return formatter.toString();</b>
+<b class="nc">&nbsp;    }</b>
+&nbsp;  }
+&nbsp;
+&nbsp;}
+</code>
+</pre>
+</div>
+
+<script type="text/javascript">
+(function() {
+    var msie = false, msie9 = false;
+    /*@cc_on
+      msie = true;
+      @if (@_jscript_version >= 9)
+        msie9 = true;
+      @end
+    @*/
+
+    if (!msie || msie && msie9) {
+      hljs.highlightAll()
+      hljs.initLineNumbersOnLoad();
+    }
+})();
+</script>
+
+<div class="footer">
+    
+    <div style="float:right;">generated on 2023-11-12 23:26</div>
+</div>
+</body>
+</html>

@@ -1,0 +1,873 @@
+
+
+
+<!DOCTYPE html>
+<html id="htmlId">
+<head>
+  <meta http-equiv="Content-Type" content="text/html;charset=windows-1252"> 
+  <title>Coverage Report > MinimalEncoder</title>
+  <style type="text/css">
+    @import "../../css/coverage.css";
+    @import "../../css/idea.min.css";
+  </style>
+  <script type="text/javascript" src="../../js/highlight.min.js"></script>
+  <script type="text/javascript" src="../../js/highlightjs-line-numbers.min.js"></script>
+</head>
+
+<body>
+<div class="content">
+<div class="breadCrumbs">
+Current scope:     <a href="../../index.html">all classes</a>
+    <span class="separator">|</span>
+    <a href="../index.html">com.google.zxing.qrcode.encoder</a>
+</div>
+
+<h1>Coverage Summary for Class: MinimalEncoder (com.google.zxing.qrcode.encoder)</h1>
+
+<table class="coverageStats">
+
+<tr>
+  <th class="name">Class</th>
+<th class="coverageStat 
+">
+  Method, %
+</th>
+<th class="coverageStat 
+">
+  Line, %
+</th>
+</tr>
+<tr>
+  <td class="name">MinimalEncoder</td>
+<td class="coverageStat">
+  <span class="percent">
+    100%
+  </span>
+  <span class="absValue">
+    (14/14)
+  </span>
+</td>
+<td class="coverageStat">
+  <span class="percent">
+    87.6%
+  </span>
+  <span class="absValue">
+    (85/97)
+  </span>
+</td>
+</tr>
+  <tr>
+    <td class="name">MinimalEncoder$1</td>
+<td class="coverageStat">
+  <span class="percent">
+    100%
+  </span>
+  <span class="absValue">
+    (1/1)
+  </span>
+</td>
+<td class="coverageStat">
+  <span class="percent">
+    100%
+  </span>
+  <span class="absValue">
+    (2/2)
+  </span>
+</td>
+  </tr>
+  <tr>
+    <td class="name">MinimalEncoder$Edge</td>
+<td class="coverageStat">
+  <span class="percent">
+    100%
+  </span>
+  <span class="absValue">
+    (2/2)
+  </span>
+</td>
+<td class="coverageStat">
+  <span class="percent">
+    100%
+  </span>
+  <span class="absValue">
+    (23/23)
+  </span>
+</td>
+  </tr>
+  <tr>
+    <td class="name">MinimalEncoder$ResultList</td>
+<td class="coverageStat">
+  <span class="percent">
+    57.1%
+  </span>
+  <span class="absValue">
+    (4/7)
+  </span>
+</td>
+<td class="coverageStat">
+  <span class="percent">
+    87.5%
+  </span>
+  <span class="absValue">
+    (56/64)
+  </span>
+</td>
+  </tr>
+  <tr>
+    <td class="name">MinimalEncoder$ResultList$ResultNode</td>
+<td class="coverageStat">
+  <span class="percent">
+    85.7%
+  </span>
+  <span class="absValue">
+    (6/7)
+  </span>
+</td>
+<td class="coverageStat">
+  <span class="percent">
+    80.4%
+  </span>
+  <span class="absValue">
+    (37/46)
+  </span>
+</td>
+  </tr>
+  <tr>
+    <td class="name">MinimalEncoder$VersionSize</td>
+<td class="coverageStat">
+  <span class="percent">
+    75%
+  </span>
+  <span class="absValue">
+    (3/4)
+  </span>
+</td>
+<td class="coverageStat">
+  <span class="percent">
+    85.7%
+  </span>
+  <span class="absValue">
+    (6/7)
+  </span>
+</td>
+  </tr>
+<tr>
+  <td class="name"><strong>Total</strong></td>
+<td class="coverageStat">
+  <span class="percent">
+    85.7%
+  </span>
+  <span class="absValue">
+    (30/35)
+  </span>
+</td>
+<td class="coverageStat">
+  <span class="percent">
+    87.4%
+  </span>
+  <span class="absValue">
+    (209/239)
+  </span>
+</td>
+</tr>
+</table>
+
+<br/>
+<br/>
+
+
+<pre>
+<code class="sourceCode" id="sourceCode">&nbsp;/*
+&nbsp; * Copyright 2021 ZXing authors
+&nbsp; *
+&nbsp; * Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
+&nbsp; * you may not use this file except in compliance with the License.
+&nbsp; * You may obtain a copy of the License at
+&nbsp; *
+&nbsp; *      http://www.apache.org/licenses/LICENSE-2.0
+&nbsp; *
+&nbsp; * Unless required by applicable law or agreed to in writing, software
+&nbsp; * distributed under the License is distributed on an &quot;AS IS&quot; BASIS,
+&nbsp; * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+&nbsp; * See the License for the specific language governing permissions and
+&nbsp; * limitations under the License.
+&nbsp; */
+&nbsp;
+&nbsp;package com.google.zxing.qrcode.encoder;
+&nbsp;
+&nbsp;import com.google.zxing.qrcode.decoder.Mode;
+&nbsp;import com.google.zxing.qrcode.decoder.Version;
+&nbsp;import com.google.zxing.common.BitArray;
+&nbsp;import com.google.zxing.common.ECIEncoderSet;
+&nbsp;import com.google.zxing.WriterException;
+&nbsp;import com.google.zxing.qrcode.decoder.ErrorCorrectionLevel;
+&nbsp;
+&nbsp;import java.nio.charset.Charset;
+&nbsp;import java.util.ArrayList;
+&nbsp;import java.util.List;
+&nbsp;
+&nbsp;
+&nbsp;/**
+&nbsp; * Encoder that encodes minimally
+&nbsp; *
+&nbsp; * Algorithm:
+&nbsp; *
+&nbsp; * The eleventh commandment was &quot;Thou Shalt Compute&quot; or &quot;Thou Shalt Not Compute&quot; - I forget which (Alan Perilis).
+&nbsp; *
+&nbsp; * This implementation computes. As an alternative, the QR-Code specification suggests heuristics like this one:
+&nbsp; *
+&nbsp; * If initial input data is in the exclusive subset of the Alphanumeric character set AND if there are less than
+&nbsp; * [6,7,8] characters followed by data from the remainder of the 8-bit byte character set, THEN select the 8-
+&nbsp; * bit byte mode ELSE select Alphanumeric mode;
+&nbsp; *
+&nbsp; * This is probably right for 99.99% of cases but there is at least this one counter example: The string &quot;AAAAAAa&quot;
+&nbsp; * encodes 2 bits smaller as ALPHANUMERIC(AAAAAA), BYTE(a) than by encoding it as BYTE(AAAAAAa).
+&nbsp; * Perhaps that is the only counter example but without having proof, it remains unclear.
+&nbsp; *
+&nbsp; * ECI switching:
+&nbsp; *
+&nbsp; * In multi language content the algorithm selects the most compact representation using ECI modes.
+&nbsp; * For example the most compact representation of the string &quot;\u0150\u015C&quot; (O-double-acute, S-circumflex) is
+&nbsp; * ECI(UTF-8), BYTE(\u0150\u015C) while prepending one or more times the same leading character as in
+&nbsp; * &quot;\u0150\u0150\u015C&quot;, the most compact representation uses two ECIs so that the string is encoded as
+&nbsp; * ECI(ISO-8859-2), BYTE(\u0150\u0150), ECI(ISO-8859-3), BYTE(\u015C).
+&nbsp; *
+&nbsp; * @author Alex Geller
+&nbsp; */
+<b class="fc">&nbsp;final class MinimalEncoder {</b>
+&nbsp;
+<b class="fc">&nbsp;  private enum VersionSize {</b>
+<b class="fc">&nbsp;    SMALL(&quot;version 1-9&quot;),</b>
+<b class="fc">&nbsp;    MEDIUM(&quot;version 10-26&quot;),</b>
+<b class="fc">&nbsp;    LARGE(&quot;version 27-40&quot;);</b>
+&nbsp;
+&nbsp;    private final String description;
+&nbsp;
+<b class="fc">&nbsp;    VersionSize(String description) {</b>
+<b class="fc">&nbsp;      this.description = description;</b>
+&nbsp;    }
+&nbsp;
+&nbsp;    public String toString() {
+<b class="nc">&nbsp;      return description;</b>
+&nbsp;    }
+&nbsp;  }
+&nbsp;
+&nbsp;  private final String stringToEncode;
+&nbsp;  private final boolean isGS1;
+&nbsp;  private final ECIEncoderSet encoders;
+&nbsp;  private final ErrorCorrectionLevel ecLevel;
+&nbsp;
+&nbsp;  /**
+&nbsp;   * Creates a MinimalEncoder
+&nbsp;   *
+&nbsp;   * @param stringToEncode The string to encode
+&nbsp;   * @param priorityCharset The preferred {@link Charset}. When the value of the argument is null, the algorithm
+&nbsp;   *   chooses charsets that leads to a minimal representation. Otherwise the algorithm will use the priority
+&nbsp;   *   charset to encode any character in the input that can be encoded by it if the charset is among the
+&nbsp;   *   supported charsets.
+&nbsp;   * @param isGS1 {@code true} if a FNC1 is to be prepended; {@code false} otherwise
+&nbsp;   * @param ecLevel The error correction level.
+&nbsp;   * @see ResultList#getVersion
+&nbsp;   */
+<b class="fc">&nbsp;  MinimalEncoder(String stringToEncode, Charset priorityCharset, boolean isGS1, ErrorCorrectionLevel ecLevel) {</b>
+<b class="fc">&nbsp;    this.stringToEncode = stringToEncode;</b>
+<b class="fc">&nbsp;    this.isGS1 = isGS1;</b>
+<b class="fc">&nbsp;    this.encoders = new ECIEncoderSet(stringToEncode, priorityCharset, -1);</b>
+<b class="fc">&nbsp;    this.ecLevel = ecLevel;</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  /**
+&nbsp;   * Encodes the string minimally
+&nbsp;   *
+&nbsp;   * @param stringToEncode The string to encode
+&nbsp;   * @param version The preferred {@link Version}. A minimal version is computed (see
+&nbsp;   *   {@link ResultList#getVersion method} when the value of the argument is null
+&nbsp;   * @param priorityCharset The preferred {@link Charset}. When the value of the argument is null, the algorithm
+&nbsp;   *   chooses charsets that leads to a minimal representation. Otherwise the algorithm will use the priority
+&nbsp;   *   charset to encode any character in the input that can be encoded by it if the charset is among the
+&nbsp;   *   supported charsets.
+&nbsp;   * @param isGS1 {@code true} if a FNC1 is to be prepended; {@code false} otherwise
+&nbsp;   * @param ecLevel The error correction level.
+&nbsp;   * @return An instance of {@code ResultList} representing the minimal solution.
+&nbsp;   * @see ResultList#getBits
+&nbsp;   * @see ResultList#getVersion
+&nbsp;   * @see ResultList#getSize
+&nbsp;   */
+&nbsp;  static ResultList encode(String stringToEncode, Version version, Charset priorityCharset, boolean isGS1,
+&nbsp;      ErrorCorrectionLevel ecLevel) throws WriterException {
+<b class="fc">&nbsp;    return new MinimalEncoder(stringToEncode, priorityCharset, isGS1, ecLevel).encode(version);</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  ResultList encode(Version version) throws WriterException {
+<b class="fc">&nbsp;    if (version == null) { // compute minimal encoding trying the three version sizes.</b>
+<b class="fc">&nbsp;      Version[] versions = { getVersion(VersionSize.SMALL),</b>
+<b class="fc">&nbsp;                             getVersion(VersionSize.MEDIUM),</b>
+<b class="fc">&nbsp;                             getVersion(VersionSize.LARGE) };</b>
+<b class="fc">&nbsp;      ResultList[] results = { encodeSpecificVersion(versions[0]),</b>
+<b class="fc">&nbsp;                               encodeSpecificVersion(versions[1]),</b>
+<b class="fc">&nbsp;                               encodeSpecificVersion(versions[2]) };</b>
+<b class="fc">&nbsp;      int smallestSize = Integer.MAX_VALUE;</b>
+<b class="fc">&nbsp;      int smallestResult = -1;</b>
+<b class="fc">&nbsp;      for (int i = 0; i &lt; 3; i++) {</b>
+<b class="fc">&nbsp;        int size = results[i].getSize();</b>
+<b class="fc">&nbsp;        if (Encoder.willFit(size, versions[i], ecLevel) &amp;&amp; size &lt; smallestSize) {</b>
+<b class="fc">&nbsp;          smallestSize = size;</b>
+<b class="fc">&nbsp;          smallestResult = i;</b>
+&nbsp;        }
+&nbsp;      }
+<b class="fc">&nbsp;      if (smallestResult &lt; 0) {</b>
+<b class="nc">&nbsp;        throw new WriterException(&quot;Data too big for any version&quot;);</b>
+&nbsp;      }
+<b class="fc">&nbsp;      return results[smallestResult];</b>
+&nbsp;    } else { // compute minimal encoding for a given version
+<b class="nc">&nbsp;      ResultList result = encodeSpecificVersion(version);</b>
+<b class="nc">&nbsp;      if (!Encoder.willFit(result.getSize(), getVersion(getVersionSize(result.getVersion())), ecLevel)) {</b>
+<b class="nc">&nbsp;        throw new WriterException(&quot;Data too big for version&quot; + version);</b>
+&nbsp;      }
+<b class="nc">&nbsp;      return result;</b>
+&nbsp;    }
+&nbsp;  }
+&nbsp;
+&nbsp;  static VersionSize getVersionSize(Version version) {
+<b class="fc">&nbsp;    return version.getVersionNumber() &lt;= 9 ? VersionSize.SMALL : version.getVersionNumber() &lt;= 26 ?</b>
+<b class="fc">&nbsp;      VersionSize.MEDIUM : VersionSize.LARGE;</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  static Version getVersion(VersionSize versionSize) {
+<b class="fc">&nbsp;    switch (versionSize) {</b>
+&nbsp;      case SMALL:
+<b class="fc">&nbsp;        return Version.getVersionForNumber(9);</b>
+&nbsp;      case MEDIUM:
+<b class="fc">&nbsp;        return Version.getVersionForNumber(26);</b>
+&nbsp;      case LARGE:
+&nbsp;      default:
+<b class="fc">&nbsp;        return Version.getVersionForNumber(40);</b>
+&nbsp;    }
+&nbsp;  }
+&nbsp;
+&nbsp;  static boolean isNumeric(char c) {
+<b class="fc">&nbsp;    return c &gt;= &#39;0&#39; &amp;&amp; c &lt;= &#39;9&#39;;</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  static boolean isDoubleByteKanji(char c) {
+<b class="fc">&nbsp;    return Encoder.isOnlyDoubleByteKanji(String.valueOf(c));</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  static boolean isAlphanumeric(char c) {
+<b class="fc">&nbsp;    return Encoder.getAlphanumericCode(c) != -1;</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  boolean canEncode(Mode mode, char c) {
+<b class="fc">&nbsp;    switch (mode) {</b>
+<b class="fc">&nbsp;      case KANJI: return isDoubleByteKanji(c);</b>
+<b class="fc">&nbsp;      case ALPHANUMERIC: return isAlphanumeric(c);</b>
+<b class="fc">&nbsp;      case NUMERIC: return isNumeric(c);</b>
+<b class="nc">&nbsp;      case BYTE: return true; // any character can be encoded as byte(s). Up to the caller to manage splitting into</b>
+&nbsp;                              // multiple bytes when String.getBytes(Charset) return more than one byte.
+&nbsp;      default:
+<b class="nc">&nbsp;        return false;</b>
+&nbsp;    }
+&nbsp;  }
+&nbsp;
+&nbsp;  static int getCompactedOrdinal(Mode mode) {
+<b class="fc">&nbsp;    if (mode == null) {</b>
+<b class="nc">&nbsp;      return 0;</b>
+&nbsp;    }
+<b class="fc">&nbsp;    switch (mode) {</b>
+&nbsp;      case KANJI:
+<b class="fc">&nbsp;        return 0;</b>
+&nbsp;      case ALPHANUMERIC:
+<b class="fc">&nbsp;        return 1;</b>
+&nbsp;      case NUMERIC:
+<b class="fc">&nbsp;        return 2;</b>
+&nbsp;      case BYTE:
+<b class="fc">&nbsp;        return 3;</b>
+&nbsp;      default:
+<b class="nc">&nbsp;        throw new IllegalStateException(&quot;Illegal mode &quot; + mode);</b>
+&nbsp;    }
+&nbsp;  }
+&nbsp;
+&nbsp;  void addEdge(Edge[][][] edges, int position, Edge edge) {
+<b class="fc">&nbsp;    int vertexIndex = position + edge.characterLength;</b>
+<b class="fc">&nbsp;    Edge[] modeEdges = edges[vertexIndex][edge.charsetEncoderIndex];</b>
+<b class="fc">&nbsp;    int modeOrdinal = getCompactedOrdinal(edge.mode);</b>
+<b class="fc">&nbsp;    if (modeEdges[modeOrdinal] == null || modeEdges[modeOrdinal].cachedTotalSize &gt; edge.cachedTotalSize) {</b>
+<b class="fc">&nbsp;      modeEdges[modeOrdinal] = edge;</b>
+&nbsp;    }
+&nbsp;  }
+&nbsp;
+&nbsp;  void addEdges(Version version, Edge[][][] edges, int from, Edge previous) {
+<b class="fc">&nbsp;    int start = 0;</b>
+<b class="fc">&nbsp;    int end = encoders.length();</b>
+<b class="fc">&nbsp;    int priorityEncoderIndex = encoders.getPriorityEncoderIndex();</b>
+<b class="fc">&nbsp;    if (priorityEncoderIndex &gt;= 0 &amp;&amp; encoders.canEncode(stringToEncode.charAt(from),priorityEncoderIndex)) {</b>
+<b class="nc">&nbsp;      start = priorityEncoderIndex;</b>
+<b class="nc">&nbsp;      end = priorityEncoderIndex + 1;</b>
+&nbsp;    }
+&nbsp;
+<b class="fc">&nbsp;    for (int i = start; i &lt; end; i++) {</b>
+<b class="fc">&nbsp;      if (encoders.canEncode(stringToEncode.charAt(from), i)) {</b>
+<b class="fc">&nbsp;        addEdge(edges, from, new Edge(Mode.BYTE, from, i, 1, previous, version));</b>
+&nbsp;      }
+&nbsp;    }
+&nbsp;
+<b class="fc">&nbsp;    if (canEncode(Mode.KANJI, stringToEncode.charAt(from))) {</b>
+<b class="fc">&nbsp;      addEdge(edges, from, new Edge(Mode.KANJI, from, 0, 1, previous, version));</b>
+&nbsp;    }
+&nbsp;
+<b class="fc">&nbsp;    int inputLength = stringToEncode.length();</b>
+<b class="fc">&nbsp;    if (canEncode(Mode.ALPHANUMERIC, stringToEncode.charAt(from))) {</b>
+<b class="fc">&nbsp;      addEdge(edges, from, new Edge(Mode.ALPHANUMERIC, from, 0, from + 1 &gt;= inputLength ||</b>
+<b class="fc">&nbsp;          !canEncode(Mode.ALPHANUMERIC, stringToEncode.charAt(from + 1)) ? 1 : 2, previous, version));</b>
+&nbsp;    }
+&nbsp;
+<b class="fc">&nbsp;    if (canEncode(Mode.NUMERIC, stringToEncode.charAt(from))) {</b>
+<b class="fc">&nbsp;      addEdge(edges, from, new Edge(Mode.NUMERIC, from, 0, from + 1 &gt;= inputLength ||</b>
+<b class="fc">&nbsp;          !canEncode(Mode.NUMERIC, stringToEncode.charAt(from + 1)) ? 1 : from + 2 &gt;= inputLength ||</b>
+<b class="fc">&nbsp;          !canEncode(Mode.NUMERIC, stringToEncode.charAt(from + 2)) ? 2 : 3, previous, version));</b>
+&nbsp;    }
+&nbsp;  }
+&nbsp;  ResultList encodeSpecificVersion(Version version) throws WriterException {
+&nbsp;
+&nbsp;    @SuppressWarnings(&quot;checkstyle:lineLength&quot;)
+&nbsp;    /* A vertex represents a tuple of a position in the input, a mode and a character encoding where position 0
+&nbsp;     * denotes the position left of the first character, 1 the position left of the second character and so on.
+&nbsp;     * Likewise the end vertices are located after the last character at position stringToEncode.length().
+&nbsp;     *
+&nbsp;     * An edge leading to such a vertex encodes one or more of the characters left of the position that the vertex
+&nbsp;     * represents and encodes it in the same encoding and mode as the vertex on which the edge ends. In other words,
+&nbsp;     * all edges leading to a particular vertex encode the same characters in the same mode with the same character
+&nbsp;     * encoding. They differ only by their source vertices who are all located at i+1 minus the number of encoded
+&nbsp;     * characters.
+&nbsp;     *
+&nbsp;     * The edges leading to a vertex are stored in such a way that there is a fast way to enumerate the edges ending
+&nbsp;     * on a particular vertex.
+&nbsp;     *
+&nbsp;     * The algorithm processes the vertices in order of their position thereby performing the following:
+&nbsp;     *
+&nbsp;     * For every vertex at position i the algorithm enumerates the edges ending on the vertex and removes all but the
+&nbsp;     * shortest from that list.
+&nbsp;     * Then it processes the vertices for the position i+1. If i+1 == stringToEncode.length() then the algorithm ends
+&nbsp;     * and chooses the the edge with the smallest size from any of the edges leading to vertices at this position.
+&nbsp;     * Otherwise the algorithm computes all possible outgoing edges for the vertices at the position i+1
+&nbsp;     *
+&nbsp;     * Examples:
+&nbsp;     * The process is illustrated by showing the graph (edges) after each iteration from left to right over the input:
+&nbsp;     * An edge is drawn as follows &quot;(&quot; + fromVertex + &quot;) -- &quot; + encodingMode + &quot;(&quot; + encodedInput + &quot;) (&quot; +
+&nbsp;     * accumulatedSize + &quot;) --&gt; (&quot; + toVertex + &quot;)&quot;
+&nbsp;     *
+&nbsp;     * Example 1 encoding the string &quot;ABCDE&quot;:
+&nbsp;     * Note: This example assumes that alphanumeric encoding is only possible in multiples of two characters so that
+&nbsp;     * the example is both short and showing the principle. In reality this restriction does not exist.
+&nbsp;     *
+&nbsp;     * Initial situation
+&nbsp;     * (initial) -- BYTE(A) (20) --&gt; (1_BYTE)
+&nbsp;     * (initial) -- ALPHANUMERIC(AB)                     (24) --&gt; (2_ALPHANUMERIC)
+&nbsp;     *
+&nbsp;     * Situation after adding edges to vertices at position 1
+&nbsp;     * (initial) -- BYTE(A) (20) --&gt; (1_BYTE) -- BYTE(B) (28) --&gt; (2_BYTE)
+&nbsp;     *                               (1_BYTE) -- ALPHANUMERIC(BC)                             (44) --&gt; (3_ALPHANUMERIC)
+&nbsp;     * (initial) -- ALPHANUMERIC(AB)                     (24) --&gt; (2_ALPHANUMERIC)
+&nbsp;     *
+&nbsp;     * Situation after adding edges to vertices at position 2
+&nbsp;     * (initial) -- BYTE(A) (20) --&gt; (1_BYTE)
+&nbsp;     * (initial) -- ALPHANUMERIC(AB)                     (24) --&gt; (2_ALPHANUMERIC)
+&nbsp;     * (initial) -- BYTE(A) (20) --&gt; (1_BYTE) -- BYTE(B) (28) --&gt; (2_BYTE)
+&nbsp;                                   * (1_BYTE) -- ALPHANUMERIC(BC)                             (44) --&gt; (3_ALPHANUMERIC)
+&nbsp;     * (initial) -- ALPHANUMERIC(AB)                     (24) --&gt; (2_ALPHANUMERIC) -- BYTE(C) (44) --&gt; (3_BYTE)
+&nbsp;     *                                                            (2_ALPHANUMERIC) -- ALPHANUMERIC(CD)                             (35) --&gt; (4_ALPHANUMERIC)
+&nbsp;     *
+&nbsp;     * Situation after adding edges to vertices at position 3
+&nbsp;     * (initial) -- BYTE(A) (20) --&gt; (1_BYTE) -- BYTE(B) (28) --&gt; (2_BYTE) -- BYTE(C)         (36) --&gt; (3_BYTE)
+&nbsp;     *                               (1_BYTE) -- ALPHANUMERIC(BC)                             (44) --&gt; (3_ALPHANUMERIC) -- BYTE(D) (64) --&gt; (4_BYTE)
+&nbsp;     *                                                                                                 (3_ALPHANUMERIC) -- ALPHANUMERIC(DE)                             (55) --&gt; (5_ALPHANUMERIC)
+&nbsp;     * (initial) -- ALPHANUMERIC(AB)                     (24) --&gt; (2_ALPHANUMERIC) -- ALPHANUMERIC(CD)                             (35) --&gt; (4_ALPHANUMERIC)
+&nbsp;     *                                                            (2_ALPHANUMERIC) -- ALPHANUMERIC(CD)                             (35) --&gt; (4_ALPHANUMERIC)
+&nbsp;     *
+&nbsp;     * Situation after adding edges to vertices at position 4
+&nbsp;     * (initial) -- BYTE(A) (20) --&gt; (1_BYTE) -- BYTE(B) (28) --&gt; (2_BYTE) -- BYTE(C)         (36) --&gt; (3_BYTE) -- BYTE(D) (44) --&gt; (4_BYTE)
+&nbsp;     *                               (1_BYTE) -- ALPHANUMERIC(BC)                             (44) --&gt; (3_ALPHANUMERIC) -- ALPHANUMERIC(DE)                             (55) --&gt; (5_ALPHANUMERIC)
+&nbsp;     * (initial) -- ALPHANUMERIC(AB)                     (24) --&gt; (2_ALPHANUMERIC) -- ALPHANUMERIC(CD)                             (35) --&gt; (4_ALPHANUMERIC) -- BYTE(E) (55) --&gt; (5_BYTE)
+&nbsp;     *
+&nbsp;     * Situation after adding edges to vertices at position 5
+&nbsp;     * (initial) -- BYTE(A) (20) --&gt; (1_BYTE) -- BYTE(B) (28) --&gt; (2_BYTE) -- BYTE(C)         (36) --&gt; (3_BYTE) -- BYTE(D)         (44) --&gt; (4_BYTE) -- BYTE(E)         (52) --&gt; (5_BYTE)
+&nbsp;     *                               (1_BYTE) -- ALPHANUMERIC(BC)                             (44) --&gt; (3_ALPHANUMERIC) -- ALPHANUMERIC(DE)                             (55) --&gt; (5_ALPHANUMERIC)
+&nbsp;     * (initial) -- ALPHANUMERIC(AB)                     (24) --&gt; (2_ALPHANUMERIC) -- ALPHANUMERIC(CD)                             (35) --&gt; (4_ALPHANUMERIC)
+&nbsp;     *
+&nbsp;     * Encoding as BYTE(ABCDE) has the smallest size of 52 and is hence chosen. The encodation ALPHANUMERIC(ABCD),
+&nbsp;     * BYTE(E) is longer with a size of 55.
+&nbsp;     *
+&nbsp;     * Example 2 encoding the string &quot;XXYY&quot; where X denotes a character unique to character set ISO-8859-2 and Y a
+&nbsp;     * character unique to ISO-8859-3. Both characters encode as double byte in UTF-8:
+&nbsp;     *
+&nbsp;     * Initial situation
+&nbsp;     * (initial) -- BYTE(X) (32) --&gt; (1_BYTE_ISO-8859-2)
+&nbsp;     * (initial) -- BYTE(X) (40) --&gt; (1_BYTE_UTF-8)
+&nbsp;     * (initial) -- BYTE(X) (40) --&gt; (1_BYTE_UTF-16BE)
+&nbsp;     *
+&nbsp;     * Situation after adding edges to vertices at position 1
+&nbsp;     * (initial) -- BYTE(X) (32) --&gt; (1_BYTE_ISO-8859-2) -- BYTE(X) (40) --&gt; (2_BYTE_ISO-8859-2)
+&nbsp;     *                               (1_BYTE_ISO-8859-2) -- BYTE(X) (72) --&gt; (2_BYTE_UTF-8)
+&nbsp;     *                               (1_BYTE_ISO-8859-2) -- BYTE(X) (72) --&gt; (2_BYTE_UTF-16BE)
+&nbsp;     * (initial) -- BYTE(X) (40) --&gt; (1_BYTE_UTF-8)
+&nbsp;     * (initial) -- BYTE(X) (40) --&gt; (1_BYTE_UTF-16BE)
+&nbsp;     *
+&nbsp;     * Situation after adding edges to vertices at position 2
+&nbsp;     * (initial) -- BYTE(X) (32) --&gt; (1_BYTE_ISO-8859-2) -- BYTE(X) (40) --&gt; (2_BYTE_ISO-8859-2)
+&nbsp;     *                                                                       (2_BYTE_ISO-8859-2) -- BYTE(Y) (72) --&gt; (3_BYTE_ISO-8859-3)
+&nbsp;     *                                                                       (2_BYTE_ISO-8859-2) -- BYTE(Y) (80) --&gt; (3_BYTE_UTF-8)
+&nbsp;     *                                                                       (2_BYTE_ISO-8859-2) -- BYTE(Y) (80) --&gt; (3_BYTE_UTF-16BE)
+&nbsp;     * (initial) -- BYTE(X) (40) --&gt; (1_BYTE_UTF-8) -- BYTE(X) (56) --&gt; (2_BYTE_UTF-8)
+&nbsp;     * (initial) -- BYTE(X) (40) --&gt; (1_BYTE_UTF-16BE) -- BYTE(X) (56) --&gt; (2_BYTE_UTF-16BE)
+&nbsp;     *
+&nbsp;     * Situation after adding edges to vertices at position 3
+&nbsp;     * (initial) -- BYTE(X) (32) --&gt; (1_BYTE_ISO-8859-2) -- BYTE(X) (40) --&gt; (2_BYTE_ISO-8859-2) -- BYTE(Y) (72) --&gt; (3_BYTE_ISO-8859-3)
+&nbsp;     *                                                                                                               (3_BYTE_ISO-8859-3) -- BYTE(Y) (80) --&gt; (4_BYTE_ISO-8859-3)
+&nbsp;     *                                                                                                               (3_BYTE_ISO-8859-3) -- BYTE(Y) (112) --&gt; (4_BYTE_UTF-8)
+&nbsp;     *                                                                                                               (3_BYTE_ISO-8859-3) -- BYTE(Y) (112) --&gt; (4_BYTE_UTF-16BE)
+&nbsp;     * (initial) -- BYTE(X) (40) --&gt; (1_BYTE_UTF-8) -- BYTE(X) (56) --&gt; (2_BYTE_UTF-8) -- BYTE(Y) (72) --&gt; (3_BYTE_UTF-8)
+&nbsp;     * (initial) -- BYTE(X) (40) --&gt; (1_BYTE_UTF-16BE) -- BYTE(X) (56) --&gt; (2_BYTE_UTF-16BE) -- BYTE(Y) (72) --&gt; (3_BYTE_UTF-16BE)
+&nbsp;     *
+&nbsp;     * Situation after adding edges to vertices at position 4
+&nbsp;     * (initial) -- BYTE(X) (32) --&gt; (1_BYTE_ISO-8859-2) -- BYTE(X) (40) --&gt; (2_BYTE_ISO-8859-2) -- BYTE(Y) (72) --&gt; (3_BYTE_ISO-8859-3) -- BYTE(Y) (80) --&gt; (4_BYTE_ISO-8859-3)
+&nbsp;     *                                                                                                               (3_BYTE_UTF-8) -- BYTE(Y) (88) --&gt; (4_BYTE_UTF-8)
+&nbsp;     *                                                                                                               (3_BYTE_UTF-16BE) -- BYTE(Y) (88) --&gt; (4_BYTE_UTF-16BE)
+&nbsp;     * (initial) -- BYTE(X) (40) --&gt; (1_BYTE_UTF-8) -- BYTE(X) (56) --&gt; (2_BYTE_UTF-8) -- BYTE(Y) (72) --&gt; (3_BYTE_UTF-8)
+&nbsp;     * (initial) -- BYTE(X) (40) --&gt; (1_BYTE_UTF-16BE) -- BYTE(X) (56) --&gt; (2_BYTE_UTF-16BE) -- BYTE(Y) (72) --&gt; (3_BYTE_UTF-16BE)
+&nbsp;     *
+&nbsp;     * Encoding as ECI(ISO-8859-2),BYTE(XX),ECI(ISO-8859-3),BYTE(YY) has the smallest size of 80 and is hence chosen.
+&nbsp;     * The encodation ECI(UTF-8),BYTE(XXYY) is longer with a size of 88.
+&nbsp;     */
+&nbsp;
+<b class="fc">&nbsp;    int inputLength = stringToEncode.length();</b>
+&nbsp;
+&nbsp;    // Array that represents vertices. There is a vertex for every character, encoding and mode. The vertex contains
+&nbsp;    // a list of all edges that lead to it that have the same encoding and mode.
+&nbsp;    // The lists are created lazily
+&nbsp;
+&nbsp;    // The last dimension in the array below encodes the 4 modes KANJI, ALPHANUMERIC, NUMERIC and BYTE via the
+&nbsp;    // function getCompactedOrdinal(Mode)
+<b class="fc">&nbsp;    Edge[][][] edges = new Edge[inputLength + 1][encoders.length()][4];</b>
+<b class="fc">&nbsp;    addEdges(version, edges, 0, null);</b>
+&nbsp;
+<b class="fc">&nbsp;    for (int i = 1; i &lt;= inputLength; i++) {</b>
+<b class="fc">&nbsp;      for (int j = 0; j &lt; encoders.length(); j++) {</b>
+<b class="fc">&nbsp;        for (int k = 0; k &lt; 4; k++) {</b>
+<b class="fc">&nbsp;          if (edges[i][j][k] != null &amp;&amp; i &lt; inputLength) {</b>
+<b class="fc">&nbsp;            addEdges(version, edges, i, edges[i][j][k]);</b>
+&nbsp;          }
+&nbsp;        }
+&nbsp;      }
+&nbsp;
+&nbsp;    }
+<b class="fc">&nbsp;    int minimalJ = -1;</b>
+<b class="fc">&nbsp;    int minimalK = -1;</b>
+<b class="fc">&nbsp;    int minimalSize = Integer.MAX_VALUE;</b>
+<b class="fc">&nbsp;    for (int j = 0; j &lt; encoders.length(); j++) {</b>
+<b class="fc">&nbsp;      for (int k = 0; k &lt; 4; k++) {</b>
+<b class="fc">&nbsp;        if (edges[inputLength][j][k] != null) {</b>
+<b class="fc">&nbsp;          Edge edge = edges[inputLength][j][k];</b>
+<b class="fc">&nbsp;          if (edge.cachedTotalSize &lt; minimalSize) {</b>
+<b class="fc">&nbsp;            minimalSize = edge.cachedTotalSize;</b>
+<b class="fc">&nbsp;            minimalJ = j;</b>
+<b class="fc">&nbsp;            minimalK = k;</b>
+&nbsp;          }
+&nbsp;        }
+&nbsp;      }
+&nbsp;    }
+<b class="fc">&nbsp;    if (minimalJ &lt; 0) {</b>
+<b class="nc">&nbsp;      throw new WriterException(&quot;Internal error: failed to encode \&quot;&quot; + stringToEncode + &quot;\&quot;&quot;);</b>
+&nbsp;    }
+<b class="fc">&nbsp;    return new ResultList(version, edges[inputLength][minimalJ][minimalK]);</b>
+&nbsp;  }
+&nbsp;
+<b class="fc">&nbsp;  private final class Edge {</b>
+&nbsp;    private final Mode mode;
+&nbsp;    private final int fromPosition;
+&nbsp;    private final int charsetEncoderIndex;
+&nbsp;    private final int characterLength;
+&nbsp;    private final Edge previous;
+&nbsp;    private final int cachedTotalSize;
+&nbsp;
+&nbsp;    private Edge(Mode mode, int fromPosition, int charsetEncoderIndex, int characterLength, Edge previous,
+<b class="fc">&nbsp;                 Version version) {</b>
+<b class="fc">&nbsp;      this.mode = mode;</b>
+<b class="fc">&nbsp;      this.fromPosition = fromPosition;</b>
+<b class="fc">&nbsp;      this.charsetEncoderIndex = mode == Mode.BYTE || previous == null ? charsetEncoderIndex :</b>
+<b class="fc">&nbsp;          previous.charsetEncoderIndex; // inherit the encoding if not of type BYTE</b>
+<b class="fc">&nbsp;      this.characterLength = characterLength;</b>
+<b class="fc">&nbsp;      this.previous = previous;</b>
+&nbsp;
+<b class="fc">&nbsp;      int size = previous != null ? previous.cachedTotalSize : 0;</b>
+&nbsp;
+<b class="fc">&nbsp;      boolean needECI = mode == Mode.BYTE &amp;&amp;</b>
+&nbsp;          (previous == null &amp;&amp; this.charsetEncoderIndex != 0) || // at the beginning and charset is not ISO-8859-1
+&nbsp;          (previous != null &amp;&amp; this.charsetEncoderIndex != previous.charsetEncoderIndex);
+&nbsp;
+<b class="fc">&nbsp;      if (previous == null || mode != previous.mode || needECI) {</b>
+<b class="fc">&nbsp;        size += 4 + mode.getCharacterCountBits(version);</b>
+&nbsp;      }
+<b class="fc">&nbsp;      switch (mode) {</b>
+&nbsp;        case KANJI:
+<b class="fc">&nbsp;          size += 13;</b>
+<b class="fc">&nbsp;          break;</b>
+&nbsp;        case ALPHANUMERIC:
+<b class="fc">&nbsp;          size += characterLength == 1 ? 6 : 11;</b>
+<b class="fc">&nbsp;          break;</b>
+&nbsp;        case NUMERIC:
+<b class="fc">&nbsp;          size += characterLength == 1 ? 4 : characterLength == 2 ? 7 : 10;</b>
+<b class="fc">&nbsp;          break;</b>
+&nbsp;        case BYTE:
+<b class="fc">&nbsp;          size += 8 * encoders.encode(stringToEncode.substring(fromPosition, fromPosition + characterLength),</b>
+&nbsp;              charsetEncoderIndex).length;
+<b class="fc">&nbsp;          if (needECI) {</b>
+<b class="fc">&nbsp;            size += 4 + 8; // the ECI assignment numbers for ISO-8859-x, UTF-8 and UTF-16 are all 8 bit long</b>
+&nbsp;          }
+&nbsp;          break;
+&nbsp;      }
+<b class="fc">&nbsp;      cachedTotalSize = size;</b>
+&nbsp;    }
+&nbsp;  }
+&nbsp;
+<b class="nc">&nbsp;  final class ResultList {</b>
+&nbsp;
+<b class="fc">&nbsp;    private final List&lt;ResultList.ResultNode&gt; list = new ArrayList&lt;&gt;();</b>
+&nbsp;    private final Version version;
+&nbsp;
+<b class="fc">&nbsp;    ResultList(Version version, Edge solution) {</b>
+<b class="fc">&nbsp;      int length = 0;</b>
+<b class="fc">&nbsp;      Edge current = solution;</b>
+<b class="fc">&nbsp;      boolean containsECI = false;</b>
+&nbsp;
+<b class="fc">&nbsp;      while (current != null) {</b>
+<b class="fc">&nbsp;        length += current.characterLength;</b>
+<b class="fc">&nbsp;        Edge previous = current.previous;</b>
+&nbsp;
+<b class="fc">&nbsp;        boolean needECI = current.mode == Mode.BYTE &amp;&amp;</b>
+<b class="fc">&nbsp;            (previous == null &amp;&amp; current.charsetEncoderIndex != 0) || // at the beginning and charset is not ISO-8859-1</b>
+<b class="fc">&nbsp;            (previous != null &amp;&amp; current.charsetEncoderIndex != previous.charsetEncoderIndex);</b>
+&nbsp;
+<b class="fc">&nbsp;        if (needECI) {</b>
+<b class="fc">&nbsp;          containsECI = true;</b>
+&nbsp;        }
+&nbsp;
+<b class="fc">&nbsp;        if (previous == null || previous.mode != current.mode || needECI) {</b>
+<b class="fc">&nbsp;          list.add(0, new ResultNode(current.mode, current.fromPosition, current.charsetEncoderIndex, length));</b>
+<b class="fc">&nbsp;          length = 0;</b>
+&nbsp;        }
+&nbsp;
+<b class="fc">&nbsp;        if (needECI) {</b>
+<b class="fc">&nbsp;          list.add(0, new ResultNode(Mode.ECI, current.fromPosition, current.charsetEncoderIndex, 0));</b>
+&nbsp;        }
+<b class="fc">&nbsp;        current = previous;</b>
+<b class="fc">&nbsp;      }</b>
+&nbsp;
+&nbsp;      // prepend FNC1 if needed. If the bits contain an ECI then the FNC1 must be preceeded by an ECI.
+&nbsp;      // If there is no ECI at the beginning then we put an ECI to the default charset (ISO-8859-1)
+<b class="fc">&nbsp;      if (isGS1) {</b>
+<b class="fc">&nbsp;        ResultNode first = list.get(0);</b>
+<b class="fc">&nbsp;        if (first != null &amp;&amp; first.mode != Mode.ECI &amp;&amp; containsECI) {</b>
+&nbsp;          // prepend a default character set ECI
+<b class="nc">&nbsp;          list.add(0, new ResultNode(Mode.ECI, 0, 0, 0));</b>
+&nbsp;        }
+<b class="fc">&nbsp;        first = list.get(0);</b>
+&nbsp;        // prepend or insert a FNC1_FIRST_POSITION after the ECI (if any)
+<b class="fc">&nbsp;        list.add(first.mode != Mode.ECI ? 0 : 1, new ResultNode(Mode.FNC1_FIRST_POSITION, 0, 0, 0));</b>
+&nbsp;      }
+&nbsp;
+&nbsp;      // set version to smallest version into which the bits fit.
+<b class="fc">&nbsp;      int versionNumber = version.getVersionNumber();</b>
+&nbsp;      int lowerLimit;
+&nbsp;      int upperLimit;
+<b class="fc">&nbsp;      switch (getVersionSize(version)) {</b>
+&nbsp;        case SMALL:
+<b class="fc">&nbsp;          lowerLimit = 1;</b>
+<b class="fc">&nbsp;          upperLimit = 9;</b>
+<b class="fc">&nbsp;          break;</b>
+&nbsp;        case MEDIUM:
+<b class="fc">&nbsp;          lowerLimit = 10;</b>
+<b class="fc">&nbsp;          upperLimit = 26;</b>
+<b class="fc">&nbsp;          break;</b>
+&nbsp;        case LARGE:
+&nbsp;        default:
+<b class="fc">&nbsp;          lowerLimit = 27;</b>
+<b class="fc">&nbsp;          upperLimit = 40;</b>
+&nbsp;          break;
+&nbsp;      }
+<b class="fc">&nbsp;      int size = getSize(version);</b>
+&nbsp;      // increase version if needed
+<b class="fc">&nbsp;      while (versionNumber &lt; upperLimit &amp;&amp; !Encoder.willFit(size, Version.getVersionForNumber(versionNumber),</b>
+<b class="nc">&nbsp;        ecLevel)) {</b>
+<b class="nc">&nbsp;        versionNumber++;</b>
+&nbsp;      }
+&nbsp;      // shrink version if possible
+<b class="fc">&nbsp;      while (versionNumber &gt; lowerLimit &amp;&amp; Encoder.willFit(size, Version.getVersionForNumber(versionNumber - 1),</b>
+<b class="fc">&nbsp;        ecLevel)) {</b>
+<b class="fc">&nbsp;        versionNumber--;</b>
+&nbsp;      }
+<b class="fc">&nbsp;      this.version = Version.getVersionForNumber(versionNumber);</b>
+&nbsp;    }
+&nbsp;
+&nbsp;    /**
+&nbsp;     * returns the size in bits
+&nbsp;     */
+&nbsp;    int getSize() {
+<b class="fc">&nbsp;      return getSize(version);</b>
+&nbsp;    }
+&nbsp;
+&nbsp;    private int getSize(Version version) {
+<b class="fc">&nbsp;      int result = 0;</b>
+<b class="fc">&nbsp;      for (ResultNode resultNode : list) {</b>
+<b class="fc">&nbsp;        result += resultNode.getSize(version);</b>
+<b class="fc">&nbsp;      }</b>
+<b class="fc">&nbsp;      return result;</b>
+&nbsp;    }
+&nbsp;
+&nbsp;    /**
+&nbsp;     * appends the bits
+&nbsp;     */
+&nbsp;    void getBits(BitArray bits) throws WriterException {
+<b class="nc">&nbsp;      for (ResultNode resultNode : list) {</b>
+<b class="nc">&nbsp;        resultNode.getBits(bits);</b>
+<b class="nc">&nbsp;      }</b>
+&nbsp;    }
+&nbsp;
+&nbsp;    Version getVersion() {
+<b class="nc">&nbsp;      return version;</b>
+&nbsp;    }
+&nbsp;
+&nbsp;    public String toString() {
+<b class="fc">&nbsp;      StringBuilder result = new StringBuilder();</b>
+<b class="fc">&nbsp;      ResultNode previous = null;</b>
+<b class="fc">&nbsp;      for (ResultNode current : list) {</b>
+<b class="fc">&nbsp;        if (previous != null) {</b>
+<b class="fc">&nbsp;          result.append(&quot;,&quot;);</b>
+&nbsp;        }
+<b class="fc">&nbsp;        result.append(current.toString());</b>
+<b class="fc">&nbsp;        previous = current;</b>
+<b class="fc">&nbsp;      }</b>
+<b class="fc">&nbsp;      return result.toString();</b>
+&nbsp;    }
+&nbsp;
+<b class="fc">&nbsp;    final class ResultNode {</b>
+&nbsp;
+&nbsp;      private final Mode mode;
+&nbsp;      private final int fromPosition;
+&nbsp;      private final int charsetEncoderIndex;
+&nbsp;      private final int characterLength;
+&nbsp;
+<b class="fc">&nbsp;      ResultNode(Mode mode, int fromPosition, int charsetEncoderIndex, int characterLength) {</b>
+<b class="fc">&nbsp;        this.mode = mode;</b>
+<b class="fc">&nbsp;        this.fromPosition = fromPosition;</b>
+<b class="fc">&nbsp;        this.charsetEncoderIndex = charsetEncoderIndex;</b>
+<b class="fc">&nbsp;        this.characterLength = characterLength;</b>
+&nbsp;      }
+&nbsp;
+&nbsp;      /**
+&nbsp;       * returns the size in bits
+&nbsp;       */
+&nbsp;      private int getSize(Version version) {
+<b class="fc">&nbsp;        int size = 4 + mode.getCharacterCountBits(version);</b>
+<b class="fc">&nbsp;        switch (mode) {</b>
+&nbsp;          case KANJI:
+<b class="fc">&nbsp;            size += 13 * characterLength;</b>
+<b class="fc">&nbsp;            break;</b>
+&nbsp;          case ALPHANUMERIC:
+<b class="fc">&nbsp;            size += (characterLength / 2) * 11;</b>
+<b class="fc">&nbsp;            size += (characterLength % 2) == 1 ? 6 : 0;</b>
+<b class="fc">&nbsp;            break;</b>
+&nbsp;          case NUMERIC:
+<b class="fc">&nbsp;            size += (characterLength / 3) * 10;</b>
+<b class="fc">&nbsp;            int rest = characterLength % 3;</b>
+<b class="fc">&nbsp;            size += rest == 1 ? 4 : rest == 2 ? 7 : 0;</b>
+<b class="fc">&nbsp;            break;</b>
+&nbsp;          case BYTE:
+<b class="fc">&nbsp;            size += 8 * getCharacterCountIndicator();</b>
+<b class="fc">&nbsp;            break;</b>
+&nbsp;          case ECI:
+<b class="fc">&nbsp;            size += 8; // the ECI assignment numbers for ISO-8859-x, UTF-8 and UTF-16 are all 8 bit long</b>
+&nbsp;        }
+<b class="fc">&nbsp;        return size;</b>
+&nbsp;      }
+&nbsp;
+&nbsp;      /**
+&nbsp;       * returns the length in characters according to the specification (differs from getCharacterLength() in BYTE mode
+&nbsp;       * for multi byte encoded characters)
+&nbsp;       */
+&nbsp;      private int getCharacterCountIndicator() {
+<b class="fc">&nbsp;        return mode == Mode.BYTE ?</b>
+<b class="fc">&nbsp;            encoders.encode(stringToEncode.substring(fromPosition, fromPosition + characterLength),</b>
+<b class="fc">&nbsp;            charsetEncoderIndex).length : characterLength;</b>
+&nbsp;      }
+&nbsp;
+&nbsp;      /**
+&nbsp;       * appends the bits
+&nbsp;       */
+&nbsp;      private void getBits(BitArray bits) throws WriterException {
+<b class="nc">&nbsp;        bits.appendBits(mode.getBits(), 4);</b>
+<b class="nc">&nbsp;        if (characterLength &gt; 0) {</b>
+<b class="nc">&nbsp;          int length = getCharacterCountIndicator();</b>
+<b class="nc">&nbsp;          bits.appendBits(length, mode.getCharacterCountBits(version));</b>
+&nbsp;        }
+<b class="nc">&nbsp;        if (mode == Mode.ECI) {</b>
+<b class="nc">&nbsp;          bits.appendBits(encoders.getECIValue(charsetEncoderIndex), 8);</b>
+<b class="nc">&nbsp;        } else if (characterLength &gt; 0) {</b>
+&nbsp;          // append data
+<b class="nc">&nbsp;          Encoder.appendBytes(stringToEncode.substring(fromPosition, fromPosition + characterLength), mode, bits,</b>
+<b class="nc">&nbsp;              encoders.getCharset(charsetEncoderIndex));</b>
+&nbsp;        }
+&nbsp;      }
+&nbsp;
+&nbsp;      public String toString() {
+<b class="fc">&nbsp;        StringBuilder result = new StringBuilder();</b>
+<b class="fc">&nbsp;        result.append(mode).append(&#39;(&#39;);</b>
+<b class="fc">&nbsp;        if (mode == Mode.ECI) {</b>
+<b class="fc">&nbsp;          result.append(encoders.getCharset(charsetEncoderIndex).displayName());</b>
+&nbsp;        } else {
+<b class="fc">&nbsp;          result.append(makePrintable(stringToEncode.substring(fromPosition, fromPosition + characterLength)));</b>
+&nbsp;        }
+<b class="fc">&nbsp;        result.append(&#39;)&#39;);</b>
+<b class="fc">&nbsp;        return result.toString();</b>
+&nbsp;      }
+&nbsp;
+&nbsp;      private String makePrintable(String s) {
+<b class="fc">&nbsp;        StringBuilder result = new StringBuilder();</b>
+<b class="fc">&nbsp;        for (int i = 0; i &lt; s.length(); i++) {</b>
+<b class="fc">&nbsp;          if (s.charAt(i) &lt; 32 || s.charAt(i) &gt; 126) {</b>
+<b class="fc">&nbsp;            result.append(&#39;.&#39;);</b>
+&nbsp;          } else {
+<b class="fc">&nbsp;            result.append(s.charAt(i));</b>
+&nbsp;          }
+&nbsp;        }
+<b class="fc">&nbsp;        return result.toString();</b>
+&nbsp;      }
+&nbsp;    }
+&nbsp;  }
+&nbsp;}
+</code>
+</pre>
+</div>
+
+<script type="text/javascript">
+(function() {
+    var msie = false, msie9 = false;
+    /*@cc_on
+      msie = true;
+      @if (@_jscript_version >= 9)
+        msie9 = true;
+      @end
+    @*/
+
+    if (!msie || msie && msie9) {
+      hljs.highlightAll()
+      hljs.initLineNumbersOnLoad();
+    }
+})();
+</script>
+
+<div class="footer">
+    
+    <div style="float:right;">generated on 2023-11-12 23:26</div>
+</div>
+</body>
+</html>

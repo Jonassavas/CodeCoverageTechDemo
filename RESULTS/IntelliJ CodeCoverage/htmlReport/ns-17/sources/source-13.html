@@ -1,0 +1,574 @@
+
+
+
+<!DOCTYPE html>
+<html id="htmlId">
+<head>
+  <meta http-equiv="Content-Type" content="text/html;charset=windows-1252"> 
+  <title>Coverage Report > GeneralAppIdDecoder</title>
+  <style type="text/css">
+    @import "../../css/coverage.css";
+    @import "../../css/idea.min.css";
+  </style>
+  <script type="text/javascript" src="../../js/highlight.min.js"></script>
+  <script type="text/javascript" src="../../js/highlightjs-line-numbers.min.js"></script>
+</head>
+
+<body>
+<div class="content">
+<div class="breadCrumbs">
+Current scope:     <a href="../../index.html">all classes</a>
+    <span class="separator">|</span>
+    <a href="../index.html">com.google.zxing.oned.rss.expanded.decoders</a>
+</div>
+
+<h1>Coverage Summary for Class: GeneralAppIdDecoder (com.google.zxing.oned.rss.expanded.decoders)</h1>
+
+<table class="coverageStats">
+<tr>
+  <th class="name">Class</th>
+<th class="coverageStat 
+">
+  Class, %
+</th>
+<th class="coverageStat 
+">
+  Method, %
+</th>
+<th class="coverageStat 
+">
+  Line, %
+</th>
+</tr>
+<tr>
+  <td class="name">GeneralAppIdDecoder</td>
+<td class="coverageStat">
+  <span class="percent">
+    100%
+  </span>
+  <span class="absValue">
+    (1/1)
+  </span>
+</td>
+<td class="coverageStat">
+  <span class="percent">
+    100%
+  </span>
+  <span class="absValue">
+    (18/18)
+  </span>
+</td>
+<td class="coverageStat">
+  <span class="percent">
+    95.7%
+  </span>
+  <span class="absValue">
+    (225/235)
+  </span>
+</td>
+</tr>
+
+</table>
+
+<br/>
+<br/>
+
+
+<pre>
+<code class="sourceCode" id="sourceCode">&nbsp;/*
+&nbsp; * Copyright (C) 2010 ZXing authors
+&nbsp; *
+&nbsp; * Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
+&nbsp; * you may not use this file except in compliance with the License.
+&nbsp; * You may obtain a copy of the License at
+&nbsp; *
+&nbsp; *      http://www.apache.org/licenses/LICENSE-2.0
+&nbsp; *
+&nbsp; * Unless required by applicable law or agreed to in writing, software
+&nbsp; * distributed under the License is distributed on an &quot;AS IS&quot; BASIS,
+&nbsp; * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+&nbsp; * See the License for the specific language governing permissions and
+&nbsp; * limitations under the License.
+&nbsp; */
+&nbsp;
+&nbsp;/*
+&nbsp; * These authors would like to acknowledge the Spanish Ministry of Industry,
+&nbsp; * Tourism and Trade, for the support in the project TSI020301-2008-2
+&nbsp; * &quot;PIRAmIDE: Personalizable Interactions with Resources on AmI-enabled
+&nbsp; * Mobile Dynamic Environments&quot;, led by Treelogic
+&nbsp; * ( http://www.treelogic.com/ ):
+&nbsp; *
+&nbsp; *   http://www.piramidepse.com/
+&nbsp; */
+&nbsp;
+&nbsp;package com.google.zxing.oned.rss.expanded.decoders;
+&nbsp;
+&nbsp;import com.google.zxing.FormatException;
+&nbsp;import com.google.zxing.NotFoundException;
+&nbsp;import com.google.zxing.common.BitArray;
+&nbsp;
+&nbsp;/**
+&nbsp; * @author Pablo Orduña, University of Deusto (pablo.orduna@deusto.es)
+&nbsp; * @author Eduardo Castillejo, University of Deusto (eduardo.castillejo@deusto.es)
+&nbsp; */
+&nbsp;final class GeneralAppIdDecoder {
+&nbsp;
+&nbsp;  private final BitArray information;
+<b class="fc">&nbsp;  private final CurrentParsingState current = new CurrentParsingState();</b>
+<b class="fc">&nbsp;  private final StringBuilder buffer = new StringBuilder();</b>
+&nbsp;
+<b class="fc">&nbsp;  GeneralAppIdDecoder(BitArray information) {</b>
+<b class="fc">&nbsp;    this.information = information;</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  String decodeAllCodes(StringBuilder buff, int initialPosition) throws NotFoundException, FormatException {
+<b class="fc">&nbsp;    int currentPosition = initialPosition;</b>
+<b class="fc">&nbsp;    String remaining = null;</b>
+&nbsp;    do {
+<b class="fc">&nbsp;      DecodedInformation info = this.decodeGeneralPurposeField(currentPosition, remaining);</b>
+<b class="fc">&nbsp;      String parsedFields = FieldParser.parseFieldsInGeneralPurpose(info.getNewString());</b>
+<b class="fc">&nbsp;      if (parsedFields != null) {</b>
+<b class="fc">&nbsp;        buff.append(parsedFields);</b>
+&nbsp;      }
+<b class="fc">&nbsp;      if (info.isRemaining()) {</b>
+<b class="fc">&nbsp;        remaining = String.valueOf(info.getRemainingValue());</b>
+&nbsp;      } else {
+<b class="fc">&nbsp;        remaining = null;</b>
+&nbsp;      }
+&nbsp;
+<b class="fc">&nbsp;      if (currentPosition == info.getNewPosition()) { // No step forward!</b>
+<b class="fc">&nbsp;        break;</b>
+&nbsp;      }
+<b class="fc">&nbsp;      currentPosition = info.getNewPosition();</b>
+<b class="fc">&nbsp;    } while (true);</b>
+&nbsp;
+<b class="fc">&nbsp;    return buff.toString();</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  private boolean isStillNumeric(int pos) {
+&nbsp;    // It&#39;s numeric if it still has 7 positions
+&nbsp;    // and one of the first 4 bits is &quot;1&quot;.
+<b class="fc">&nbsp;    if (pos + 7 &gt; this.information.getSize()) {</b>
+<b class="fc">&nbsp;      return pos + 4 &lt;= this.information.getSize();</b>
+&nbsp;    }
+&nbsp;
+<b class="fc">&nbsp;    for (int i = pos; i &lt; pos + 3; ++i) {</b>
+<b class="fc">&nbsp;      if (this.information.get(i)) {</b>
+<b class="fc">&nbsp;        return true;</b>
+&nbsp;      }
+&nbsp;    }
+&nbsp;
+<b class="fc">&nbsp;    return this.information.get(pos + 3);</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  private DecodedNumeric decodeNumeric(int pos) throws FormatException {
+<b class="fc">&nbsp;    if (pos + 7 &gt; this.information.getSize()) {</b>
+<b class="fc">&nbsp;      int numeric = extractNumericValueFromBitArray(pos, 4);</b>
+<b class="fc">&nbsp;      if (numeric == 0) {</b>
+<b class="fc">&nbsp;        return new DecodedNumeric(this.information.getSize(), DecodedNumeric.FNC1, DecodedNumeric.FNC1);</b>
+&nbsp;      }
+<b class="fc">&nbsp;      return new DecodedNumeric(this.information.getSize(), numeric - 1, DecodedNumeric.FNC1);</b>
+&nbsp;    }
+<b class="fc">&nbsp;    int numeric = extractNumericValueFromBitArray(pos, 7);</b>
+&nbsp;
+<b class="fc">&nbsp;    int digit1  = (numeric - 8) / 11;</b>
+<b class="fc">&nbsp;    int digit2  = (numeric - 8) % 11;</b>
+&nbsp;
+<b class="fc">&nbsp;    return new DecodedNumeric(pos + 7, digit1, digit2);</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  int extractNumericValueFromBitArray(int pos, int bits) {
+<b class="fc">&nbsp;    return extractNumericValueFromBitArray(this.information, pos, bits);</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  static int extractNumericValueFromBitArray(BitArray information, int pos, int bits) {
+<b class="fc">&nbsp;    int value = 0;</b>
+<b class="fc">&nbsp;    for (int i = 0; i &lt; bits; ++i) {</b>
+<b class="fc">&nbsp;      if (information.get(pos + i)) {</b>
+<b class="fc">&nbsp;        value |= 1 &lt;&lt; (bits - i - 1);</b>
+&nbsp;      }
+&nbsp;    }
+&nbsp;
+<b class="fc">&nbsp;    return value;</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  DecodedInformation decodeGeneralPurposeField(int pos, String remaining) throws FormatException {
+<b class="fc">&nbsp;    this.buffer.setLength(0);</b>
+&nbsp;
+<b class="fc">&nbsp;    if (remaining != null) {</b>
+<b class="fc">&nbsp;      this.buffer.append(remaining);</b>
+&nbsp;    }
+&nbsp;
+<b class="fc">&nbsp;    this.current.setPosition(pos);</b>
+&nbsp;
+<b class="fc">&nbsp;    DecodedInformation lastDecoded = parseBlocks();</b>
+<b class="fc">&nbsp;    if (lastDecoded != null &amp;&amp; lastDecoded.isRemaining()) {</b>
+<b class="fc">&nbsp;      return new DecodedInformation(this.current.getPosition(),</b>
+<b class="fc">&nbsp;        this.buffer.toString(), lastDecoded.getRemainingValue());</b>
+&nbsp;    }
+<b class="fc">&nbsp;    return new DecodedInformation(this.current.getPosition(), this.buffer.toString());</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  private DecodedInformation parseBlocks() throws FormatException {
+&nbsp;    boolean isFinished;
+&nbsp;    BlockParsedResult result;
+&nbsp;    do {
+<b class="fc">&nbsp;      int initialPosition = current.getPosition();</b>
+&nbsp;
+<b class="fc">&nbsp;      if (current.isAlpha()) {</b>
+<b class="fc">&nbsp;        result = parseAlphaBlock();</b>
+<b class="fc">&nbsp;        isFinished = result.isFinished();</b>
+<b class="fc">&nbsp;      } else if (current.isIsoIec646()) {</b>
+<b class="fc">&nbsp;        result = parseIsoIec646Block();</b>
+<b class="fc">&nbsp;        isFinished = result.isFinished();</b>
+&nbsp;      } else { // it must be numeric
+<b class="fc">&nbsp;        result = parseNumericBlock();</b>
+<b class="fc">&nbsp;        isFinished = result.isFinished();</b>
+&nbsp;      }
+&nbsp;
+<b class="fc">&nbsp;      boolean positionChanged = initialPosition != current.getPosition();</b>
+<b class="fc">&nbsp;      if (!positionChanged &amp;&amp; !isFinished) {</b>
+<b class="fc">&nbsp;        break;</b>
+&nbsp;      }
+<b class="fc">&nbsp;    } while (!isFinished);</b>
+&nbsp;
+<b class="fc">&nbsp;    return result.getDecodedInformation();</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  private BlockParsedResult parseNumericBlock() throws FormatException {
+<b class="fc">&nbsp;    while (isStillNumeric(current.getPosition())) {</b>
+<b class="fc">&nbsp;      DecodedNumeric numeric = decodeNumeric(current.getPosition());</b>
+<b class="fc">&nbsp;      current.setPosition(numeric.getNewPosition());</b>
+&nbsp;
+<b class="fc">&nbsp;      if (numeric.isFirstDigitFNC1()) {</b>
+&nbsp;        DecodedInformation information;
+<b class="fc">&nbsp;        if (numeric.isSecondDigitFNC1()) {</b>
+<b class="fc">&nbsp;          information = new DecodedInformation(current.getPosition(), buffer.toString());</b>
+&nbsp;        } else {
+<b class="fc">&nbsp;          information = new DecodedInformation(current.getPosition(), buffer.toString(), numeric.getSecondDigit());</b>
+&nbsp;        }
+<b class="fc">&nbsp;        return new BlockParsedResult(information, true);</b>
+&nbsp;      }
+<b class="fc">&nbsp;      buffer.append(numeric.getFirstDigit());</b>
+&nbsp;
+<b class="fc">&nbsp;      if (numeric.isSecondDigitFNC1()) {</b>
+<b class="fc">&nbsp;        DecodedInformation information = new DecodedInformation(current.getPosition(), buffer.toString());</b>
+<b class="fc">&nbsp;        return new BlockParsedResult(information, true);</b>
+&nbsp;      }
+<b class="fc">&nbsp;      buffer.append(numeric.getSecondDigit());</b>
+<b class="fc">&nbsp;    }</b>
+&nbsp;
+<b class="fc">&nbsp;    if (isNumericToAlphaNumericLatch(current.getPosition())) {</b>
+<b class="fc">&nbsp;      current.setAlpha();</b>
+<b class="fc">&nbsp;      current.incrementPosition(4);</b>
+&nbsp;    }
+<b class="fc">&nbsp;    return new BlockParsedResult();</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  private BlockParsedResult parseIsoIec646Block() throws FormatException {
+<b class="fc">&nbsp;    while (isStillIsoIec646(current.getPosition())) {</b>
+<b class="fc">&nbsp;      DecodedChar iso = decodeIsoIec646(current.getPosition());</b>
+<b class="fc">&nbsp;      current.setPosition(iso.getNewPosition());</b>
+&nbsp;
+<b class="fc">&nbsp;      if (iso.isFNC1()) {</b>
+<b class="fc">&nbsp;        DecodedInformation information = new DecodedInformation(current.getPosition(), buffer.toString());</b>
+<b class="fc">&nbsp;        return new BlockParsedResult(information, true);</b>
+&nbsp;      }
+<b class="fc">&nbsp;      buffer.append(iso.getValue());</b>
+<b class="fc">&nbsp;    }</b>
+&nbsp;
+<b class="fc">&nbsp;    if (isAlphaOr646ToNumericLatch(current.getPosition())) {</b>
+<b class="fc">&nbsp;      current.incrementPosition(3);</b>
+<b class="fc">&nbsp;      current.setNumeric();</b>
+<b class="fc">&nbsp;    } else if (isAlphaTo646ToAlphaLatch(current.getPosition())) {</b>
+<b class="fc">&nbsp;      if (current.getPosition() + 5 &lt; this.information.getSize()) {</b>
+<b class="fc">&nbsp;        current.incrementPosition(5);</b>
+&nbsp;      } else {
+<b class="fc">&nbsp;        current.setPosition(this.information.getSize());</b>
+&nbsp;      }
+&nbsp;
+<b class="fc">&nbsp;      current.setAlpha();</b>
+&nbsp;    }
+<b class="fc">&nbsp;    return new BlockParsedResult();</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  private BlockParsedResult parseAlphaBlock() {
+<b class="fc">&nbsp;    while (isStillAlpha(current.getPosition())) {</b>
+<b class="fc">&nbsp;      DecodedChar alpha = decodeAlphanumeric(current.getPosition());</b>
+<b class="fc">&nbsp;      current.setPosition(alpha.getNewPosition());</b>
+&nbsp;
+<b class="fc">&nbsp;      if (alpha.isFNC1()) {</b>
+<b class="fc">&nbsp;        DecodedInformation information = new DecodedInformation(current.getPosition(), buffer.toString());</b>
+<b class="fc">&nbsp;        return new BlockParsedResult(information, true); //end of the char block</b>
+&nbsp;      }
+&nbsp;
+<b class="fc">&nbsp;      buffer.append(alpha.getValue());</b>
+<b class="fc">&nbsp;    }</b>
+&nbsp;
+<b class="fc">&nbsp;    if (isAlphaOr646ToNumericLatch(current.getPosition())) {</b>
+<b class="fc">&nbsp;      current.incrementPosition(3);</b>
+<b class="fc">&nbsp;      current.setNumeric();</b>
+<b class="fc">&nbsp;    } else if (isAlphaTo646ToAlphaLatch(current.getPosition())) {</b>
+<b class="fc">&nbsp;      if (current.getPosition() + 5 &lt; this.information.getSize()) {</b>
+<b class="fc">&nbsp;        current.incrementPosition(5);</b>
+&nbsp;      } else {
+<b class="fc">&nbsp;        current.setPosition(this.information.getSize());</b>
+&nbsp;      }
+&nbsp;
+<b class="fc">&nbsp;      current.setIsoIec646();</b>
+&nbsp;    }
+<b class="fc">&nbsp;    return new BlockParsedResult();</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  private boolean isStillIsoIec646(int pos) {
+<b class="fc">&nbsp;    if (pos + 5 &gt; this.information.getSize()) {</b>
+<b class="fc">&nbsp;      return false;</b>
+&nbsp;    }
+&nbsp;
+<b class="fc">&nbsp;    int fiveBitValue = extractNumericValueFromBitArray(pos, 5);</b>
+<b class="fc">&nbsp;    if (fiveBitValue &gt;= 5 &amp;&amp; fiveBitValue &lt; 16) {</b>
+<b class="fc">&nbsp;      return true;</b>
+&nbsp;    }
+&nbsp;
+<b class="fc">&nbsp;    if (pos + 7 &gt; this.information.getSize()) {</b>
+<b class="nc">&nbsp;      return false;</b>
+&nbsp;    }
+&nbsp;
+<b class="fc">&nbsp;    int sevenBitValue = extractNumericValueFromBitArray(pos, 7);</b>
+<b class="fc">&nbsp;    if (sevenBitValue &gt;= 64 &amp;&amp; sevenBitValue &lt; 116) {</b>
+<b class="fc">&nbsp;      return true;</b>
+&nbsp;    }
+&nbsp;
+<b class="fc">&nbsp;    if (pos + 8 &gt; this.information.getSize()) {</b>
+<b class="fc">&nbsp;      return false;</b>
+&nbsp;    }
+&nbsp;
+<b class="fc">&nbsp;    int eightBitValue = extractNumericValueFromBitArray(pos, 8);</b>
+<b class="fc">&nbsp;    return eightBitValue &gt;= 232 &amp;&amp; eightBitValue &lt; 253;</b>
+&nbsp;
+&nbsp;  }
+&nbsp;
+&nbsp;  private DecodedChar decodeIsoIec646(int pos) throws FormatException {
+<b class="fc">&nbsp;    int fiveBitValue = extractNumericValueFromBitArray(pos, 5);</b>
+<b class="fc">&nbsp;    if (fiveBitValue == 15) {</b>
+<b class="fc">&nbsp;      return new DecodedChar(pos + 5, DecodedChar.FNC1);</b>
+&nbsp;    }
+&nbsp;
+<b class="fc">&nbsp;    if (fiveBitValue &gt;= 5 &amp;&amp; fiveBitValue &lt; 15) {</b>
+<b class="fc">&nbsp;      return new DecodedChar(pos + 5, (char) (&#39;0&#39; + fiveBitValue - 5));</b>
+&nbsp;    }
+&nbsp;
+<b class="fc">&nbsp;    int sevenBitValue = extractNumericValueFromBitArray(pos, 7);</b>
+&nbsp;
+<b class="fc">&nbsp;    if (sevenBitValue &gt;= 64 &amp;&amp; sevenBitValue &lt; 90) {</b>
+<b class="fc">&nbsp;      return new DecodedChar(pos + 7, (char) (sevenBitValue + 1));</b>
+&nbsp;    }
+&nbsp;
+<b class="fc">&nbsp;    if (sevenBitValue &gt;= 90 &amp;&amp; sevenBitValue &lt; 116) {</b>
+<b class="fc">&nbsp;      return new DecodedChar(pos + 7, (char) (sevenBitValue + 7));</b>
+&nbsp;    }
+&nbsp;
+<b class="fc">&nbsp;    int eightBitValue = extractNumericValueFromBitArray(pos, 8);</b>
+&nbsp;    char c;
+<b class="fc">&nbsp;    switch (eightBitValue) {</b>
+&nbsp;      case 232:
+<b class="fc">&nbsp;        c = &#39;!&#39;;</b>
+<b class="fc">&nbsp;        break;</b>
+&nbsp;      case 233:
+<b class="fc">&nbsp;        c = &#39;&quot;&#39;;</b>
+<b class="fc">&nbsp;        break;</b>
+&nbsp;      case 234:
+<b class="fc">&nbsp;        c = &#39;%&#39;;</b>
+<b class="fc">&nbsp;        break;</b>
+&nbsp;      case 235:
+<b class="fc">&nbsp;        c = &#39;&amp;&#39;;</b>
+<b class="fc">&nbsp;        break;</b>
+&nbsp;      case 236:
+<b class="fc">&nbsp;        c = &#39;\&#39;&#39;;</b>
+<b class="fc">&nbsp;        break;</b>
+&nbsp;      case 237:
+<b class="fc">&nbsp;        c = &#39;(&#39;;</b>
+<b class="fc">&nbsp;        break;</b>
+&nbsp;      case 238:
+<b class="fc">&nbsp;        c = &#39;)&#39;;</b>
+<b class="fc">&nbsp;        break;</b>
+&nbsp;      case 239:
+<b class="fc">&nbsp;        c = &#39;*&#39;;</b>
+<b class="fc">&nbsp;        break;</b>
+&nbsp;      case 240:
+<b class="fc">&nbsp;        c = &#39;+&#39;;</b>
+<b class="fc">&nbsp;        break;</b>
+&nbsp;      case 241:
+<b class="nc">&nbsp;        c = &#39;,&#39;;</b>
+<b class="nc">&nbsp;        break;</b>
+&nbsp;      case 242:
+<b class="fc">&nbsp;        c = &#39;-&#39;;</b>
+<b class="fc">&nbsp;        break;</b>
+&nbsp;      case 243:
+<b class="nc">&nbsp;        c = &#39;.&#39;;</b>
+<b class="nc">&nbsp;        break;</b>
+&nbsp;      case 244:
+<b class="fc">&nbsp;        c = &#39;/&#39;;</b>
+<b class="fc">&nbsp;        break;</b>
+&nbsp;      case 245:
+<b class="fc">&nbsp;        c = &#39;:&#39;;</b>
+<b class="fc">&nbsp;        break;</b>
+&nbsp;      case 246:
+<b class="fc">&nbsp;        c = &#39;;&#39;;</b>
+<b class="fc">&nbsp;        break;</b>
+&nbsp;      case 247:
+<b class="fc">&nbsp;        c = &#39;&lt;&#39;;</b>
+<b class="fc">&nbsp;        break;</b>
+&nbsp;      case 248:
+<b class="fc">&nbsp;        c = &#39;=&#39;;</b>
+<b class="fc">&nbsp;        break;</b>
+&nbsp;      case 249:
+<b class="fc">&nbsp;        c = &#39;&gt;&#39;;</b>
+<b class="fc">&nbsp;        break;</b>
+&nbsp;      case 250:
+<b class="fc">&nbsp;        c = &#39;?&#39;;</b>
+<b class="fc">&nbsp;        break;</b>
+&nbsp;      case 251:
+<b class="fc">&nbsp;        c = &#39;_&#39;;</b>
+<b class="fc">&nbsp;        break;</b>
+&nbsp;      case 252:
+<b class="fc">&nbsp;        c = &#39; &#39;;</b>
+<b class="fc">&nbsp;        break;</b>
+&nbsp;      default:
+<b class="nc">&nbsp;        throw FormatException.getFormatInstance();</b>
+&nbsp;    }
+<b class="fc">&nbsp;    return new DecodedChar(pos + 8, c);</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  private boolean isStillAlpha(int pos) {
+<b class="fc">&nbsp;    if (pos + 5 &gt; this.information.getSize()) {</b>
+<b class="fc">&nbsp;      return false;</b>
+&nbsp;    }
+&nbsp;
+&nbsp;    // We now check if it&#39;s a valid 5-bit value (0..9 and FNC1)
+<b class="fc">&nbsp;    int fiveBitValue = extractNumericValueFromBitArray(pos, 5);</b>
+<b class="fc">&nbsp;    if (fiveBitValue &gt;= 5 &amp;&amp; fiveBitValue &lt; 16) {</b>
+<b class="fc">&nbsp;      return true;</b>
+&nbsp;    }
+&nbsp;
+<b class="fc">&nbsp;    if (pos + 6 &gt; this.information.getSize()) {</b>
+<b class="fc">&nbsp;      return false;</b>
+&nbsp;    }
+&nbsp;
+<b class="fc">&nbsp;    int sixBitValue =  extractNumericValueFromBitArray(pos, 6);</b>
+<b class="fc">&nbsp;    return sixBitValue &gt;= 16 &amp;&amp; sixBitValue &lt; 63; // 63 not included</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  private DecodedChar decodeAlphanumeric(int pos) {
+<b class="fc">&nbsp;    int fiveBitValue = extractNumericValueFromBitArray(pos, 5);</b>
+<b class="fc">&nbsp;    if (fiveBitValue == 15) {</b>
+<b class="fc">&nbsp;      return new DecodedChar(pos + 5, DecodedChar.FNC1);</b>
+&nbsp;    }
+&nbsp;
+<b class="fc">&nbsp;    if (fiveBitValue &gt;= 5 &amp;&amp; fiveBitValue &lt; 15) {</b>
+<b class="fc">&nbsp;      return new DecodedChar(pos + 5, (char) (&#39;0&#39; + fiveBitValue - 5));</b>
+&nbsp;    }
+&nbsp;
+<b class="fc">&nbsp;    int sixBitValue =  extractNumericValueFromBitArray(pos, 6);</b>
+&nbsp;
+<b class="fc">&nbsp;    if (sixBitValue &gt;= 32 &amp;&amp; sixBitValue &lt; 58) {</b>
+<b class="fc">&nbsp;      return new DecodedChar(pos + 6, (char) (sixBitValue + 33));</b>
+&nbsp;    }
+&nbsp;
+&nbsp;    char c;
+<b class="fc">&nbsp;    switch (sixBitValue) {</b>
+&nbsp;      case 58:
+<b class="fc">&nbsp;        c = &#39;*&#39;;</b>
+<b class="fc">&nbsp;        break;</b>
+&nbsp;      case 59:
+<b class="fc">&nbsp;        c = &#39;,&#39;;</b>
+<b class="fc">&nbsp;        break;</b>
+&nbsp;      case 60:
+<b class="fc">&nbsp;        c = &#39;-&#39;;</b>
+<b class="fc">&nbsp;        break;</b>
+&nbsp;      case 61:
+<b class="fc">&nbsp;        c = &#39;.&#39;;</b>
+<b class="fc">&nbsp;        break;</b>
+&nbsp;      case 62:
+<b class="fc">&nbsp;        c = &#39;/&#39;;</b>
+<b class="fc">&nbsp;        break;</b>
+&nbsp;      default:
+<b class="nc">&nbsp;        throw new IllegalStateException(&quot;Decoding invalid alphanumeric value: &quot; + sixBitValue);</b>
+&nbsp;    }
+<b class="fc">&nbsp;    return new DecodedChar(pos + 6, c);</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  private boolean isAlphaTo646ToAlphaLatch(int pos) {
+<b class="fc">&nbsp;    if (pos + 1 &gt; this.information.getSize()) {</b>
+<b class="fc">&nbsp;      return false;</b>
+&nbsp;    }
+&nbsp;
+<b class="fc">&nbsp;    for (int i = 0; i &lt; 5 &amp;&amp; i + pos &lt; this.information.getSize(); ++i) {</b>
+<b class="fc">&nbsp;      if (i == 2) {</b>
+<b class="fc">&nbsp;        if (!this.information.get(pos + 2)) {</b>
+<b class="nc">&nbsp;          return false;</b>
+&nbsp;        }
+<b class="fc">&nbsp;      } else if (this.information.get(pos + i)) {</b>
+<b class="nc">&nbsp;        return false;</b>
+&nbsp;      }
+&nbsp;    }
+&nbsp;
+<b class="fc">&nbsp;    return true;</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  private boolean isAlphaOr646ToNumericLatch(int pos) {
+&nbsp;    // Next is alphanumeric if there are 3 positions and they are all zeros
+<b class="fc">&nbsp;    if (pos + 3 &gt; this.information.getSize()) {</b>
+<b class="fc">&nbsp;      return false;</b>
+&nbsp;    }
+&nbsp;
+<b class="fc">&nbsp;    for (int i = pos; i &lt; pos + 3; ++i) {</b>
+<b class="fc">&nbsp;      if (this.information.get(i)) {</b>
+<b class="fc">&nbsp;        return false;</b>
+&nbsp;      }
+&nbsp;    }
+<b class="fc">&nbsp;    return true;</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  private boolean isNumericToAlphaNumericLatch(int pos) {
+&nbsp;    // Next is alphanumeric if there are 4 positions and they are all zeros, or
+&nbsp;    // if there is a subset of this just before the end of the symbol
+<b class="fc">&nbsp;    if (pos + 1 &gt; this.information.getSize()) {</b>
+<b class="fc">&nbsp;      return false;</b>
+&nbsp;    }
+&nbsp;
+<b class="fc">&nbsp;    for (int i = 0; i &lt; 4 &amp;&amp; i + pos &lt; this.information.getSize(); ++i) {</b>
+<b class="fc">&nbsp;      if (this.information.get(pos + i)) {</b>
+<b class="nc">&nbsp;        return false;</b>
+&nbsp;      }
+&nbsp;    }
+<b class="fc">&nbsp;    return true;</b>
+&nbsp;  }
+&nbsp;}
+</code>
+</pre>
+</div>
+
+<script type="text/javascript">
+(function() {
+    var msie = false, msie9 = false;
+    /*@cc_on
+      msie = true;
+      @if (@_jscript_version >= 9)
+        msie9 = true;
+      @end
+    @*/
+
+    if (!msie || msie && msie9) {
+      hljs.highlightAll()
+      hljs.initLineNumbersOnLoad();
+    }
+})();
+</script>
+
+<div class="footer">
+    
+    <div style="float:right;">generated on 2023-11-12 23:26</div>
+</div>
+</body>
+</html>

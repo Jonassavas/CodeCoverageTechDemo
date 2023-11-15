@@ -1,0 +1,171 @@
+
+
+
+<!DOCTYPE html>
+<html id="htmlId">
+<head>
+  <meta http-equiv="Content-Type" content="text/html;charset=windows-1252"> 
+  <title>Coverage Report > ParsedResult</title>
+  <style type="text/css">
+    @import "../../css/coverage.css";
+    @import "../../css/idea.min.css";
+  </style>
+  <script type="text/javascript" src="../../js/highlight.min.js"></script>
+  <script type="text/javascript" src="../../js/highlightjs-line-numbers.min.js"></script>
+</head>
+
+<body>
+<div class="content">
+<div class="breadCrumbs">
+Current scope:     <a href="../../index.html">all classes</a>
+    <span class="separator">|</span>
+    <a href="../index.html">com.google.zxing.client.result</a>
+</div>
+
+<h1>Coverage Summary for Class: ParsedResult (com.google.zxing.client.result)</h1>
+
+<table class="coverageStats">
+<tr>
+  <th class="name">Class</th>
+<th class="coverageStat 
+">
+  Class, %
+</th>
+<th class="coverageStat 
+">
+  Method, %
+</th>
+<th class="coverageStat 
+">
+  Line, %
+</th>
+</tr>
+<tr>
+  <td class="name">ParsedResult</td>
+<td class="coverageStat">
+  <span class="percent">
+    100%
+  </span>
+  <span class="absValue">
+    (1/1)
+  </span>
+</td>
+<td class="coverageStat">
+  <span class="percent">
+    80%
+  </span>
+  <span class="absValue">
+    (4/5)
+  </span>
+</td>
+<td class="coverageStat">
+  <span class="percent">
+    90.9%
+  </span>
+  <span class="absValue">
+    (10/11)
+  </span>
+</td>
+</tr>
+
+</table>
+
+<br/>
+<br/>
+
+
+<pre>
+<code class="sourceCode" id="sourceCode">&nbsp;/*
+&nbsp; * Copyright 2007 ZXing authors
+&nbsp; *
+&nbsp; * Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
+&nbsp; * you may not use this file except in compliance with the License.
+&nbsp; * You may obtain a copy of the License at
+&nbsp; *
+&nbsp; *      http://www.apache.org/licenses/LICENSE-2.0
+&nbsp; *
+&nbsp; * Unless required by applicable law or agreed to in writing, software
+&nbsp; * distributed under the License is distributed on an &quot;AS IS&quot; BASIS,
+&nbsp; * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+&nbsp; * See the License for the specific language governing permissions and
+&nbsp; * limitations under the License.
+&nbsp; */
+&nbsp;
+&nbsp;package com.google.zxing.client.result;
+&nbsp;
+&nbsp;/**
+&nbsp; * &lt;p&gt;Abstract class representing the result of decoding a barcode, as more than
+&nbsp; * a String -- as some type of structured data. This might be a subclass which represents
+&nbsp; * a URL, or an e-mail address. {@link ResultParser#parseResult(com.google.zxing.Result)} will turn a raw
+&nbsp; * decoded string into the most appropriate type of structured representation.&lt;/p&gt;
+&nbsp; *
+&nbsp; * &lt;p&gt;Thanks to Jeff Griffin for proposing rewrite of these classes that relies less
+&nbsp; * on exception-based mechanisms during parsing.&lt;/p&gt;
+&nbsp; *
+&nbsp; * @author Sean Owen
+&nbsp; */
+&nbsp;public abstract class ParsedResult {
+&nbsp;
+&nbsp;  private final ParsedResultType type;
+&nbsp;
+<b class="fc">&nbsp;  protected ParsedResult(ParsedResultType type) {</b>
+<b class="fc">&nbsp;    this.type = type;</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  public final ParsedResultType getType() {
+<b class="fc">&nbsp;    return type;</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  public abstract String getDisplayResult();
+&nbsp;
+&nbsp;  @Override
+&nbsp;  public final String toString() {
+<b class="nc">&nbsp;    return getDisplayResult();</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  public static void maybeAppend(String value, StringBuilder result) {
+<b class="fc">&nbsp;    if (value != null &amp;&amp; !value.isEmpty()) {</b>
+&nbsp;      // Don&#39;t add a newline before the first value
+<b class="fc">&nbsp;      if (result.length() &gt; 0) {</b>
+<b class="fc">&nbsp;        result.append(&#39;\n&#39;);</b>
+&nbsp;      }
+<b class="fc">&nbsp;      result.append(value);</b>
+&nbsp;    }
+&nbsp;  }
+&nbsp;
+&nbsp;  public static void maybeAppend(String[] values, StringBuilder result) {
+<b class="fc">&nbsp;    if (values != null) {</b>
+<b class="fc">&nbsp;      for (String value : values) {</b>
+<b class="fc">&nbsp;        maybeAppend(value, result);</b>
+&nbsp;      }
+&nbsp;    }
+&nbsp;  }
+&nbsp;
+&nbsp;}
+</code>
+</pre>
+</div>
+
+<script type="text/javascript">
+(function() {
+    var msie = false, msie9 = false;
+    /*@cc_on
+      msie = true;
+      @if (@_jscript_version >= 9)
+        msie9 = true;
+      @end
+    @*/
+
+    if (!msie || msie && msie9) {
+      hljs.highlightAll()
+      hljs.initLineNumbersOnLoad();
+    }
+})();
+</script>
+
+<div class="footer">
+    
+    <div style="float:right;">generated on 2023-11-12 23:26</div>
+</div>
+</body>
+</html>

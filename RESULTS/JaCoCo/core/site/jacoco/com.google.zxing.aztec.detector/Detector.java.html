@@ -1,0 +1,631 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>Detector.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">ZXing Core</a> &gt; <a href="index.source.html" class="el_package">com.google.zxing.aztec.detector</a> &gt; <span class="el_source">Detector.java</span></div><h1>Detector.java</h1><pre class="source lang-java linenums">/*
+ * Copyright 2010 ZXing authors
+ *
+ * Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an &quot;AS IS&quot; BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+package com.google.zxing.aztec.detector;
+
+import com.google.zxing.NotFoundException;
+import com.google.zxing.ResultPoint;
+import com.google.zxing.aztec.AztecDetectorResult;
+import com.google.zxing.common.BitMatrix;
+import com.google.zxing.common.GridSampler;
+import com.google.zxing.common.detector.MathUtils;
+import com.google.zxing.common.detector.WhiteRectangleDetector;
+import com.google.zxing.common.reedsolomon.GenericGF;
+import com.google.zxing.common.reedsolomon.ReedSolomonDecoder;
+import com.google.zxing.common.reedsolomon.ReedSolomonException;
+
+/**
+ * Encapsulates logic that can detect an Aztec Code in an image, even if the Aztec Code
+ * is rotated or skewed, or partially obscured.
+ *
+ * @author David Olivier
+ * @author Frank Yellin
+ */
+public final class Detector {
+
+<span class="fc" id="L39">  private static final int[] EXPECTED_CORNER_BITS = {</span>
+      0xee0,  // 07340  XXX .XX X.. ...
+      0x1dc,  // 00734  ... XXX .XX X..
+      0x83b,  // 04073  X.. ... XXX .XX
+      0x707,  // 03407 .XX X.. ... XXX
+  };
+
+  private final BitMatrix image;
+
+  private boolean compact;
+  private int nbLayers;
+  private int nbDataBlocks;
+  private int nbCenterLayers;
+  private int shift;
+
+<span class="fc" id="L54">  public Detector(BitMatrix image) {</span>
+<span class="fc" id="L55">    this.image = image;</span>
+<span class="fc" id="L56">  }</span>
+
+  public AztecDetectorResult detect() throws NotFoundException {
+<span class="nc" id="L59">    return detect(false);</span>
+  }
+
+  /**
+   * Detects an Aztec Code in an image.
+   *
+   * @param isMirror if true, image is a mirror-image of original
+   * @return {@link AztecDetectorResult} encapsulating results of detecting an Aztec Code
+   * @throws NotFoundException if no Aztec Code can be found
+   */
+  public AztecDetectorResult detect(boolean isMirror) throws NotFoundException {
+
+    // 1. Get the center of the aztec matrix
+<span class="fc" id="L72">    Point pCenter = getMatrixCenter();</span>
+
+    // 2. Get the center points of the four diagonal points just outside the bull's eye
+    //  [topRight, bottomRight, bottomLeft, topLeft]
+<span class="fc" id="L76">    ResultPoint[] bullsEyeCorners = getBullsEyeCorners(pCenter);</span>
+
+<span class="fc bfc" id="L78" title="All 2 branches covered.">    if (isMirror) {</span>
+<span class="fc" id="L79">      ResultPoint temp = bullsEyeCorners[0];</span>
+<span class="fc" id="L80">      bullsEyeCorners[0] = bullsEyeCorners[2];</span>
+<span class="fc" id="L81">      bullsEyeCorners[2] = temp;</span>
+    }
+
+    // 3. Get the size of the matrix and other parameters from the bull's eye
+<span class="fc" id="L85">    int errorsCorrected = extractParameters(bullsEyeCorners);</span>
+
+    // 4. Sample the grid
+<span class="fc" id="L88">    BitMatrix bits = sampleGrid(image,</span>
+                                bullsEyeCorners[shift % 4],
+                                bullsEyeCorners[(shift + 1) % 4],
+                                bullsEyeCorners[(shift + 2) % 4],
+                                bullsEyeCorners[(shift + 3) % 4]);
+
+    // 5. Get the corners of the matrix.
+<span class="fc" id="L95">    ResultPoint[] corners = getMatrixCornerPoints(bullsEyeCorners);</span>
+
+<span class="fc" id="L97">    return new AztecDetectorResult(bits, corners, compact, nbDataBlocks, nbLayers, errorsCorrected);</span>
+  }
+
+  /**
+   * Extracts the number of data layers and data blocks from the layer around the bull's eye.
+   *
+   * @param bullsEyeCorners the array of bull's eye corners
+   * @return the number of errors corrected during parameter extraction
+   * @throws NotFoundException in case of too many errors or invalid parameters
+   */
+  private int extractParameters(ResultPoint[] bullsEyeCorners) throws NotFoundException {
+<span class="pc bpc" id="L108" title="2 of 4 branches missed.">    if (!isValid(bullsEyeCorners[0]) || !isValid(bullsEyeCorners[1]) ||</span>
+<span class="pc bpc" id="L109" title="2 of 4 branches missed.">        !isValid(bullsEyeCorners[2]) || !isValid(bullsEyeCorners[3])) {</span>
+<span class="nc" id="L110">      throw NotFoundException.getNotFoundInstance();</span>
+    }
+<span class="fc" id="L112">    int length = 2 * nbCenterLayers;</span>
+    // Get the bits around the bull's eye
+<span class="fc" id="L114">    int[] sides = {</span>
+<span class="fc" id="L115">        sampleLine(bullsEyeCorners[0], bullsEyeCorners[1], length), // Right side</span>
+<span class="fc" id="L116">        sampleLine(bullsEyeCorners[1], bullsEyeCorners[2], length), // Bottom</span>
+<span class="fc" id="L117">        sampleLine(bullsEyeCorners[2], bullsEyeCorners[3], length), // Left side</span>
+<span class="fc" id="L118">        sampleLine(bullsEyeCorners[3], bullsEyeCorners[0], length)  // Top</span>
+    };
+
+    // bullsEyeCorners[shift] is the corner of the bulls'eye that has three
+    // orientation marks.
+    // sides[shift] is the row/column that goes from the corner with three
+    // orientation marks to the corner with two.
+<span class="fc" id="L125">    shift = getRotation(sides, length);</span>
+
+    // Flatten the parameter bits into a single 28- or 40-bit long
+<span class="fc" id="L128">    long parameterData = 0;</span>
+<span class="fc bfc" id="L129" title="All 2 branches covered.">    for (int i = 0; i &lt; 4; i++) {</span>
+<span class="fc" id="L130">      int side = sides[(shift + i) % 4];</span>
+<span class="fc bfc" id="L131" title="All 2 branches covered.">      if (compact) {</span>
+        // Each side of the form ..XXXXXXX. where Xs are parameter data
+<span class="fc" id="L133">        parameterData &lt;&lt;= 7;</span>
+<span class="fc" id="L134">        parameterData += (side &gt;&gt; 1) &amp; 0x7F;</span>
+      } else {
+        // Each side of the form ..XXXXX.XXXXX. where Xs are parameter data
+<span class="fc" id="L137">        parameterData &lt;&lt;= 10;</span>
+<span class="fc" id="L138">        parameterData += ((side &gt;&gt; 2) &amp; (0x1f &lt;&lt; 5)) + ((side &gt;&gt; 1) &amp; 0x1F);</span>
+      }
+    }
+
+    // Corrects parameter data using RS.  Returns just the data portion
+    // without the error correction.
+<span class="fc" id="L144">    CorrectedParameter correctedParam = getCorrectedParameterData(parameterData, compact);</span>
+<span class="fc" id="L145">    int correctedData = correctedParam.getData();</span>
+
+<span class="fc bfc" id="L147" title="All 2 branches covered.">    if (compact) {</span>
+      // 8 bits:  2 bits layers and 6 bits data blocks
+<span class="fc" id="L149">      nbLayers = (correctedData &gt;&gt; 6) + 1;</span>
+<span class="fc" id="L150">      nbDataBlocks = (correctedData &amp; 0x3F) + 1;</span>
+    } else {
+      // 16 bits:  5 bits layers and 11 bits data blocks
+<span class="fc" id="L153">      nbLayers = (correctedData &gt;&gt; 11) + 1;</span>
+<span class="fc" id="L154">      nbDataBlocks = (correctedData &amp; 0x7FF) + 1;</span>
+    }
+
+<span class="fc" id="L157">    return correctedParam.getErrorsCorrected();</span>
+  }
+
+  private static int getRotation(int[] sides, int length) throws NotFoundException {
+    // In a normal pattern, we expect to See
+    //   **    .*             D       A
+    //   *      *
+    //
+    //   .      *
+    //   ..    ..             C       B
+    //
+    // Grab the 3 bits from each of the sides the form the locator pattern and concatenate
+    // into a 12-bit integer.  Start with the bit at A
+<span class="fc" id="L170">    int cornerBits = 0;</span>
+<span class="fc bfc" id="L171" title="All 2 branches covered.">    for (int side : sides) {</span>
+      // XX......X where X's are orientation marks
+<span class="fc" id="L173">      int t = ((side &gt;&gt; (length - 2)) &lt;&lt; 1) + (side &amp; 1);</span>
+<span class="fc" id="L174">      cornerBits = (cornerBits &lt;&lt; 3) + t;</span>
+    }
+    // Mov the bottom bit to the top, so that the three bits of the locator pattern at A are
+    // together.  cornerBits is now:
+    //  3 orientation bits at A || 3 orientation bits at B || ... || 3 orientation bits at D
+<span class="fc" id="L179">    cornerBits = ((cornerBits &amp; 1) &lt;&lt; 11) + (cornerBits &gt;&gt; 1);</span>
+    // The result shift indicates which element of BullsEyeCorners[] goes into the top-left
+    // corner. Since the four rotation values have a Hamming distance of 8, we
+    // can easily tolerate two errors.
+<span class="fc bfc" id="L183" title="All 2 branches covered.">    for (int shift = 0; shift &lt; 4; shift++) {</span>
+<span class="fc bfc" id="L184" title="All 2 branches covered.">      if (Integer.bitCount(cornerBits ^ EXPECTED_CORNER_BITS[shift]) &lt;= 2) {</span>
+<span class="fc" id="L185">        return shift;</span>
+      }
+    }
+<span class="fc" id="L188">    throw NotFoundException.getNotFoundInstance();</span>
+  }
+
+  /**
+   * Corrects the parameter bits using Reed-Solomon algorithm.
+   *
+   * @param parameterData parameter bits
+   * @param compact true if this is a compact Aztec code
+   * @return the corrected parameter
+   * @throws NotFoundException if the array contains too many errors
+   */
+  private static CorrectedParameter getCorrectedParameterData(long parameterData,
+                                                              boolean compact) throws NotFoundException {
+    int numCodewords;
+    int numDataCodewords;
+
+<span class="fc bfc" id="L204" title="All 2 branches covered.">    if (compact) {</span>
+<span class="fc" id="L205">      numCodewords = 7;</span>
+<span class="fc" id="L206">      numDataCodewords = 2;</span>
+    } else {
+<span class="fc" id="L208">      numCodewords = 10;</span>
+<span class="fc" id="L209">      numDataCodewords = 4;</span>
+    }
+
+<span class="fc" id="L212">    int numECCodewords = numCodewords - numDataCodewords;</span>
+<span class="fc" id="L213">    int[] parameterWords = new int[numCodewords];</span>
+<span class="fc bfc" id="L214" title="All 2 branches covered.">    for (int i = numCodewords - 1; i &gt;= 0; --i) {</span>
+<span class="fc" id="L215">      parameterWords[i] = (int) parameterData &amp; 0xF;</span>
+<span class="fc" id="L216">      parameterData &gt;&gt;= 4;</span>
+    }
+
+<span class="fc" id="L219">    int errorsCorrected = 0;</span>
+    try {
+<span class="fc" id="L221">      ReedSolomonDecoder rsDecoder = new ReedSolomonDecoder(GenericGF.AZTEC_PARAM);</span>
+<span class="fc" id="L222">      errorsCorrected = rsDecoder.decodeWithECCount(parameterWords, numECCodewords);</span>
+<span class="nc" id="L223">    } catch (ReedSolomonException ignored) {</span>
+<span class="nc" id="L224">      throw NotFoundException.getNotFoundInstance();</span>
+<span class="fc" id="L225">    }</span>
+
+    // Toss the error correction.  Just return the data as an integer
+<span class="fc" id="L228">    int result = 0;</span>
+<span class="fc bfc" id="L229" title="All 2 branches covered.">    for (int i = 0; i &lt; numDataCodewords; i++) {</span>
+<span class="fc" id="L230">      result = (result &lt;&lt; 4) + parameterWords[i];</span>
+    }
+<span class="fc" id="L232">    return new CorrectedParameter(result, errorsCorrected);</span>
+  }
+
+  /**
+   * Finds the corners of a bull-eye centered on the passed point.
+   * This returns the centers of the diagonal points just outside the bull's eye
+   * Returns [topRight, bottomRight, bottomLeft, topLeft]
+   *
+   * @param pCenter Center point
+   * @return The corners of the bull-eye
+   * @throws NotFoundException If no valid bull-eye can be found
+   */
+  private ResultPoint[] getBullsEyeCorners(Point pCenter) throws NotFoundException {
+
+<span class="fc" id="L246">    Point pina = pCenter;</span>
+<span class="fc" id="L247">    Point pinb = pCenter;</span>
+<span class="fc" id="L248">    Point pinc = pCenter;</span>
+<span class="fc" id="L249">    Point pind = pCenter;</span>
+
+<span class="fc" id="L251">    boolean color = true;</span>
+
+<span class="pc bpc" id="L253" title="1 of 2 branches missed.">    for (nbCenterLayers = 1; nbCenterLayers &lt; 9; nbCenterLayers++) {</span>
+<span class="fc" id="L254">      Point pouta = getFirstDifferent(pina, color, 1, -1);</span>
+<span class="fc" id="L255">      Point poutb = getFirstDifferent(pinb, color, 1, 1);</span>
+<span class="fc" id="L256">      Point poutc = getFirstDifferent(pinc, color, -1, 1);</span>
+<span class="fc" id="L257">      Point poutd = getFirstDifferent(pind, color, -1, -1);</span>
+
+      //d      a
+      //
+      //c      b
+
+<span class="fc bfc" id="L263" title="All 2 branches covered.">      if (nbCenterLayers &gt; 2) {</span>
+<span class="fc" id="L264">        float q = distance(poutd, pouta) * nbCenterLayers / (distance(pind, pina) * (nbCenterLayers + 2));</span>
+<span class="fc bfc" id="L265" title="All 6 branches covered.">        if (q &lt; 0.75 || q &gt; 1.25 || !isWhiteOrBlackRectangle(pouta, poutb, poutc, poutd)) {</span>
+<span class="fc" id="L266">          break;</span>
+        }
+      }
+
+<span class="fc" id="L270">      pina = pouta;</span>
+<span class="fc" id="L271">      pinb = poutb;</span>
+<span class="fc" id="L272">      pinc = poutc;</span>
+<span class="fc" id="L273">      pind = poutd;</span>
+
+<span class="fc bfc" id="L275" title="All 2 branches covered.">      color = !color;</span>
+    }
+
+<span class="fc bfc" id="L278" title="All 4 branches covered.">    if (nbCenterLayers != 5 &amp;&amp; nbCenterLayers != 7) {</span>
+<span class="fc" id="L279">      throw NotFoundException.getNotFoundInstance();</span>
+    }
+
+<span class="fc bfc" id="L282" title="All 2 branches covered.">    compact = nbCenterLayers == 5;</span>
+
+    // Expand the square by .5 pixel in each direction so that we're on the border
+    // between the white square and the black square
+<span class="fc" id="L286">    ResultPoint pinax = new ResultPoint(pina.getX() + 0.5f, pina.getY() - 0.5f);</span>
+<span class="fc" id="L287">    ResultPoint pinbx = new ResultPoint(pinb.getX() + 0.5f, pinb.getY() + 0.5f);</span>
+<span class="fc" id="L288">    ResultPoint pincx = new ResultPoint(pinc.getX() - 0.5f, pinc.getY() + 0.5f);</span>
+<span class="fc" id="L289">    ResultPoint pindx = new ResultPoint(pind.getX() - 0.5f, pind.getY() - 0.5f);</span>
+
+    // Expand the square so that its corners are the centers of the points
+    // just outside the bull's eye.
+<span class="fc" id="L293">    return expandSquare(new ResultPoint[]{pinax, pinbx, pincx, pindx},</span>
+                        2 * nbCenterLayers - 3,
+                        2 * nbCenterLayers);
+  }
+
+  /**
+   * Finds a candidate center point of an Aztec code from an image
+   *
+   * @return the center point
+   */
+  private Point getMatrixCenter() {
+
+    ResultPoint pointA;
+    ResultPoint pointB;
+    ResultPoint pointC;
+    ResultPoint pointD;
+
+    //Get a white rectangle that can be the border of the matrix in center bull's eye or
+    try {
+
+<span class="fc" id="L313">      ResultPoint[] cornerPoints = new WhiteRectangleDetector(image).detect();</span>
+<span class="fc" id="L314">      pointA = cornerPoints[0];</span>
+<span class="fc" id="L315">      pointB = cornerPoints[1];</span>
+<span class="fc" id="L316">      pointC = cornerPoints[2];</span>
+<span class="fc" id="L317">      pointD = cornerPoints[3];</span>
+
+<span class="fc" id="L319">    } catch (NotFoundException e) {</span>
+
+      // This exception can be in case the initial rectangle is white
+      // In that case, surely in the bull's eye, we try to expand the rectangle.
+<span class="fc" id="L323">      int cx = image.getWidth() / 2;</span>
+<span class="fc" id="L324">      int cy = image.getHeight() / 2;</span>
+<span class="fc" id="L325">      pointA = getFirstDifferent(new Point(cx + 7, cy - 7), false, 1, -1).toResultPoint();</span>
+<span class="fc" id="L326">      pointB = getFirstDifferent(new Point(cx + 7, cy + 7), false, 1, 1).toResultPoint();</span>
+<span class="fc" id="L327">      pointC = getFirstDifferent(new Point(cx - 7, cy + 7), false, -1, 1).toResultPoint();</span>
+<span class="fc" id="L328">      pointD = getFirstDifferent(new Point(cx - 7, cy - 7), false, -1, -1).toResultPoint();</span>
+
+<span class="fc" id="L330">    }</span>
+
+    //Compute the center of the rectangle
+<span class="fc" id="L333">    int cx = MathUtils.round((pointA.getX() + pointD.getX() + pointB.getX() + pointC.getX()) / 4.0f);</span>
+<span class="fc" id="L334">    int cy = MathUtils.round((pointA.getY() + pointD.getY() + pointB.getY() + pointC.getY()) / 4.0f);</span>
+
+    // Redetermine the white rectangle starting from previously computed center.
+    // This will ensure that we end up with a white rectangle in center bull's eye
+    // in order to compute a more accurate center.
+    try {
+<span class="fc" id="L340">      ResultPoint[] cornerPoints = new WhiteRectangleDetector(image, 15, cx, cy).detect();</span>
+<span class="fc" id="L341">      pointA = cornerPoints[0];</span>
+<span class="fc" id="L342">      pointB = cornerPoints[1];</span>
+<span class="fc" id="L343">      pointC = cornerPoints[2];</span>
+<span class="fc" id="L344">      pointD = cornerPoints[3];</span>
+<span class="fc" id="L345">    } catch (NotFoundException e) {</span>
+      // This exception can be in case the initial rectangle is white
+      // In that case we try to expand the rectangle.
+<span class="fc" id="L348">      pointA = getFirstDifferent(new Point(cx + 7, cy - 7), false, 1, -1).toResultPoint();</span>
+<span class="fc" id="L349">      pointB = getFirstDifferent(new Point(cx + 7, cy + 7), false, 1, 1).toResultPoint();</span>
+<span class="fc" id="L350">      pointC = getFirstDifferent(new Point(cx - 7, cy + 7), false, -1, 1).toResultPoint();</span>
+<span class="fc" id="L351">      pointD = getFirstDifferent(new Point(cx - 7, cy - 7), false, -1, -1).toResultPoint();</span>
+<span class="fc" id="L352">    }</span>
+
+    // Recompute the center of the rectangle
+<span class="fc" id="L355">    cx = MathUtils.round((pointA.getX() + pointD.getX() + pointB.getX() + pointC.getX()) / 4.0f);</span>
+<span class="fc" id="L356">    cy = MathUtils.round((pointA.getY() + pointD.getY() + pointB.getY() + pointC.getY()) / 4.0f);</span>
+
+<span class="fc" id="L358">    return new Point(cx, cy);</span>
+  }
+
+  /**
+   * Gets the Aztec code corners from the bull's eye corners and the parameters.
+   *
+   * @param bullsEyeCorners the array of bull's eye corners
+   * @return the array of aztec code corners
+   */
+  private ResultPoint[] getMatrixCornerPoints(ResultPoint[] bullsEyeCorners) {
+<span class="fc" id="L368">    return expandSquare(bullsEyeCorners, 2 * nbCenterLayers, getDimension());</span>
+  }
+
+  /**
+   * Creates a BitMatrix by sampling the provided image.
+   * topLeft, topRight, bottomRight, and bottomLeft are the centers of the squares on the
+   * diagonal just outside the bull's eye.
+   */
+  private BitMatrix sampleGrid(BitMatrix image,
+                               ResultPoint topLeft,
+                               ResultPoint topRight,
+                               ResultPoint bottomRight,
+                               ResultPoint bottomLeft) throws NotFoundException {
+
+<span class="fc" id="L382">    GridSampler sampler = GridSampler.getInstance();</span>
+<span class="fc" id="L383">    int dimension = getDimension();</span>
+
+<span class="fc" id="L385">    float low = dimension / 2.0f - nbCenterLayers;</span>
+<span class="fc" id="L386">    float high = dimension / 2.0f + nbCenterLayers;</span>
+
+<span class="fc" id="L388">    return sampler.sampleGrid(image,</span>
+                              dimension,
+                              dimension,
+                              low, low,   // topleft
+                              high, low,  // topright
+                              high, high, // bottomright
+                              low, high,  // bottomleft
+<span class="fc" id="L395">                              topLeft.getX(), topLeft.getY(),</span>
+<span class="fc" id="L396">                              topRight.getX(), topRight.getY(),</span>
+<span class="fc" id="L397">                              bottomRight.getX(), bottomRight.getY(),</span>
+<span class="fc" id="L398">                              bottomLeft.getX(), bottomLeft.getY());</span>
+  }
+
+  /**
+   * Samples a line.
+   *
+   * @param p1   start point (inclusive)
+   * @param p2   end point (exclusive)
+   * @param size number of bits
+   * @return the array of bits as an int (first bit is high-order bit of result)
+   */
+  private int sampleLine(ResultPoint p1, ResultPoint p2, int size) {
+<span class="fc" id="L410">    int result = 0;</span>
+
+<span class="fc" id="L412">    float d = distance(p1, p2);</span>
+<span class="fc" id="L413">    float moduleSize = d / size;</span>
+<span class="fc" id="L414">    float px = p1.getX();</span>
+<span class="fc" id="L415">    float py = p1.getY();</span>
+<span class="fc" id="L416">    float dx = moduleSize * (p2.getX() - p1.getX()) / d;</span>
+<span class="fc" id="L417">    float dy = moduleSize * (p2.getY() - p1.getY()) / d;</span>
+<span class="fc bfc" id="L418" title="All 2 branches covered.">    for (int i = 0; i &lt; size; i++) {</span>
+<span class="fc bfc" id="L419" title="All 2 branches covered.">      if (image.get(MathUtils.round(px + i * dx), MathUtils.round(py + i * dy))) {</span>
+<span class="fc" id="L420">        result |= 1 &lt;&lt; (size - i - 1);</span>
+      }
+    }
+<span class="fc" id="L423">    return result;</span>
+  }
+
+  /**
+   * @return true if the border of the rectangle passed in parameter is compound of white points only
+   *         or black points only
+   */
+  private boolean isWhiteOrBlackRectangle(Point p1,
+                                          Point p2,
+                                          Point p3,
+                                          Point p4) {
+
+<span class="fc" id="L435">    int corr = 3;</span>
+
+<span class="fc" id="L437">    p1 = new Point(Math.max(0, p1.getX() - corr), Math.min(image.getHeight() - 1, p1.getY() + corr));</span>
+<span class="fc" id="L438">    p2 = new Point(Math.max(0, p2.getX() - corr), Math.max(0, p2.getY() - corr));</span>
+<span class="fc" id="L439">    p3 = new Point(Math.min(image.getWidth() - 1, p3.getX() + corr),</span>
+<span class="fc" id="L440">                   Math.max(0, Math.min(image.getHeight() - 1, p3.getY() - corr)));</span>
+<span class="fc" id="L441">    p4 = new Point(Math.min(image.getWidth() - 1, p4.getX() + corr),</span>
+<span class="fc" id="L442">                   Math.min(image.getHeight() - 1, p4.getY() + corr));</span>
+
+<span class="fc" id="L444">    int cInit = getColor(p4, p1);</span>
+
+<span class="fc bfc" id="L446" title="All 2 branches covered.">    if (cInit == 0) {</span>
+<span class="fc" id="L447">      return false;</span>
+    }
+
+<span class="fc" id="L450">    int c = getColor(p1, p2);</span>
+
+<span class="fc bfc" id="L452" title="All 2 branches covered.">    if (c != cInit) {</span>
+<span class="fc" id="L453">      return false;</span>
+    }
+
+<span class="fc" id="L456">    c = getColor(p2, p3);</span>
+
+<span class="fc bfc" id="L458" title="All 2 branches covered.">    if (c != cInit) {</span>
+<span class="fc" id="L459">      return false;</span>
+    }
+
+<span class="fc" id="L462">    c = getColor(p3, p4);</span>
+
+<span class="fc bfc" id="L464" title="All 2 branches covered.">    return c == cInit;</span>
+
+  }
+
+  /**
+   * Gets the color of a segment
+   *
+   * @return 1 if segment more than 90% black, -1 if segment is more than 90% white, 0 else
+   */
+  private int getColor(Point p1, Point p2) {
+<span class="fc" id="L474">    float d = distance(p1, p2);</span>
+<span class="fc bfc" id="L475" title="All 2 branches covered.">    if (d == 0.0f) {</span>
+<span class="fc" id="L476">      return 0;</span>
+    }
+<span class="fc" id="L478">    float dx = (p2.getX() - p1.getX()) / d;</span>
+<span class="fc" id="L479">    float dy = (p2.getY() - p1.getY()) / d;</span>
+<span class="fc" id="L480">    int error = 0;</span>
+
+<span class="fc" id="L482">    float px = p1.getX();</span>
+<span class="fc" id="L483">    float py = p1.getY();</span>
+
+<span class="fc" id="L485">    boolean colorModel = image.get(p1.getX(), p1.getY());</span>
+
+<span class="fc" id="L487">    int iMax = (int) Math.floor(d);</span>
+<span class="fc bfc" id="L488" title="All 2 branches covered.">    for (int i = 0; i &lt; iMax; i++) {</span>
+<span class="fc bfc" id="L489" title="All 2 branches covered.">      if (image.get(MathUtils.round(px), MathUtils.round(py)) != colorModel) {</span>
+<span class="fc" id="L490">        error++;</span>
+      }
+<span class="fc" id="L492">      px += dx;</span>
+<span class="fc" id="L493">      py += dy;</span>
+    }
+
+<span class="fc" id="L496">    float errRatio = error / d;</span>
+
+<span class="fc bfc" id="L498" title="All 4 branches covered.">    if (errRatio &gt; 0.1f &amp;&amp; errRatio &lt; 0.9f) {</span>
+<span class="fc" id="L499">      return 0;</span>
+    }
+
+<span class="fc bfc" id="L502" title="All 4 branches covered.">    return (errRatio &lt;= 0.1f) == colorModel ? 1 : -1;</span>
+  }
+
+  /**
+   * Gets the coordinate of the first point with a different color in the given direction
+   */
+  private Point getFirstDifferent(Point init, boolean color, int dx, int dy) {
+<span class="fc" id="L509">    int x = init.getX() + dx;</span>
+<span class="fc" id="L510">    int y = init.getY() + dy;</span>
+
+<span class="fc bfc" id="L512" title="All 4 branches covered.">    while (isValid(x, y) &amp;&amp; image.get(x, y) == color) {</span>
+<span class="fc" id="L513">      x += dx;</span>
+<span class="fc" id="L514">      y += dy;</span>
+    }
+
+<span class="fc" id="L517">    x -= dx;</span>
+<span class="fc" id="L518">    y -= dy;</span>
+
+<span class="fc bfc" id="L520" title="All 4 branches covered.">    while (isValid(x, y) &amp;&amp; image.get(x, y) == color) {</span>
+<span class="fc" id="L521">      x += dx;</span>
+    }
+<span class="fc" id="L523">    x -= dx;</span>
+
+<span class="fc bfc" id="L525" title="All 4 branches covered.">    while (isValid(x, y) &amp;&amp; image.get(x, y) == color) {</span>
+<span class="fc" id="L526">      y += dy;</span>
+    }
+<span class="fc" id="L528">    y -= dy;</span>
+
+<span class="fc" id="L530">    return new Point(x, y);</span>
+  }
+
+  /**
+   * Expand the square represented by the corner points by pushing out equally in all directions
+   *
+   * @param cornerPoints the corners of the square, which has the bull's eye at its center
+   * @param oldSide the original length of the side of the square in the target bit matrix
+   * @param newSide the new length of the size of the square in the target bit matrix
+   * @return the corners of the expanded square
+   */
+  private static ResultPoint[] expandSquare(ResultPoint[] cornerPoints, int oldSide, int newSide) {
+<span class="fc" id="L542">    float ratio = newSide / (2.0f * oldSide);</span>
+<span class="fc" id="L543">    float dx = cornerPoints[0].getX() - cornerPoints[2].getX();</span>
+<span class="fc" id="L544">    float dy = cornerPoints[0].getY() - cornerPoints[2].getY();</span>
+<span class="fc" id="L545">    float centerx = (cornerPoints[0].getX() + cornerPoints[2].getX()) / 2.0f;</span>
+<span class="fc" id="L546">    float centery = (cornerPoints[0].getY() + cornerPoints[2].getY()) / 2.0f;</span>
+
+<span class="fc" id="L548">    ResultPoint result0 = new ResultPoint(centerx + ratio * dx, centery + ratio * dy);</span>
+<span class="fc" id="L549">    ResultPoint result2 = new ResultPoint(centerx - ratio * dx, centery - ratio * dy);</span>
+
+<span class="fc" id="L551">    dx = cornerPoints[1].getX() - cornerPoints[3].getX();</span>
+<span class="fc" id="L552">    dy = cornerPoints[1].getY() - cornerPoints[3].getY();</span>
+<span class="fc" id="L553">    centerx = (cornerPoints[1].getX() + cornerPoints[3].getX()) / 2.0f;</span>
+<span class="fc" id="L554">    centery = (cornerPoints[1].getY() + cornerPoints[3].getY()) / 2.0f;</span>
+<span class="fc" id="L555">    ResultPoint result1 = new ResultPoint(centerx + ratio * dx, centery + ratio * dy);</span>
+<span class="fc" id="L556">    ResultPoint result3 = new ResultPoint(centerx - ratio * dx, centery - ratio * dy);</span>
+
+<span class="fc" id="L558">    return new ResultPoint[]{result0, result1, result2, result3};</span>
+  }
+
+  private boolean isValid(int x, int y) {
+<span class="fc bfc" id="L562" title="All 8 branches covered.">    return x &gt;= 0 &amp;&amp; x &lt; image.getWidth() &amp;&amp; y &gt;= 0 &amp;&amp; y &lt; image.getHeight();</span>
+  }
+
+  private boolean isValid(ResultPoint point) {
+<span class="fc" id="L566">    int x = MathUtils.round(point.getX());</span>
+<span class="fc" id="L567">    int y = MathUtils.round(point.getY());</span>
+<span class="fc" id="L568">    return isValid(x, y);</span>
+  }
+
+  private static float distance(Point a, Point b) {
+<span class="fc" id="L572">    return MathUtils.distance(a.getX(), a.getY(), b.getX(), b.getY());</span>
+  }
+
+  private static float distance(ResultPoint a, ResultPoint b) {
+<span class="fc" id="L576">    return MathUtils.distance(a.getX(), a.getY(), b.getX(), b.getY());</span>
+  }
+
+  private int getDimension() {
+<span class="fc bfc" id="L580" title="All 2 branches covered.">    if (compact) {</span>
+<span class="fc" id="L581">      return 4 * nbLayers + 11;</span>
+    }
+<span class="fc" id="L583">    return 4 * nbLayers + 2 * ((2 * nbLayers + 6) / 15) + 15;</span>
+  }
+
+  static final class Point {
+    private final int x;
+    private final int y;
+
+    ResultPoint toResultPoint() {
+<span class="fc" id="L591">      return new ResultPoint(x, y);</span>
+    }
+
+<span class="fc" id="L594">    Point(int x, int y) {</span>
+<span class="fc" id="L595">      this.x = x;</span>
+<span class="fc" id="L596">      this.y = y;</span>
+<span class="fc" id="L597">    }</span>
+
+    int getX() {
+<span class="fc" id="L600">      return x;</span>
+    }
+
+    int getY() {
+<span class="fc" id="L604">      return y;</span>
+    }
+
+    @Override
+    public String toString() {
+<span class="nc" id="L609">      return &quot;&lt;&quot; + x + ' ' + y + '&gt;';</span>
+    }
+  }
+
+  static final class CorrectedParameter {
+    private final int data;
+    private final int errorsCorrected;
+
+<span class="fc" id="L617">    CorrectedParameter(int data, int errorsCorrected) {</span>
+<span class="fc" id="L618">      this.data = data;</span>
+<span class="fc" id="L619">      this.errorsCorrected = errorsCorrected;</span>
+<span class="fc" id="L620">    }</span>
+
+    int getData() {
+<span class="fc" id="L623">      return data;</span>
+    }
+
+    int getErrorsCorrected() {
+<span class="fc" id="L627">      return errorsCorrected;</span>
+    }
+  }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.11.202310140853</span></div></body></html>

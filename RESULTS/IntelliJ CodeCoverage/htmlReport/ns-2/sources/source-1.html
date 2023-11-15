@@ -1,0 +1,176 @@
+
+
+
+<!DOCTYPE html>
+<html id="htmlId">
+<head>
+  <meta http-equiv="Content-Type" content="text/html;charset=windows-1252"> 
+  <title>Coverage Report > AztecDetectorResult</title>
+  <style type="text/css">
+    @import "../../css/coverage.css";
+    @import "../../css/idea.min.css";
+  </style>
+  <script type="text/javascript" src="../../js/highlight.min.js"></script>
+  <script type="text/javascript" src="../../js/highlightjs-line-numbers.min.js"></script>
+</head>
+
+<body>
+<div class="content">
+<div class="breadCrumbs">
+Current scope:     <a href="../../index.html">all classes</a>
+    <span class="separator">|</span>
+    <a href="../index.html">com.google.zxing.aztec</a>
+</div>
+
+<h1>Coverage Summary for Class: AztecDetectorResult (com.google.zxing.aztec)</h1>
+
+<table class="coverageStats">
+<tr>
+  <th class="name">Class</th>
+<th class="coverageStat 
+">
+  Class, %
+</th>
+<th class="coverageStat 
+">
+  Method, %
+</th>
+<th class="coverageStat 
+">
+  Line, %
+</th>
+</tr>
+<tr>
+  <td class="name">AztecDetectorResult</td>
+<td class="coverageStat">
+  <span class="percent">
+    100%
+  </span>
+  <span class="absValue">
+    (1/1)
+  </span>
+</td>
+<td class="coverageStat">
+  <span class="percent">
+    100%
+  </span>
+  <span class="absValue">
+    (6/6)
+  </span>
+</td>
+<td class="coverageStat">
+  <span class="percent">
+    100%
+  </span>
+  <span class="absValue">
+    (10/10)
+  </span>
+</td>
+</tr>
+
+</table>
+
+<br/>
+<br/>
+
+
+<pre>
+<code class="sourceCode" id="sourceCode">&nbsp;/*
+&nbsp; * Copyright 2010 ZXing authors
+&nbsp; *
+&nbsp; * Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
+&nbsp; * you may not use this file except in compliance with the License.
+&nbsp; * You may obtain a copy of the License at
+&nbsp; *
+&nbsp; *      http://www.apache.org/licenses/LICENSE-2.0
+&nbsp; *
+&nbsp; * Unless required by applicable law or agreed to in writing, software
+&nbsp; * distributed under the License is distributed on an &quot;AS IS&quot; BASIS,
+&nbsp; * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+&nbsp; * See the License for the specific language governing permissions and
+&nbsp; * limitations under the License.
+&nbsp; */
+&nbsp;
+&nbsp;package com.google.zxing.aztec;
+&nbsp;
+&nbsp;import com.google.zxing.ResultPoint;
+&nbsp;import com.google.zxing.common.BitMatrix;
+&nbsp;import com.google.zxing.common.DetectorResult;
+&nbsp;
+&nbsp;/**
+&nbsp; * &lt;p&gt;Extends {@link DetectorResult} with more information specific to the Aztec format,
+&nbsp; * like the number of layers and whether it&#39;s compact.&lt;/p&gt;
+&nbsp; *
+&nbsp; * @author Sean Owen
+&nbsp; */
+&nbsp;public final class AztecDetectorResult extends DetectorResult {
+&nbsp;
+&nbsp;  private final boolean compact;
+&nbsp;  private final int nbDatablocks;
+&nbsp;  private final int nbLayers;
+&nbsp;  private final int errorsCorrected;
+&nbsp;
+&nbsp;  public AztecDetectorResult(BitMatrix bits,
+&nbsp;                             ResultPoint[] points,
+&nbsp;                             boolean compact,
+&nbsp;                             int nbDatablocks,
+&nbsp;                             int nbLayers) {
+<b class="fc">&nbsp;    this(bits, points, compact, nbDatablocks, nbLayers, 0);</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  public AztecDetectorResult(BitMatrix bits,
+&nbsp;                             ResultPoint[] points,
+&nbsp;                             boolean compact,
+&nbsp;                             int nbDatablocks,
+&nbsp;                             int nbLayers,
+&nbsp;                             int errorsCorrected) {
+<b class="fc">&nbsp;    super(bits, points);</b>
+<b class="fc">&nbsp;    this.compact = compact;</b>
+<b class="fc">&nbsp;    this.nbDatablocks = nbDatablocks;</b>
+<b class="fc">&nbsp;    this.nbLayers = nbLayers;</b>
+<b class="fc">&nbsp;    this.errorsCorrected = errorsCorrected;</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  public int getNbLayers() {
+<b class="fc">&nbsp;    return nbLayers;</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  public int getNbDatablocks() {
+<b class="fc">&nbsp;    return nbDatablocks;</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  public boolean isCompact() {
+<b class="fc">&nbsp;    return compact;</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  public int getErrorsCorrected() {
+<b class="fc">&nbsp;    return errorsCorrected;</b>
+&nbsp;  }
+&nbsp;}
+</code>
+</pre>
+</div>
+
+<script type="text/javascript">
+(function() {
+    var msie = false, msie9 = false;
+    /*@cc_on
+      msie = true;
+      @if (@_jscript_version >= 9)
+        msie9 = true;
+      @end
+    @*/
+
+    if (!msie || msie && msie9) {
+      hljs.highlightAll()
+      hljs.initLineNumbersOnLoad();
+    }
+})();
+</script>
+
+<div class="footer">
+    
+    <div style="float:right;">generated on 2023-11-12 23:26</div>
+</div>
+</body>
+</html>

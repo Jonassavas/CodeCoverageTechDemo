@@ -1,0 +1,302 @@
+
+
+
+<!DOCTYPE html>
+<html id="htmlId">
+<head>
+  <meta http-equiv="Content-Type" content="text/html;charset=windows-1252"> 
+  <title>Coverage Report > DefaultPlacement</title>
+  <style type="text/css">
+    @import "../../css/coverage.css";
+    @import "../../css/idea.min.css";
+  </style>
+  <script type="text/javascript" src="../../js/highlight.min.js"></script>
+  <script type="text/javascript" src="../../js/highlightjs-line-numbers.min.js"></script>
+</head>
+
+<body>
+<div class="content">
+<div class="breadCrumbs">
+Current scope:     <a href="../../index.html">all classes</a>
+    <span class="separator">|</span>
+    <a href="../index.html">com.google.zxing.datamatrix.encoder</a>
+</div>
+
+<h1>Coverage Summary for Class: DefaultPlacement (com.google.zxing.datamatrix.encoder)</h1>
+
+<table class="coverageStats">
+<tr>
+  <th class="name">Class</th>
+<th class="coverageStat 
+">
+  Class, %
+</th>
+<th class="coverageStat 
+">
+  Method, %
+</th>
+<th class="coverageStat 
+">
+  Line, %
+</th>
+</tr>
+<tr>
+  <td class="name">DefaultPlacement</td>
+<td class="coverageStat">
+  <span class="percent">
+    100%
+  </span>
+  <span class="absValue">
+    (1/1)
+  </span>
+</td>
+<td class="coverageStat">
+  <span class="percent">
+    85.7%
+  </span>
+  <span class="absValue">
+    (12/14)
+  </span>
+</td>
+<td class="coverageStat">
+  <span class="percent">
+    80%
+  </span>
+  <span class="absValue">
+    (72/90)
+  </span>
+</td>
+</tr>
+
+</table>
+
+<br/>
+<br/>
+
+
+<pre>
+<code class="sourceCode" id="sourceCode">&nbsp;/*
+&nbsp; * Copyright 2006 Jeremias Maerki.
+&nbsp; *
+&nbsp; * Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
+&nbsp; * you may not use this file except in compliance with the License.
+&nbsp; * You may obtain a copy of the License at
+&nbsp; *
+&nbsp; *      http://www.apache.org/licenses/LICENSE-2.0
+&nbsp; *
+&nbsp; * Unless required by applicable law or agreed to in writing, software
+&nbsp; * distributed under the License is distributed on an &quot;AS IS&quot; BASIS,
+&nbsp; * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+&nbsp; * See the License for the specific language governing permissions and
+&nbsp; * limitations under the License.
+&nbsp; */
+&nbsp;
+&nbsp;package com.google.zxing.datamatrix.encoder;
+&nbsp;
+&nbsp;import java.util.Arrays;
+&nbsp;
+&nbsp;/**
+&nbsp; * Symbol Character Placement Program. Adapted from Annex M.1 in ISO/IEC 16022:2000(E).
+&nbsp; */
+&nbsp;public class DefaultPlacement {
+&nbsp;
+&nbsp;  private final CharSequence codewords;
+&nbsp;  private final int numrows;
+&nbsp;  private final int numcols;
+&nbsp;  private final byte[] bits;
+&nbsp;
+&nbsp;  /**
+&nbsp;   * Main constructor
+&nbsp;   *
+&nbsp;   * @param codewords the codewords to place
+&nbsp;   * @param numcols   the number of columns
+&nbsp;   * @param numrows   the number of rows
+&nbsp;   */
+<b class="fc">&nbsp;  public DefaultPlacement(CharSequence codewords, int numcols, int numrows) {</b>
+<b class="fc">&nbsp;    this.codewords = codewords;</b>
+<b class="fc">&nbsp;    this.numcols = numcols;</b>
+<b class="fc">&nbsp;    this.numrows = numrows;</b>
+<b class="fc">&nbsp;    this.bits = new byte[numcols * numrows];</b>
+<b class="fc">&nbsp;    Arrays.fill(this.bits, (byte) -1); //Initialize with &quot;not set&quot; value</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  final int getNumrows() {
+<b class="fc">&nbsp;    return numrows;</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  final int getNumcols() {
+<b class="fc">&nbsp;    return numcols;</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  final byte[] getBits() {
+<b class="fc">&nbsp;    return bits;</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  public final boolean getBit(int col, int row) {
+<b class="fc">&nbsp;    return bits[row * numcols + col] == 1;</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  private void setBit(int col, int row, boolean bit) {
+<b class="fc">&nbsp;    bits[row * numcols + col] = (byte) (bit ? 1 : 0);</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  private boolean noBit(int col, int row) {
+<b class="fc">&nbsp;    return bits[row * numcols + col] &lt; 0;</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  public final void place() {
+<b class="fc">&nbsp;    int pos = 0;</b>
+<b class="fc">&nbsp;    int row = 4;</b>
+<b class="fc">&nbsp;    int col = 0;</b>
+&nbsp;
+&nbsp;    do {
+&nbsp;      // repeatedly first check for one of the special corner cases, then...
+<b class="fc">&nbsp;      if ((row == numrows) &amp;&amp; (col == 0)) {</b>
+<b class="fc">&nbsp;        corner1(pos++);</b>
+&nbsp;      }
+<b class="fc">&nbsp;      if ((row == numrows - 2) &amp;&amp; (col == 0) &amp;&amp; ((numcols % 4) != 0)) {</b>
+<b class="fc">&nbsp;        corner2(pos++);</b>
+&nbsp;      }
+<b class="fc">&nbsp;      if ((row == numrows - 2) &amp;&amp; (col == 0) &amp;&amp; (numcols % 8 == 4)) {</b>
+<b class="nc">&nbsp;        corner3(pos++);</b>
+&nbsp;      }
+<b class="fc">&nbsp;      if ((row == numrows + 4) &amp;&amp; (col == 2) &amp;&amp; ((numcols % 8) == 0)) {</b>
+<b class="nc">&nbsp;        corner4(pos++);</b>
+&nbsp;      }
+&nbsp;      // sweep upward diagonally, inserting successive characters...
+&nbsp;      do {
+<b class="fc">&nbsp;        if ((row &lt; numrows) &amp;&amp; (col &gt;= 0) &amp;&amp; noBit(col, row)) {</b>
+<b class="fc">&nbsp;          utah(row, col, pos++);</b>
+&nbsp;        }
+<b class="fc">&nbsp;        row -= 2;</b>
+<b class="fc">&nbsp;        col += 2;</b>
+<b class="fc">&nbsp;      } while (row &gt;= 0 &amp;&amp; (col &lt; numcols));</b>
+<b class="fc">&nbsp;      row++;</b>
+<b class="fc">&nbsp;      col += 3;</b>
+&nbsp;
+&nbsp;      // and then sweep downward diagonally, inserting successive characters, ...
+&nbsp;      do {
+<b class="fc">&nbsp;        if ((row &gt;= 0) &amp;&amp; (col &lt; numcols) &amp;&amp; noBit(col, row)) {</b>
+<b class="fc">&nbsp;          utah(row, col, pos++);</b>
+&nbsp;        }
+<b class="fc">&nbsp;        row += 2;</b>
+<b class="fc">&nbsp;        col -= 2;</b>
+<b class="fc">&nbsp;      } while ((row &lt; numrows) &amp;&amp; (col &gt;= 0));</b>
+<b class="fc">&nbsp;      row += 3;</b>
+<b class="fc">&nbsp;      col++;</b>
+&nbsp;
+&nbsp;      // ...until the entire array is scanned
+<b class="fc">&nbsp;    } while ((row &lt; numrows) || (col &lt; numcols));</b>
+&nbsp;
+&nbsp;    // Lastly, if the lower right-hand corner is untouched, fill in fixed pattern
+<b class="fc">&nbsp;    if (noBit(numcols - 1, numrows - 1)) {</b>
+<b class="fc">&nbsp;      setBit(numcols - 1, numrows - 1, true);</b>
+<b class="fc">&nbsp;      setBit(numcols - 2, numrows - 2, true);</b>
+&nbsp;    }
+&nbsp;  }
+&nbsp;
+&nbsp;  private void module(int row, int col, int pos, int bit) {
+<b class="fc">&nbsp;    if (row &lt; 0) {</b>
+<b class="fc">&nbsp;      row += numrows;</b>
+<b class="fc">&nbsp;      col += 4 - ((numrows + 4) % 8);</b>
+&nbsp;    }
+<b class="fc">&nbsp;    if (col &lt; 0) {</b>
+<b class="fc">&nbsp;      col += numcols;</b>
+<b class="fc">&nbsp;      row += 4 - ((numcols + 4) % 8);</b>
+&nbsp;    }
+&nbsp;    // Note the conversion:
+<b class="fc">&nbsp;    int v = codewords.charAt(pos);</b>
+<b class="fc">&nbsp;    v &amp;= 1 &lt;&lt; (8 - bit);</b>
+<b class="fc">&nbsp;    setBit(col, row, v != 0);</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  /**
+&nbsp;   * Places the 8 bits of a utah-shaped symbol character in ECC200.
+&nbsp;   *
+&nbsp;   * @param row the row
+&nbsp;   * @param col the column
+&nbsp;   * @param pos character position
+&nbsp;   */
+&nbsp;  private void utah(int row, int col, int pos) {
+<b class="fc">&nbsp;    module(row - 2, col - 2, pos, 1);</b>
+<b class="fc">&nbsp;    module(row - 2, col - 1, pos, 2);</b>
+<b class="fc">&nbsp;    module(row - 1, col - 2, pos, 3);</b>
+<b class="fc">&nbsp;    module(row - 1, col - 1, pos, 4);</b>
+<b class="fc">&nbsp;    module(row - 1, col, pos, 5);</b>
+<b class="fc">&nbsp;    module(row, col - 2, pos, 6);</b>
+<b class="fc">&nbsp;    module(row, col - 1, pos, 7);</b>
+<b class="fc">&nbsp;    module(row, col, pos, 8);</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  private void corner1(int pos) {
+<b class="fc">&nbsp;    module(numrows - 1, 0, pos, 1);</b>
+<b class="fc">&nbsp;    module(numrows - 1, 1, pos, 2);</b>
+<b class="fc">&nbsp;    module(numrows - 1, 2, pos, 3);</b>
+<b class="fc">&nbsp;    module(0, numcols - 2, pos, 4);</b>
+<b class="fc">&nbsp;    module(0, numcols - 1, pos, 5);</b>
+<b class="fc">&nbsp;    module(1, numcols - 1, pos, 6);</b>
+<b class="fc">&nbsp;    module(2, numcols - 1, pos, 7);</b>
+<b class="fc">&nbsp;    module(3, numcols - 1, pos, 8);</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  private void corner2(int pos) {
+<b class="fc">&nbsp;    module(numrows - 3, 0, pos, 1);</b>
+<b class="fc">&nbsp;    module(numrows - 2, 0, pos, 2);</b>
+<b class="fc">&nbsp;    module(numrows - 1, 0, pos, 3);</b>
+<b class="fc">&nbsp;    module(0, numcols - 4, pos, 4);</b>
+<b class="fc">&nbsp;    module(0, numcols - 3, pos, 5);</b>
+<b class="fc">&nbsp;    module(0, numcols - 2, pos, 6);</b>
+<b class="fc">&nbsp;    module(0, numcols - 1, pos, 7);</b>
+<b class="fc">&nbsp;    module(1, numcols - 1, pos, 8);</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  private void corner3(int pos) {
+<b class="nc">&nbsp;    module(numrows - 3, 0, pos, 1);</b>
+<b class="nc">&nbsp;    module(numrows - 2, 0, pos, 2);</b>
+<b class="nc">&nbsp;    module(numrows - 1, 0, pos, 3);</b>
+<b class="nc">&nbsp;    module(0, numcols - 2, pos, 4);</b>
+<b class="nc">&nbsp;    module(0, numcols - 1, pos, 5);</b>
+<b class="nc">&nbsp;    module(1, numcols - 1, pos, 6);</b>
+<b class="nc">&nbsp;    module(2, numcols - 1, pos, 7);</b>
+<b class="nc">&nbsp;    module(3, numcols - 1, pos, 8);</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  private void corner4(int pos) {
+<b class="nc">&nbsp;    module(numrows - 1, 0, pos, 1);</b>
+<b class="nc">&nbsp;    module(numrows - 1, numcols - 1, pos, 2);</b>
+<b class="nc">&nbsp;    module(0, numcols - 3, pos, 3);</b>
+<b class="nc">&nbsp;    module(0, numcols - 2, pos, 4);</b>
+<b class="nc">&nbsp;    module(0, numcols - 1, pos, 5);</b>
+<b class="nc">&nbsp;    module(1, numcols - 3, pos, 6);</b>
+<b class="nc">&nbsp;    module(1, numcols - 2, pos, 7);</b>
+<b class="nc">&nbsp;    module(1, numcols - 1, pos, 8);</b>
+&nbsp;  }
+&nbsp;
+&nbsp;}
+</code>
+</pre>
+</div>
+
+<script type="text/javascript">
+(function() {
+    var msie = false, msie9 = false;
+    /*@cc_on
+      msie = true;
+      @if (@_jscript_version >= 9)
+        msie9 = true;
+      @end
+    @*/
+
+    if (!msie || msie && msie9) {
+      hljs.highlightAll()
+      hljs.initLineNumbersOnLoad();
+    }
+})();
+</script>
+
+<div class="footer">
+    
+    <div style="float:right;">generated on 2023-11-12 23:26</div>
+</div>
+</body>
+</html>

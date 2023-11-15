@@ -1,0 +1,186 @@
+
+
+
+<!DOCTYPE html>
+<html id="htmlId">
+<head>
+  <meta http-equiv="Content-Type" content="text/html;charset=windows-1252"> 
+  <title>Coverage Report > ASCIIEncoder</title>
+  <style type="text/css">
+    @import "../../css/coverage.css";
+    @import "../../css/idea.min.css";
+  </style>
+  <script type="text/javascript" src="../../js/highlight.min.js"></script>
+  <script type="text/javascript" src="../../js/highlightjs-line-numbers.min.js"></script>
+</head>
+
+<body>
+<div class="content">
+<div class="breadCrumbs">
+Current scope:     <a href="../../index.html">all classes</a>
+    <span class="separator">|</span>
+    <a href="../index.html">com.google.zxing.datamatrix.encoder</a>
+</div>
+
+<h1>Coverage Summary for Class: ASCIIEncoder (com.google.zxing.datamatrix.encoder)</h1>
+
+<table class="coverageStats">
+<tr>
+  <th class="name">Class</th>
+<th class="coverageStat 
+">
+  Class, %
+</th>
+<th class="coverageStat 
+">
+  Method, %
+</th>
+<th class="coverageStat 
+">
+  Line, %
+</th>
+</tr>
+<tr>
+  <td class="name">ASCIIEncoder</td>
+<td class="coverageStat">
+  <span class="percent">
+    100%
+  </span>
+  <span class="absValue">
+    (1/1)
+  </span>
+</td>
+<td class="coverageStat">
+  <span class="percent">
+    100%
+  </span>
+  <span class="absValue">
+    (4/4)
+  </span>
+</td>
+<td class="coverageStat">
+  <span class="percent">
+    94.3%
+  </span>
+  <span class="absValue">
+    (33/35)
+  </span>
+</td>
+</tr>
+
+</table>
+
+<br/>
+<br/>
+
+
+<pre>
+<code class="sourceCode" id="sourceCode">&nbsp;/*
+&nbsp; * Copyright 2006-2007 Jeremias Maerki.
+&nbsp; *
+&nbsp; * Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
+&nbsp; * you may not use this file except in compliance with the License.
+&nbsp; * You may obtain a copy of the License at
+&nbsp; *
+&nbsp; *      http://www.apache.org/licenses/LICENSE-2.0
+&nbsp; *
+&nbsp; * Unless required by applicable law or agreed to in writing, software
+&nbsp; * distributed under the License is distributed on an &quot;AS IS&quot; BASIS,
+&nbsp; * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+&nbsp; * See the License for the specific language governing permissions and
+&nbsp; * limitations under the License.
+&nbsp; */
+&nbsp;
+&nbsp;package com.google.zxing.datamatrix.encoder;
+&nbsp;
+<b class="fc">&nbsp;final class ASCIIEncoder implements Encoder {</b>
+&nbsp;
+&nbsp;  @Override
+&nbsp;  public int getEncodingMode() {
+<b class="fc">&nbsp;    return HighLevelEncoder.ASCII_ENCODATION;</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  @Override
+&nbsp;  public void encode(EncoderContext context) {
+&nbsp;    //step B
+<b class="fc">&nbsp;    int n = HighLevelEncoder.determineConsecutiveDigitCount(context.getMessage(), context.pos);</b>
+<b class="fc">&nbsp;    if (n &gt;= 2) {</b>
+<b class="fc">&nbsp;      context.writeCodeword(encodeASCIIDigits(context.getMessage().charAt(context.pos),</b>
+<b class="fc">&nbsp;                                              context.getMessage().charAt(context.pos + 1)));</b>
+<b class="fc">&nbsp;      context.pos += 2;</b>
+&nbsp;    } else {
+<b class="fc">&nbsp;      char c = context.getCurrentChar();</b>
+<b class="fc">&nbsp;      int newMode = HighLevelEncoder.lookAheadTest(context.getMessage(), context.pos, getEncodingMode());</b>
+<b class="fc">&nbsp;      if (newMode != getEncodingMode()) {</b>
+<b class="fc">&nbsp;        switch (newMode) {</b>
+&nbsp;          case HighLevelEncoder.BASE256_ENCODATION:
+<b class="fc">&nbsp;            context.writeCodeword(HighLevelEncoder.LATCH_TO_BASE256);</b>
+<b class="fc">&nbsp;            context.signalEncoderChange(HighLevelEncoder.BASE256_ENCODATION);</b>
+&nbsp;            return;
+&nbsp;          case HighLevelEncoder.C40_ENCODATION:
+<b class="fc">&nbsp;            context.writeCodeword(HighLevelEncoder.LATCH_TO_C40);</b>
+<b class="fc">&nbsp;            context.signalEncoderChange(HighLevelEncoder.C40_ENCODATION);</b>
+&nbsp;            return;
+&nbsp;          case HighLevelEncoder.X12_ENCODATION:
+<b class="fc">&nbsp;            context.writeCodeword(HighLevelEncoder.LATCH_TO_ANSIX12);</b>
+<b class="fc">&nbsp;            context.signalEncoderChange(HighLevelEncoder.X12_ENCODATION);</b>
+<b class="fc">&nbsp;            break;</b>
+&nbsp;          case HighLevelEncoder.TEXT_ENCODATION:
+<b class="fc">&nbsp;            context.writeCodeword(HighLevelEncoder.LATCH_TO_TEXT);</b>
+<b class="fc">&nbsp;            context.signalEncoderChange(HighLevelEncoder.TEXT_ENCODATION);</b>
+<b class="fc">&nbsp;            break;</b>
+&nbsp;          case HighLevelEncoder.EDIFACT_ENCODATION:
+<b class="fc">&nbsp;            context.writeCodeword(HighLevelEncoder.LATCH_TO_EDIFACT);</b>
+<b class="fc">&nbsp;            context.signalEncoderChange(HighLevelEncoder.EDIFACT_ENCODATION);</b>
+<b class="fc">&nbsp;            break;</b>
+&nbsp;          default:
+<b class="nc">&nbsp;            throw new IllegalStateException(&quot;Illegal mode: &quot; + newMode);</b>
+&nbsp;        }
+<b class="fc">&nbsp;      } else if (HighLevelEncoder.isExtendedASCII(c)) {</b>
+<b class="fc">&nbsp;        context.writeCodeword(HighLevelEncoder.UPPER_SHIFT);</b>
+<b class="fc">&nbsp;        context.writeCodeword((char) (c - 128 + 1));</b>
+<b class="fc">&nbsp;        context.pos++;</b>
+&nbsp;      } else {
+<b class="fc">&nbsp;        context.writeCodeword((char) (c + 1));</b>
+<b class="fc">&nbsp;        context.pos++;</b>
+&nbsp;      }
+&nbsp;
+&nbsp;    }
+&nbsp;  }
+&nbsp;
+&nbsp;  private static char encodeASCIIDigits(char digit1, char digit2) {
+<b class="fc">&nbsp;    if (HighLevelEncoder.isDigit(digit1) &amp;&amp; HighLevelEncoder.isDigit(digit2)) {</b>
+<b class="fc">&nbsp;      int num = (digit1 - 48) * 10 + (digit2 - 48);</b>
+<b class="fc">&nbsp;      return (char) (num + 130);</b>
+&nbsp;    }
+<b class="nc">&nbsp;    throw new IllegalArgumentException(&quot;not digits: &quot; + digit1 + digit2);</b>
+&nbsp;  }
+&nbsp;
+&nbsp;}
+</code>
+</pre>
+</div>
+
+<script type="text/javascript">
+(function() {
+    var msie = false, msie9 = false;
+    /*@cc_on
+      msie = true;
+      @if (@_jscript_version >= 9)
+        msie9 = true;
+      @end
+    @*/
+
+    if (!msie || msie && msie9) {
+      hljs.highlightAll()
+      hljs.initLineNumbersOnLoad();
+    }
+})();
+</script>
+
+<div class="footer">
+    
+    <div style="float:right;">generated on 2023-11-12 23:26</div>
+</div>
+</body>
+</html>

@@ -1,0 +1,212 @@
+
+
+
+<!DOCTYPE html>
+<html id="htmlId">
+<head>
+  <meta http-equiv="Content-Type" content="text/html;charset=windows-1252"> 
+  <title>Coverage Report > DoSFilter</title>
+  <style type="text/css">
+    @import "../../css/coverage.css";
+    @import "../../css/idea.min.css";
+  </style>
+  <script type="text/javascript" src="../../js/highlight.min.js"></script>
+  <script type="text/javascript" src="../../js/highlightjs-line-numbers.min.js"></script>
+</head>
+
+<body>
+<div class="content">
+<div class="breadCrumbs">
+Current scope:     <a href="../../index.html">all classes</a>
+    <span class="separator">|</span>
+    <a href="../index.html">com.google.zxing.web</a>
+</div>
+
+<h1>Coverage Summary for Class: DoSFilter (com.google.zxing.web)</h1>
+
+<table class="coverageStats">
+<tr>
+  <th class="name">Class</th>
+<th class="coverageStat 
+">
+  Class, %
+</th>
+<th class="coverageStat 
+">
+  Method, %
+</th>
+<th class="coverageStat 
+">
+  Line, %
+</th>
+</tr>
+<tr>
+  <td class="name">DoSFilter</td>
+<td class="coverageStat">
+  <span class="percent">
+    0%
+  </span>
+  <span class="absValue">
+    (0/1)
+  </span>
+</td>
+<td class="coverageStat">
+  <span class="percent">
+    0%
+  </span>
+  <span class="absValue">
+    (0/5)
+  </span>
+</td>
+<td class="coverageStat">
+  <span class="percent">
+    0%
+  </span>
+  <span class="absValue">
+    (0/36)
+  </span>
+</td>
+</tr>
+
+</table>
+
+<br/>
+<br/>
+
+
+<pre>
+<code class="sourceCode" id="sourceCode">&nbsp;/*
+&nbsp; * Copyright 2015 ZXing authors
+&nbsp; *
+&nbsp; * Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
+&nbsp; * you may not use this file except in compliance with the License.
+&nbsp; * You may obtain a copy of the License at
+&nbsp; *
+&nbsp; *      http://www.apache.org/licenses/LICENSE-2.0
+&nbsp; *
+&nbsp; * Unless required by applicable law or agreed to in writing, software
+&nbsp; * distributed under the License is distributed on an &quot;AS IS&quot; BASIS,
+&nbsp; * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+&nbsp; * See the License for the specific language governing permissions and
+&nbsp; * limitations under the License.
+&nbsp; */
+&nbsp;
+&nbsp;package com.google.zxing.web;
+&nbsp;
+&nbsp;import com.google.common.base.Preconditions;
+&nbsp;
+&nbsp;import jakarta.servlet.Filter;
+&nbsp;import jakarta.servlet.FilterChain;
+&nbsp;import jakarta.servlet.FilterConfig;
+&nbsp;import jakarta.servlet.ServletException;
+&nbsp;import jakarta.servlet.ServletRequest;
+&nbsp;import jakarta.servlet.ServletResponse;
+&nbsp;import jakarta.servlet.http.HttpServletRequest;
+&nbsp;import jakarta.servlet.http.HttpServletResponse;
+&nbsp;import java.io.IOException;
+&nbsp;import java.util.Timer;
+&nbsp;import java.util.concurrent.TimeUnit;
+&nbsp;
+&nbsp;/**
+&nbsp; * A simplistic {@link Filter} that rejects requests from hosts that are sending too many
+&nbsp; * requests in too short a time.
+&nbsp; *
+&nbsp; * @author Sean Owen
+&nbsp; */
+<b class="nc">&nbsp;public abstract class DoSFilter implements Filter {</b>
+&nbsp;
+&nbsp;  private Timer timer;
+&nbsp;  private DoSTracker sourceAddrTracker;
+&nbsp;
+&nbsp;  @Override
+&nbsp;  public void init(FilterConfig filterConfig) {
+<b class="nc">&nbsp;    int maxAccessPerTime = Integer.parseInt(filterConfig.getInitParameter(&quot;maxAccessPerTime&quot;));</b>
+<b class="nc">&nbsp;    Preconditions.checkArgument(maxAccessPerTime &gt; 0);</b>
+&nbsp;
+<b class="nc">&nbsp;    int accessTimeSec = Integer.parseInt(filterConfig.getInitParameter(&quot;accessTimeSec&quot;));</b>
+<b class="nc">&nbsp;    Preconditions.checkArgument(accessTimeSec &gt; 0);</b>
+<b class="nc">&nbsp;    long accessTimeMS = TimeUnit.MILLISECONDS.convert(accessTimeSec, TimeUnit.SECONDS);</b>
+&nbsp;
+<b class="nc">&nbsp;    String maxEntriesValue = filterConfig.getInitParameter(&quot;maxEntries&quot;);</b>
+<b class="nc">&nbsp;    int maxEntries = Integer.MAX_VALUE;</b>
+<b class="nc">&nbsp;    if (maxEntriesValue != null) {</b>
+<b class="nc">&nbsp;      maxEntries = Integer.parseInt(maxEntriesValue);</b>
+<b class="nc">&nbsp;      Preconditions.checkArgument(maxEntries &gt; 0);</b>
+&nbsp;    }
+&nbsp;
+<b class="nc">&nbsp;    String maxLoadValue = filterConfig.getInitParameter(&quot;maxLoad&quot;);</b>
+<b class="nc">&nbsp;    Double maxLoad = null;</b>
+<b class="nc">&nbsp;    if (maxLoadValue != null) {</b>
+<b class="nc">&nbsp;      maxLoad = Double.valueOf(maxLoadValue);</b>
+<b class="nc">&nbsp;      Preconditions.checkArgument(maxLoad &gt; 0.0);</b>
+&nbsp;    }
+&nbsp;
+<b class="nc">&nbsp;    String name = getClass().getSimpleName();</b>
+<b class="nc">&nbsp;    timer = new Timer(name);</b>
+<b class="nc">&nbsp;    sourceAddrTracker = new DoSTracker(timer, name, maxAccessPerTime, accessTimeMS, maxEntries, maxLoad);</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  @Override
+&nbsp;  public void doFilter(ServletRequest request,
+&nbsp;                       ServletResponse response,
+&nbsp;                       FilterChain chain) throws IOException, ServletException {
+<b class="nc">&nbsp;    if (isBanned((HttpServletRequest) request)) {</b>
+<b class="nc">&nbsp;      HttpServletResponse servletResponse = (HttpServletResponse) response;</b>
+&nbsp;      // Send very short response as requests may be very frequent
+<b class="nc">&nbsp;      servletResponse.setStatus(429); // 429 = Too Many Requests from RFC 6585</b>
+<b class="nc">&nbsp;      servletResponse.getWriter().write(&quot;Forbidden&quot;);</b>
+<b class="nc">&nbsp;    } else {</b>
+<b class="nc">&nbsp;      chain.doFilter(request, response);</b>
+&nbsp;    }
+&nbsp;  }
+&nbsp;
+&nbsp;  private boolean isBanned(HttpServletRequest request) {
+<b class="nc">&nbsp;    String remoteHost = request.getHeader(&quot;x-forwarded-for&quot;);</b>
+<b class="nc">&nbsp;    if (remoteHost != null) {</b>
+<b class="nc">&nbsp;      int comma = remoteHost.indexOf(&#39;,&#39;);</b>
+<b class="nc">&nbsp;      if (comma &gt;= 0) {</b>
+<b class="nc">&nbsp;        remoteHost = remoteHost.substring(0, comma);</b>
+&nbsp;      }
+<b class="nc">&nbsp;      remoteHost = remoteHost.trim();</b>
+&nbsp;    }
+&nbsp;    // Non-short-circuit &quot;|&quot; below is on purpose
+<b class="nc">&nbsp;    return</b>
+<b class="nc">&nbsp;      (remoteHost != null &amp;&amp; sourceAddrTracker.isBanned(remoteHost)) |</b>
+<b class="nc">&nbsp;      sourceAddrTracker.isBanned(request.getRemoteAddr());</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  @Override
+&nbsp;  public void destroy() {
+<b class="nc">&nbsp;    if (timer != null) {</b>
+<b class="nc">&nbsp;      timer.cancel();</b>
+&nbsp;    }
+&nbsp;  }
+&nbsp;
+&nbsp;}
+</code>
+</pre>
+</div>
+
+<script type="text/javascript">
+(function() {
+    var msie = false, msie9 = false;
+    /*@cc_on
+      msie = true;
+      @if (@_jscript_version >= 9)
+        msie9 = true;
+      @end
+    @*/
+
+    if (!msie || msie && msie9) {
+      hljs.highlightAll()
+      hljs.initLineNumbersOnLoad();
+    }
+})();
+</script>
+
+<div class="footer">
+    
+    <div style="float:right;">generated on 2023-11-12 23:26</div>
+</div>
+</body>
+</html>

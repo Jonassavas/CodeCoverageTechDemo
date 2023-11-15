@@ -1,0 +1,575 @@
+
+
+
+<!DOCTYPE html>
+<html id="htmlId">
+<head>
+  <meta http-equiv="Content-Type" content="text/html;charset=windows-1252"> 
+  <title>Coverage Report > RSS14Reader</title>
+  <style type="text/css">
+    @import "../../css/coverage.css";
+    @import "../../css/idea.min.css";
+  </style>
+  <script type="text/javascript" src="../../js/highlight.min.js"></script>
+  <script type="text/javascript" src="../../js/highlightjs-line-numbers.min.js"></script>
+</head>
+
+<body>
+<div class="content">
+<div class="breadCrumbs">
+Current scope:     <a href="../../index.html">all classes</a>
+    <span class="separator">|</span>
+    <a href="../index.html">com.google.zxing.oned.rss</a>
+</div>
+
+<h1>Coverage Summary for Class: RSS14Reader (com.google.zxing.oned.rss)</h1>
+
+<table class="coverageStats">
+<tr>
+  <th class="name">Class</th>
+<th class="coverageStat 
+">
+  Class, %
+</th>
+<th class="coverageStat 
+">
+  Method, %
+</th>
+<th class="coverageStat 
+">
+  Line, %
+</th>
+</tr>
+<tr>
+  <td class="name">RSS14Reader</td>
+<td class="coverageStat">
+  <span class="percent">
+    100%
+  </span>
+  <span class="absValue">
+    (1/1)
+  </span>
+</td>
+<td class="coverageStat">
+  <span class="percent">
+    91.7%
+  </span>
+  <span class="absValue">
+    (11/12)
+  </span>
+</td>
+<td class="coverageStat">
+  <span class="percent">
+    92.2%
+  </span>
+  <span class="absValue">
+    (236/256)
+  </span>
+</td>
+</tr>
+
+</table>
+
+<br/>
+<br/>
+
+
+<pre>
+<code class="sourceCode" id="sourceCode">&nbsp;/*
+&nbsp; * Copyright 2009 ZXing authors
+&nbsp; *
+&nbsp; * Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
+&nbsp; * you may not use this file except in compliance with the License.
+&nbsp; * You may obtain a copy of the License at
+&nbsp; *
+&nbsp; *      http://www.apache.org/licenses/LICENSE-2.0
+&nbsp; *
+&nbsp; * Unless required by applicable law or agreed to in writing, software
+&nbsp; * distributed under the License is distributed on an &quot;AS IS&quot; BASIS,
+&nbsp; * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+&nbsp; * See the License for the specific language governing permissions and
+&nbsp; * limitations under the License.
+&nbsp; */
+&nbsp;
+&nbsp;package com.google.zxing.oned.rss;
+&nbsp;
+&nbsp;import com.google.zxing.BarcodeFormat;
+&nbsp;import com.google.zxing.DecodeHintType;
+&nbsp;import com.google.zxing.NotFoundException;
+&nbsp;import com.google.zxing.Result;
+&nbsp;import com.google.zxing.ResultMetadataType;
+&nbsp;import com.google.zxing.ResultPoint;
+&nbsp;import com.google.zxing.ResultPointCallback;
+&nbsp;import com.google.zxing.common.BitArray;
+&nbsp;import com.google.zxing.common.detector.MathUtils;
+&nbsp;
+&nbsp;import java.util.Arrays;
+&nbsp;import java.util.ArrayList;
+&nbsp;import java.util.Collection;
+&nbsp;import java.util.List;
+&nbsp;import java.util.Map;
+&nbsp;
+&nbsp;/**
+&nbsp; * Decodes RSS-14, including truncated and stacked variants. See ISO/IEC 24724:2006.
+&nbsp; */
+&nbsp;public final class RSS14Reader extends AbstractRSSReader {
+&nbsp;
+<b class="fc">&nbsp;  private static final int[] OUTSIDE_EVEN_TOTAL_SUBSET = {1,10,34,70,126};</b>
+<b class="fc">&nbsp;  private static final int[] INSIDE_ODD_TOTAL_SUBSET = {4,20,48,81};</b>
+<b class="fc">&nbsp;  private static final int[] OUTSIDE_GSUM = {0,161,961,2015,2715};</b>
+<b class="fc">&nbsp;  private static final int[] INSIDE_GSUM = {0,336,1036,1516};</b>
+<b class="fc">&nbsp;  private static final int[] OUTSIDE_ODD_WIDEST = {8,6,4,3,1};</b>
+<b class="fc">&nbsp;  private static final int[] INSIDE_ODD_WIDEST = {2,4,6,8};</b>
+&nbsp;
+<b class="fc">&nbsp;  private static final int[][] FINDER_PATTERNS = {</b>
+&nbsp;      {3,8,2,1},
+&nbsp;      {3,5,5,1},
+&nbsp;      {3,3,7,1},
+&nbsp;      {3,1,9,1},
+&nbsp;      {2,7,4,1},
+&nbsp;      {2,5,6,1},
+&nbsp;      {2,3,8,1},
+&nbsp;      {1,5,7,1},
+&nbsp;      {1,3,9,1},
+&nbsp;  };
+&nbsp;
+&nbsp;  private final List&lt;Pair&gt; possibleLeftPairs;
+&nbsp;  private final List&lt;Pair&gt; possibleRightPairs;
+&nbsp;
+<b class="fc">&nbsp;  public RSS14Reader() {</b>
+<b class="fc">&nbsp;    possibleLeftPairs = new ArrayList&lt;&gt;();</b>
+<b class="fc">&nbsp;    possibleRightPairs = new ArrayList&lt;&gt;();</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  @Override
+&nbsp;  public Result decodeRow(int rowNumber,
+&nbsp;                          BitArray row,
+&nbsp;                          Map&lt;DecodeHintType,?&gt; hints) throws NotFoundException {
+<b class="fc">&nbsp;    Pair leftPair = decodePair(row, false, rowNumber, hints);</b>
+<b class="fc">&nbsp;    addOrTally(possibleLeftPairs, leftPair);</b>
+<b class="fc">&nbsp;    row.reverse();</b>
+<b class="fc">&nbsp;    Pair rightPair = decodePair(row, true, rowNumber, hints);</b>
+<b class="fc">&nbsp;    addOrTally(possibleRightPairs, rightPair);</b>
+<b class="fc">&nbsp;    row.reverse();</b>
+<b class="fc">&nbsp;    for (Pair left : possibleLeftPairs) {</b>
+<b class="fc">&nbsp;      if (left.getCount() &gt; 1) {</b>
+<b class="fc">&nbsp;        for (Pair right : possibleRightPairs) {</b>
+<b class="fc">&nbsp;          if (right.getCount() &gt; 1 &amp;&amp; checkChecksum(left, right)) {</b>
+<b class="fc">&nbsp;            return constructResult(left, right);</b>
+&nbsp;          }
+<b class="fc">&nbsp;        }</b>
+&nbsp;      }
+<b class="fc">&nbsp;    }</b>
+<b class="fc">&nbsp;    throw NotFoundException.getNotFoundInstance();</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  private static void addOrTally(Collection&lt;Pair&gt; possiblePairs, Pair pair) {
+<b class="fc">&nbsp;    if (pair == null) {</b>
+&nbsp;      return;
+&nbsp;    }
+<b class="fc">&nbsp;    boolean found = false;</b>
+<b class="fc">&nbsp;    for (Pair other : possiblePairs) {</b>
+<b class="fc">&nbsp;      if (other.getValue() == pair.getValue()) {</b>
+<b class="fc">&nbsp;        other.incrementCount();</b>
+<b class="fc">&nbsp;        found = true;</b>
+<b class="fc">&nbsp;        break;</b>
+&nbsp;      }
+<b class="fc">&nbsp;    }</b>
+<b class="fc">&nbsp;    if (!found) {</b>
+<b class="fc">&nbsp;      possiblePairs.add(pair);</b>
+&nbsp;    }
+&nbsp;  }
+&nbsp;
+&nbsp;  @Override
+&nbsp;  public void reset() {
+<b class="nc">&nbsp;    possibleLeftPairs.clear();</b>
+<b class="nc">&nbsp;    possibleRightPairs.clear();</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  private static Result constructResult(Pair leftPair, Pair rightPair) {
+<b class="fc">&nbsp;    long symbolValue = 4537077L * leftPair.getValue() + rightPair.getValue();</b>
+<b class="fc">&nbsp;    String text = String.valueOf(symbolValue);</b>
+&nbsp;
+<b class="fc">&nbsp;    StringBuilder buffer = new StringBuilder(14);</b>
+<b class="fc">&nbsp;    for (int i = 13 - text.length(); i &gt; 0; i--) {</b>
+<b class="fc">&nbsp;      buffer.append(&#39;0&#39;);</b>
+&nbsp;    }
+<b class="fc">&nbsp;    buffer.append(text);</b>
+&nbsp;
+<b class="fc">&nbsp;    int checkDigit = 0;</b>
+<b class="fc">&nbsp;    for (int i = 0; i &lt; 13; i++) {</b>
+<b class="fc">&nbsp;      int digit = buffer.charAt(i) - &#39;0&#39;;</b>
+<b class="fc">&nbsp;      checkDigit += (i &amp; 0x01) == 0 ? 3 * digit : digit;</b>
+&nbsp;    }
+<b class="fc">&nbsp;    checkDigit = 10 - (checkDigit % 10);</b>
+<b class="fc">&nbsp;    if (checkDigit == 10) {</b>
+<b class="nc">&nbsp;      checkDigit = 0;</b>
+&nbsp;    }
+<b class="fc">&nbsp;    buffer.append(checkDigit);</b>
+&nbsp;
+<b class="fc">&nbsp;    ResultPoint[] leftPoints = leftPair.getFinderPattern().getResultPoints();</b>
+<b class="fc">&nbsp;    ResultPoint[] rightPoints = rightPair.getFinderPattern().getResultPoints();</b>
+<b class="fc">&nbsp;    Result result = new Result(</b>
+<b class="fc">&nbsp;        buffer.toString(),</b>
+&nbsp;        null,
+&nbsp;        new ResultPoint[] { leftPoints[0], leftPoints[1], rightPoints[0], rightPoints[1], },
+&nbsp;        BarcodeFormat.RSS_14);
+<b class="fc">&nbsp;    result.putMetadata(ResultMetadataType.SYMBOLOGY_IDENTIFIER, &quot;]e0&quot;);</b>
+<b class="fc">&nbsp;    return result;</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  private static boolean checkChecksum(Pair leftPair, Pair rightPair) {
+<b class="fc">&nbsp;    int checkValue = (leftPair.getChecksumPortion() + 16 * rightPair.getChecksumPortion()) % 79;</b>
+<b class="fc">&nbsp;    int targetCheckValue =</b>
+<b class="fc">&nbsp;        9 * leftPair.getFinderPattern().getValue() + rightPair.getFinderPattern().getValue();</b>
+<b class="fc">&nbsp;    if (targetCheckValue &gt; 72) {</b>
+<b class="fc">&nbsp;      targetCheckValue--;</b>
+&nbsp;    }
+<b class="fc">&nbsp;    if (targetCheckValue &gt; 8) {</b>
+<b class="fc">&nbsp;      targetCheckValue--;</b>
+&nbsp;    }
+<b class="fc">&nbsp;    return checkValue == targetCheckValue;</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  private Pair decodePair(BitArray row, boolean right, int rowNumber, Map&lt;DecodeHintType,?&gt; hints) {
+&nbsp;    try {
+<b class="fc">&nbsp;      int[] startEnd = findFinderPattern(row, right);</b>
+<b class="fc">&nbsp;      FinderPattern pattern = parseFoundFinderPattern(row, rowNumber, right, startEnd);</b>
+&nbsp;
+<b class="fc">&nbsp;      ResultPointCallback resultPointCallback = hints == null ? null :</b>
+<b class="fc">&nbsp;          (ResultPointCallback) hints.get(DecodeHintType.NEED_RESULT_POINT_CALLBACK);</b>
+&nbsp;
+<b class="fc">&nbsp;      if (resultPointCallback != null) {</b>
+<b class="nc">&nbsp;        startEnd = pattern.getStartEnd();</b>
+<b class="nc">&nbsp;        float center = (startEnd[0] + startEnd[1] - 1) / 2.0f;</b>
+<b class="nc">&nbsp;        if (right) {</b>
+&nbsp;          // row is actually reversed
+<b class="nc">&nbsp;          center = row.getSize() - 1 - center;</b>
+&nbsp;        }
+<b class="nc">&nbsp;        resultPointCallback.foundPossibleResultPoint(new ResultPoint(center, rowNumber));</b>
+&nbsp;      }
+&nbsp;
+<b class="fc">&nbsp;      DataCharacter outside = decodeDataCharacter(row, pattern, true);</b>
+<b class="fc">&nbsp;      DataCharacter inside = decodeDataCharacter(row, pattern, false);</b>
+<b class="fc">&nbsp;      return new Pair(1597 * outside.getValue() + inside.getValue(),</b>
+<b class="fc">&nbsp;                      outside.getChecksumPortion() + 4 * inside.getChecksumPortion(),</b>
+&nbsp;                      pattern);
+<b class="fc">&nbsp;    } catch (NotFoundException ignored) {</b>
+<b class="fc">&nbsp;      return null;</b>
+&nbsp;    }
+&nbsp;  }
+&nbsp;
+&nbsp;  private DataCharacter decodeDataCharacter(BitArray row, FinderPattern pattern, boolean outsideChar)
+&nbsp;      throws NotFoundException {
+&nbsp;
+<b class="fc">&nbsp;    int[] counters = getDataCharacterCounters();</b>
+<b class="fc">&nbsp;    Arrays.fill(counters, 0);</b>
+&nbsp;
+<b class="fc">&nbsp;    if (outsideChar) {</b>
+<b class="fc">&nbsp;      recordPatternInReverse(row, pattern.getStartEnd()[0], counters);</b>
+&nbsp;    } else {
+<b class="fc">&nbsp;      recordPattern(row, pattern.getStartEnd()[1], counters);</b>
+&nbsp;      // reverse it
+<b class="fc">&nbsp;      for (int i = 0, j = counters.length - 1; i &lt; j; i++, j--) {</b>
+<b class="fc">&nbsp;        int temp = counters[i];</b>
+<b class="fc">&nbsp;        counters[i] = counters[j];</b>
+<b class="fc">&nbsp;        counters[j] = temp;</b>
+&nbsp;      }
+&nbsp;    }
+&nbsp;
+<b class="fc">&nbsp;    int numModules = outsideChar ? 16 : 15;</b>
+<b class="fc">&nbsp;    float elementWidth = MathUtils.sum(counters) / (float) numModules;</b>
+&nbsp;
+<b class="fc">&nbsp;    int[] oddCounts = this.getOddCounts();</b>
+<b class="fc">&nbsp;    int[] evenCounts = this.getEvenCounts();</b>
+<b class="fc">&nbsp;    float[] oddRoundingErrors = this.getOddRoundingErrors();</b>
+<b class="fc">&nbsp;    float[] evenRoundingErrors = this.getEvenRoundingErrors();</b>
+&nbsp;
+<b class="fc">&nbsp;    for (int i = 0; i &lt; counters.length; i++) {</b>
+<b class="fc">&nbsp;      float value = counters[i] / elementWidth;</b>
+<b class="fc">&nbsp;      int count = (int) (value + 0.5f); // Round</b>
+<b class="fc">&nbsp;      if (count &lt; 1) {</b>
+<b class="fc">&nbsp;        count = 1;</b>
+<b class="fc">&nbsp;      } else if (count &gt; 8) {</b>
+<b class="fc">&nbsp;        count = 8;</b>
+&nbsp;      }
+<b class="fc">&nbsp;      int offset = i / 2;</b>
+<b class="fc">&nbsp;      if ((i &amp; 0x01) == 0) {</b>
+<b class="fc">&nbsp;        oddCounts[offset] = count;</b>
+<b class="fc">&nbsp;        oddRoundingErrors[offset] = value - count;</b>
+&nbsp;      } else {
+<b class="fc">&nbsp;        evenCounts[offset] = count;</b>
+<b class="fc">&nbsp;        evenRoundingErrors[offset] = value - count;</b>
+&nbsp;      }
+&nbsp;    }
+&nbsp;
+<b class="fc">&nbsp;    adjustOddEvenCounts(outsideChar, numModules);</b>
+&nbsp;
+<b class="fc">&nbsp;    int oddSum = 0;</b>
+<b class="fc">&nbsp;    int oddChecksumPortion = 0;</b>
+<b class="fc">&nbsp;    for (int i = oddCounts.length - 1; i &gt;= 0; i--) {</b>
+<b class="fc">&nbsp;      oddChecksumPortion *= 9;</b>
+<b class="fc">&nbsp;      oddChecksumPortion += oddCounts[i];</b>
+<b class="fc">&nbsp;      oddSum += oddCounts[i];</b>
+&nbsp;    }
+<b class="fc">&nbsp;    int evenChecksumPortion = 0;</b>
+<b class="fc">&nbsp;    int evenSum = 0;</b>
+<b class="fc">&nbsp;    for (int i = evenCounts.length - 1; i &gt;= 0; i--) {</b>
+<b class="fc">&nbsp;      evenChecksumPortion *= 9;</b>
+<b class="fc">&nbsp;      evenChecksumPortion += evenCounts[i];</b>
+<b class="fc">&nbsp;      evenSum += evenCounts[i];</b>
+&nbsp;    }
+<b class="fc">&nbsp;    int checksumPortion = oddChecksumPortion + 3 * evenChecksumPortion;</b>
+&nbsp;
+<b class="fc">&nbsp;    if (outsideChar) {</b>
+<b class="fc">&nbsp;      if ((oddSum &amp; 0x01) != 0 || oddSum &gt; 12 || oddSum &lt; 4) {</b>
+<b class="nc">&nbsp;        throw NotFoundException.getNotFoundInstance();</b>
+&nbsp;      }
+<b class="fc">&nbsp;      int group = (12 - oddSum) / 2;</b>
+<b class="fc">&nbsp;      int oddWidest = OUTSIDE_ODD_WIDEST[group];</b>
+<b class="fc">&nbsp;      int evenWidest = 9 - oddWidest;</b>
+<b class="fc">&nbsp;      int vOdd = RSSUtils.getRSSvalue(oddCounts, oddWidest, false);</b>
+<b class="fc">&nbsp;      int vEven = RSSUtils.getRSSvalue(evenCounts, evenWidest, true);</b>
+<b class="fc">&nbsp;      int tEven = OUTSIDE_EVEN_TOTAL_SUBSET[group];</b>
+<b class="fc">&nbsp;      int gSum = OUTSIDE_GSUM[group];</b>
+<b class="fc">&nbsp;      return new DataCharacter(vOdd * tEven + vEven + gSum, checksumPortion);</b>
+&nbsp;    } else {
+<b class="fc">&nbsp;      if ((evenSum &amp; 0x01) != 0 || evenSum &gt; 10 || evenSum &lt; 4) {</b>
+<b class="nc">&nbsp;        throw NotFoundException.getNotFoundInstance();</b>
+&nbsp;      }
+<b class="fc">&nbsp;      int group = (10 - evenSum) / 2;</b>
+<b class="fc">&nbsp;      int oddWidest = INSIDE_ODD_WIDEST[group];</b>
+<b class="fc">&nbsp;      int evenWidest = 9 - oddWidest;</b>
+<b class="fc">&nbsp;      int vOdd = RSSUtils.getRSSvalue(oddCounts, oddWidest, true);</b>
+<b class="fc">&nbsp;      int vEven = RSSUtils.getRSSvalue(evenCounts, evenWidest, false);</b>
+<b class="fc">&nbsp;      int tOdd = INSIDE_ODD_TOTAL_SUBSET[group];</b>
+<b class="fc">&nbsp;      int gSum = INSIDE_GSUM[group];</b>
+<b class="fc">&nbsp;      return new DataCharacter(vEven * tOdd + vOdd + gSum, checksumPortion);</b>
+&nbsp;    }
+&nbsp;
+&nbsp;  }
+&nbsp;
+&nbsp;  private int[] findFinderPattern(BitArray row, boolean rightFinderPattern)
+&nbsp;      throws NotFoundException {
+&nbsp;
+<b class="fc">&nbsp;    int[] counters = getDecodeFinderCounters();</b>
+<b class="fc">&nbsp;    counters[0] = 0;</b>
+<b class="fc">&nbsp;    counters[1] = 0;</b>
+<b class="fc">&nbsp;    counters[2] = 0;</b>
+<b class="fc">&nbsp;    counters[3] = 0;</b>
+&nbsp;
+<b class="fc">&nbsp;    int width = row.getSize();</b>
+<b class="fc">&nbsp;    boolean isWhite = false;</b>
+<b class="fc">&nbsp;    int rowOffset = 0;</b>
+<b class="fc">&nbsp;    while (rowOffset &lt; width) {</b>
+<b class="fc">&nbsp;      isWhite = !row.get(rowOffset);</b>
+<b class="fc">&nbsp;      if (rightFinderPattern == isWhite) {</b>
+&nbsp;        // Will encounter white first when searching for right finder pattern
+<b class="fc">&nbsp;        break;</b>
+&nbsp;      }
+<b class="fc">&nbsp;      rowOffset++;</b>
+&nbsp;    }
+&nbsp;
+<b class="fc">&nbsp;    int counterPosition = 0;</b>
+<b class="fc">&nbsp;    int patternStart = rowOffset;</b>
+<b class="fc">&nbsp;    for (int x = rowOffset; x &lt; width; x++) {</b>
+<b class="fc">&nbsp;      if (row.get(x) != isWhite) {</b>
+<b class="fc">&nbsp;        counters[counterPosition]++;</b>
+&nbsp;      } else {
+<b class="fc">&nbsp;        if (counterPosition == 3) {</b>
+<b class="fc">&nbsp;          if (isFinderPattern(counters)) {</b>
+<b class="fc">&nbsp;            return new int[]{patternStart, x};</b>
+&nbsp;          }
+<b class="fc">&nbsp;          patternStart += counters[0] + counters[1];</b>
+<b class="fc">&nbsp;          counters[0] = counters[2];</b>
+<b class="fc">&nbsp;          counters[1] = counters[3];</b>
+<b class="fc">&nbsp;          counters[2] = 0;</b>
+<b class="fc">&nbsp;          counters[3] = 0;</b>
+<b class="fc">&nbsp;          counterPosition--;</b>
+&nbsp;        } else {
+<b class="fc">&nbsp;          counterPosition++;</b>
+&nbsp;        }
+<b class="fc">&nbsp;        counters[counterPosition] = 1;</b>
+<b class="fc">&nbsp;        isWhite = !isWhite;</b>
+&nbsp;      }
+&nbsp;    }
+<b class="fc">&nbsp;    throw NotFoundException.getNotFoundInstance();</b>
+&nbsp;
+&nbsp;  }
+&nbsp;
+&nbsp;  private FinderPattern parseFoundFinderPattern(BitArray row, int rowNumber, boolean right, int[] startEnd)
+&nbsp;      throws NotFoundException {
+&nbsp;    // Actually we found elements 2-5
+<b class="fc">&nbsp;    boolean firstIsBlack = row.get(startEnd[0]);</b>
+<b class="fc">&nbsp;    int firstElementStart = startEnd[0] - 1;</b>
+&nbsp;    // Locate element 1
+<b class="fc">&nbsp;    while (firstElementStart &gt;= 0 &amp;&amp; firstIsBlack != row.get(firstElementStart)) {</b>
+<b class="fc">&nbsp;      firstElementStart--;</b>
+&nbsp;    }
+<b class="fc">&nbsp;    firstElementStart++;</b>
+<b class="fc">&nbsp;    int firstCounter = startEnd[0] - firstElementStart;</b>
+&nbsp;    // Make &#39;counters&#39; hold 1-4
+<b class="fc">&nbsp;    int[] counters = getDecodeFinderCounters();</b>
+<b class="fc">&nbsp;    System.arraycopy(counters, 0, counters, 1, counters.length - 1);</b>
+<b class="fc">&nbsp;    counters[0] = firstCounter;</b>
+<b class="fc">&nbsp;    int value = parseFinderValue(counters, FINDER_PATTERNS);</b>
+<b class="fc">&nbsp;    int start = firstElementStart;</b>
+<b class="fc">&nbsp;    int end = startEnd[1];</b>
+<b class="fc">&nbsp;    if (right) {</b>
+&nbsp;      // row is actually reversed
+<b class="fc">&nbsp;      start = row.getSize() - 1 - start;</b>
+<b class="fc">&nbsp;      end = row.getSize() - 1 - end;</b>
+&nbsp;    }
+<b class="fc">&nbsp;    return new FinderPattern(value, new int[] {firstElementStart, startEnd[1]}, start, end, rowNumber);</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  private void adjustOddEvenCounts(boolean outsideChar, int numModules) throws NotFoundException {
+&nbsp;
+<b class="fc">&nbsp;    int oddSum = MathUtils.sum(getOddCounts());</b>
+<b class="fc">&nbsp;    int evenSum = MathUtils.sum(getEvenCounts());</b>
+&nbsp;
+<b class="fc">&nbsp;    boolean incrementOdd = false;</b>
+<b class="fc">&nbsp;    boolean decrementOdd = false;</b>
+<b class="fc">&nbsp;    boolean incrementEven = false;</b>
+<b class="fc">&nbsp;    boolean decrementEven = false;</b>
+&nbsp;
+<b class="fc">&nbsp;    if (outsideChar) {</b>
+<b class="fc">&nbsp;      if (oddSum &gt; 12) {</b>
+<b class="fc">&nbsp;        decrementOdd = true;</b>
+<b class="fc">&nbsp;      } else if (oddSum &lt; 4) {</b>
+<b class="nc">&nbsp;        incrementOdd = true;</b>
+&nbsp;      }
+<b class="fc">&nbsp;      if (evenSum &gt; 12) {</b>
+<b class="fc">&nbsp;        decrementEven = true;</b>
+<b class="fc">&nbsp;      } else if (evenSum &lt; 4) {</b>
+<b class="nc">&nbsp;        incrementEven = true;</b>
+&nbsp;      }
+&nbsp;    } else {
+<b class="fc">&nbsp;      if (oddSum &gt; 11) {</b>
+<b class="fc">&nbsp;        decrementOdd = true;</b>
+<b class="fc">&nbsp;      } else if (oddSum &lt; 5) {</b>
+<b class="fc">&nbsp;        incrementOdd = true;</b>
+&nbsp;      }
+<b class="fc">&nbsp;      if (evenSum &gt; 10) {</b>
+<b class="fc">&nbsp;        decrementEven = true;</b>
+<b class="fc">&nbsp;      } else if (evenSum &lt; 4) {</b>
+<b class="nc">&nbsp;        incrementEven = true;</b>
+&nbsp;      }
+&nbsp;    }
+&nbsp;
+<b class="fc">&nbsp;    int mismatch = oddSum + evenSum - numModules;</b>
+<b class="fc">&nbsp;    boolean oddParityBad = (oddSum &amp; 0x01) == (outsideChar ? 1 : 0);</b>
+<b class="fc">&nbsp;    boolean evenParityBad = (evenSum &amp; 0x01) == 1;</b>
+&nbsp;    /*if (mismatch == 2) {
+&nbsp;      if (!(oddParityBad &amp;&amp; evenParityBad)) {
+&nbsp;        throw ReaderException.getInstance();
+&nbsp;      }
+&nbsp;      decrementOdd = true;
+&nbsp;      decrementEven = true;
+&nbsp;    } else if (mismatch == -2) {
+&nbsp;      if (!(oddParityBad &amp;&amp; evenParityBad)) {
+&nbsp;        throw ReaderException.getInstance();
+&nbsp;      }
+&nbsp;      incrementOdd = true;
+&nbsp;      incrementEven = true;
+&nbsp;    } else */
+<b class="fc">&nbsp;    switch (mismatch) {</b>
+&nbsp;      case 1:
+<b class="fc">&nbsp;        if (oddParityBad) {</b>
+<b class="fc">&nbsp;          if (evenParityBad) {</b>
+<b class="nc">&nbsp;            throw NotFoundException.getNotFoundInstance();</b>
+&nbsp;          }
+<b class="fc">&nbsp;          decrementOdd = true;</b>
+&nbsp;        } else {
+<b class="fc">&nbsp;          if (!evenParityBad) {</b>
+<b class="nc">&nbsp;            throw NotFoundException.getNotFoundInstance();</b>
+&nbsp;          }
+<b class="fc">&nbsp;          decrementEven = true;</b>
+&nbsp;        }
+<b class="fc">&nbsp;        break;</b>
+&nbsp;      case -1:
+<b class="fc">&nbsp;        if (oddParityBad) {</b>
+<b class="fc">&nbsp;          if (evenParityBad) {</b>
+<b class="nc">&nbsp;            throw NotFoundException.getNotFoundInstance();</b>
+&nbsp;          }
+<b class="fc">&nbsp;          incrementOdd = true;</b>
+&nbsp;        } else {
+<b class="fc">&nbsp;          if (!evenParityBad) {</b>
+<b class="nc">&nbsp;            throw NotFoundException.getNotFoundInstance();</b>
+&nbsp;          }
+<b class="fc">&nbsp;          incrementEven = true;</b>
+&nbsp;        }
+<b class="fc">&nbsp;        break;</b>
+&nbsp;      case 0:
+<b class="fc">&nbsp;        if (oddParityBad) {</b>
+<b class="fc">&nbsp;          if (!evenParityBad) {</b>
+<b class="nc">&nbsp;            throw NotFoundException.getNotFoundInstance();</b>
+&nbsp;          }
+&nbsp;          // Both bad
+<b class="fc">&nbsp;          if (oddSum &lt; evenSum) {</b>
+<b class="fc">&nbsp;            incrementOdd = true;</b>
+<b class="fc">&nbsp;            decrementEven = true;</b>
+&nbsp;          } else {
+<b class="fc">&nbsp;            decrementOdd = true;</b>
+<b class="fc">&nbsp;            incrementEven = true;</b>
+&nbsp;          }
+&nbsp;        } else {
+<b class="fc">&nbsp;          if (evenParityBad) {</b>
+<b class="nc">&nbsp;            throw NotFoundException.getNotFoundInstance();</b>
+&nbsp;          }
+&nbsp;          // Nothing to do!
+&nbsp;        }
+&nbsp;        break;
+&nbsp;      default:
+<b class="fc">&nbsp;        throw NotFoundException.getNotFoundInstance();</b>
+&nbsp;    }
+&nbsp;
+<b class="fc">&nbsp;    if (incrementOdd) {</b>
+<b class="fc">&nbsp;      if (decrementOdd) {</b>
+<b class="fc">&nbsp;        throw NotFoundException.getNotFoundInstance();</b>
+&nbsp;      }
+<b class="fc">&nbsp;      increment(getOddCounts(), getOddRoundingErrors());</b>
+&nbsp;    }
+<b class="fc">&nbsp;    if (decrementOdd) {</b>
+<b class="fc">&nbsp;      decrement(getOddCounts(), getOddRoundingErrors());</b>
+&nbsp;    }
+<b class="fc">&nbsp;    if (incrementEven) {</b>
+<b class="fc">&nbsp;      if (decrementEven) {</b>
+<b class="nc">&nbsp;        throw NotFoundException.getNotFoundInstance();</b>
+&nbsp;      }
+<b class="fc">&nbsp;      increment(getEvenCounts(), getOddRoundingErrors());</b>
+&nbsp;    }
+<b class="fc">&nbsp;    if (decrementEven) {</b>
+<b class="fc">&nbsp;      decrement(getEvenCounts(), getEvenRoundingErrors());</b>
+&nbsp;    }
+&nbsp;
+&nbsp;  }
+&nbsp;
+&nbsp;}
+</code>
+</pre>
+</div>
+
+<script type="text/javascript">
+(function() {
+    var msie = false, msie9 = false;
+    /*@cc_on
+      msie = true;
+      @if (@_jscript_version >= 9)
+        msie9 = true;
+      @end
+    @*/
+
+    if (!msie || msie && msie9) {
+      hljs.highlightAll()
+      hljs.initLineNumbersOnLoad();
+    }
+})();
+</script>
+
+<div class="footer">
+    
+    <div style="float:right;">generated on 2023-11-12 23:26</div>
+</div>
+</body>
+</html>

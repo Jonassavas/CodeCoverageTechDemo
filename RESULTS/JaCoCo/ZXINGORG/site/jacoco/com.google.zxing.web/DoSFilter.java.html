@@ -1,0 +1,109 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>DoSFilter.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">ZXing zxing.org web app</a> &gt; <a href="index.source.html" class="el_package">com.google.zxing.web</a> &gt; <span class="el_source">DoSFilter.java</span></div><h1>DoSFilter.java</h1><pre class="source lang-java linenums">/*
+ * Copyright 2015 ZXing authors
+ *
+ * Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an &quot;AS IS&quot; BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+package com.google.zxing.web;
+
+import com.google.common.base.Preconditions;
+
+import jakarta.servlet.Filter;
+import jakarta.servlet.FilterChain;
+import jakarta.servlet.FilterConfig;
+import jakarta.servlet.ServletException;
+import jakarta.servlet.ServletRequest;
+import jakarta.servlet.ServletResponse;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
+import java.io.IOException;
+import java.util.Timer;
+import java.util.concurrent.TimeUnit;
+
+/**
+ * A simplistic {@link Filter} that rejects requests from hosts that are sending too many
+ * requests in too short a time.
+ *
+ * @author Sean Owen
+ */
+<span class="fc" id="L39">public abstract class DoSFilter implements Filter {</span>
+
+  private Timer timer;
+  private DoSTracker sourceAddrTracker;
+
+  @Override
+  public void init(FilterConfig filterConfig) {
+<span class="fc" id="L46">    int maxAccessPerTime = Integer.parseInt(filterConfig.getInitParameter(&quot;maxAccessPerTime&quot;));</span>
+<span class="pc bpc" id="L47" title="1 of 2 branches missed.">    Preconditions.checkArgument(maxAccessPerTime &gt; 0);</span>
+
+<span class="fc" id="L49">    int accessTimeSec = Integer.parseInt(filterConfig.getInitParameter(&quot;accessTimeSec&quot;));</span>
+<span class="pc bpc" id="L50" title="1 of 2 branches missed.">    Preconditions.checkArgument(accessTimeSec &gt; 0);</span>
+<span class="fc" id="L51">    long accessTimeMS = TimeUnit.MILLISECONDS.convert(accessTimeSec, TimeUnit.SECONDS);</span>
+
+<span class="fc" id="L53">    String maxEntriesValue = filterConfig.getInitParameter(&quot;maxEntries&quot;);</span>
+<span class="fc" id="L54">    int maxEntries = Integer.MAX_VALUE;</span>
+<span class="pc bpc" id="L55" title="1 of 2 branches missed.">    if (maxEntriesValue != null) {</span>
+<span class="fc" id="L56">      maxEntries = Integer.parseInt(maxEntriesValue);</span>
+<span class="pc bpc" id="L57" title="1 of 2 branches missed.">      Preconditions.checkArgument(maxEntries &gt; 0);</span>
+    }
+
+<span class="fc" id="L60">    String maxLoadValue = filterConfig.getInitParameter(&quot;maxLoad&quot;);</span>
+<span class="fc" id="L61">    Double maxLoad = null;</span>
+<span class="pc bpc" id="L62" title="1 of 2 branches missed.">    if (maxLoadValue != null) {</span>
+<span class="nc" id="L63">      maxLoad = Double.valueOf(maxLoadValue);</span>
+<span class="nc bnc" id="L64" title="All 2 branches missed.">      Preconditions.checkArgument(maxLoad &gt; 0.0);</span>
+    }
+
+<span class="fc" id="L67">    String name = getClass().getSimpleName();</span>
+<span class="fc" id="L68">    timer = new Timer(name);</span>
+<span class="fc" id="L69">    sourceAddrTracker = new DoSTracker(timer, name, maxAccessPerTime, accessTimeMS, maxEntries, maxLoad);</span>
+<span class="fc" id="L70">  }</span>
+
+  @Override
+  public void doFilter(ServletRequest request,
+                       ServletResponse response,
+                       FilterChain chain) throws IOException, ServletException {
+<span class="fc bfc" id="L76" title="All 2 branches covered.">    if (isBanned((HttpServletRequest) request)) {</span>
+<span class="fc" id="L77">      HttpServletResponse servletResponse = (HttpServletResponse) response;</span>
+      // Send very short response as requests may be very frequent
+<span class="fc" id="L79">      servletResponse.setStatus(429); // 429 = Too Many Requests from RFC 6585</span>
+<span class="fc" id="L80">      servletResponse.getWriter().write(&quot;Forbidden&quot;);</span>
+<span class="fc" id="L81">    } else {</span>
+<span class="fc" id="L82">      chain.doFilter(request, response);</span>
+    }
+<span class="fc" id="L84">  }</span>
+
+  private boolean isBanned(HttpServletRequest request) {
+<span class="fc" id="L87">    String remoteHost = request.getHeader(&quot;x-forwarded-for&quot;);</span>
+<span class="fc bfc" id="L88" title="All 2 branches covered.">    if (remoteHost != null) {</span>
+<span class="fc" id="L89">      int comma = remoteHost.indexOf(',');</span>
+<span class="fc bfc" id="L90" title="All 2 branches covered.">      if (comma &gt;= 0) {</span>
+<span class="fc" id="L91">        remoteHost = remoteHost.substring(0, comma);</span>
+      }
+<span class="fc" id="L93">      remoteHost = remoteHost.trim();</span>
+    }
+    // Non-short-circuit &quot;|&quot; below is on purpose
+<span class="fc bfc" id="L96" title="All 2 branches covered.">    return</span>
+<span class="pc bpc" id="L97" title="1 of 2 branches missed.">      (remoteHost != null &amp;&amp; sourceAddrTracker.isBanned(remoteHost)) |</span>
+<span class="fc" id="L98">      sourceAddrTracker.isBanned(request.getRemoteAddr());</span>
+  }
+
+  @Override
+  public void destroy() {
+<span class="pc bpc" id="L103" title="1 of 2 branches missed.">    if (timer != null) {</span>
+<span class="fc" id="L104">      timer.cancel();</span>
+    }
+<span class="fc" id="L106">  }</span>
+
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.11.202310140853</span></div></body></html>

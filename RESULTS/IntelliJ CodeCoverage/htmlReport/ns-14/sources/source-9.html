@@ -1,0 +1,242 @@
+
+
+
+<!DOCTYPE html>
+<html id="htmlId">
+<head>
+  <meta http-equiv="Content-Type" content="text/html;charset=windows-1252"> 
+  <title>Coverage Report > EAN13Reader</title>
+  <style type="text/css">
+    @import "../../css/coverage.css";
+    @import "../../css/idea.min.css";
+  </style>
+  <script type="text/javascript" src="../../js/highlight.min.js"></script>
+  <script type="text/javascript" src="../../js/highlightjs-line-numbers.min.js"></script>
+</head>
+
+<body>
+<div class="content">
+<div class="breadCrumbs">
+Current scope:     <a href="../../index.html">all classes</a>
+    <span class="separator">|</span>
+    <a href="../index.html">com.google.zxing.oned</a>
+</div>
+
+<h1>Coverage Summary for Class: EAN13Reader (com.google.zxing.oned)</h1>
+
+<table class="coverageStats">
+<tr>
+  <th class="name">Class</th>
+<th class="coverageStat 
+">
+  Class, %
+</th>
+<th class="coverageStat 
+">
+  Method, %
+</th>
+<th class="coverageStat 
+">
+  Line, %
+</th>
+</tr>
+<tr>
+  <td class="name">EAN13Reader</td>
+<td class="coverageStat">
+  <span class="percent">
+    100%
+  </span>
+  <span class="absValue">
+    (1/1)
+  </span>
+</td>
+<td class="coverageStat">
+  <span class="percent">
+    100%
+  </span>
+  <span class="absValue">
+    (5/5)
+  </span>
+</td>
+<td class="coverageStat">
+  <span class="percent">
+    100%
+  </span>
+  <span class="absValue">
+    (32/32)
+  </span>
+</td>
+</tr>
+
+</table>
+
+<br/>
+<br/>
+
+
+<pre>
+<code class="sourceCode" id="sourceCode">&nbsp;/*
+&nbsp; * Copyright 2008 ZXing authors
+&nbsp; *
+&nbsp; * Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
+&nbsp; * you may not use this file except in compliance with the License.
+&nbsp; * You may obtain a copy of the License at
+&nbsp; *
+&nbsp; *      http://www.apache.org/licenses/LICENSE-2.0
+&nbsp; *
+&nbsp; * Unless required by applicable law or agreed to in writing, software
+&nbsp; * distributed under the License is distributed on an &quot;AS IS&quot; BASIS,
+&nbsp; * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+&nbsp; * See the License for the specific language governing permissions and
+&nbsp; * limitations under the License.
+&nbsp; */
+&nbsp;
+&nbsp;package com.google.zxing.oned;
+&nbsp;
+&nbsp;import com.google.zxing.BarcodeFormat;
+&nbsp;import com.google.zxing.NotFoundException;
+&nbsp;import com.google.zxing.common.BitArray;
+&nbsp;
+&nbsp;/**
+&nbsp; * &lt;p&gt;Implements decoding of the EAN-13 format.&lt;/p&gt;
+&nbsp; *
+&nbsp; * @author dswitkin@google.com (Daniel Switkin)
+&nbsp; * @author Sean Owen
+&nbsp; * @author alasdair@google.com (Alasdair Mackintosh)
+&nbsp; */
+&nbsp;public final class EAN13Reader extends UPCEANReader {
+&nbsp;
+&nbsp;  // For an EAN-13 barcode, the first digit is represented by the parities used
+&nbsp;  // to encode the next six digits, according to the table below. For example,
+&nbsp;  // if the barcode is 5 123456 789012 then the value of the first digit is
+&nbsp;  // signified by using odd for &#39;1&#39;, even for &#39;2&#39;, even for &#39;3&#39;, odd for &#39;4&#39;,
+&nbsp;  // odd for &#39;5&#39;, and even for &#39;6&#39;. See http://en.wikipedia.org/wiki/EAN-13
+&nbsp;  //
+&nbsp;  //                Parity of next 6 digits
+&nbsp;  //    Digit   0     1     2     3     4     5
+&nbsp;  //       0    Odd   Odd   Odd   Odd   Odd   Odd
+&nbsp;  //       1    Odd   Odd   Even  Odd   Even  Even
+&nbsp;  //       2    Odd   Odd   Even  Even  Odd   Even
+&nbsp;  //       3    Odd   Odd   Even  Even  Even  Odd
+&nbsp;  //       4    Odd   Even  Odd   Odd   Even  Even
+&nbsp;  //       5    Odd   Even  Even  Odd   Odd   Even
+&nbsp;  //       6    Odd   Even  Even  Even  Odd   Odd
+&nbsp;  //       7    Odd   Even  Odd   Even  Odd   Even
+&nbsp;  //       8    Odd   Even  Odd   Even  Even  Odd
+&nbsp;  //       9    Odd   Even  Even  Odd   Even  Odd
+&nbsp;  //
+&nbsp;  // Note that the encoding for &#39;0&#39; uses the same parity as a UPC barcode. Hence
+&nbsp;  // a UPC barcode can be converted to an EAN-13 barcode by prepending a 0.
+&nbsp;  //
+&nbsp;  // The encoding is represented by the following array, which is a bit pattern
+&nbsp;  // using Odd = 0 and Even = 1. For example, 5 is represented by:
+&nbsp;  //
+&nbsp;  //              Odd Even Even Odd Odd Even
+&nbsp;  // in binary:
+&nbsp;  //                0    1    1   0   0    1   == 0x19
+&nbsp;  //
+<b class="fc">&nbsp;  static final int[] FIRST_DIGIT_ENCODINGS = {</b>
+&nbsp;      0x00, 0x0B, 0x0D, 0xE, 0x13, 0x19, 0x1C, 0x15, 0x16, 0x1A
+&nbsp;  };
+&nbsp;
+&nbsp;  private final int[] decodeMiddleCounters;
+&nbsp;
+<b class="fc">&nbsp;  public EAN13Reader() {</b>
+<b class="fc">&nbsp;    decodeMiddleCounters = new int[4];</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  @Override
+&nbsp;  protected int decodeMiddle(BitArray row,
+&nbsp;                             int[] startRange,
+&nbsp;                             StringBuilder resultString) throws NotFoundException {
+<b class="fc">&nbsp;    int[] counters = decodeMiddleCounters;</b>
+<b class="fc">&nbsp;    counters[0] = 0;</b>
+<b class="fc">&nbsp;    counters[1] = 0;</b>
+<b class="fc">&nbsp;    counters[2] = 0;</b>
+<b class="fc">&nbsp;    counters[3] = 0;</b>
+<b class="fc">&nbsp;    int end = row.getSize();</b>
+<b class="fc">&nbsp;    int rowOffset = startRange[1];</b>
+&nbsp;
+<b class="fc">&nbsp;    int lgPatternFound = 0;</b>
+&nbsp;
+<b class="fc">&nbsp;    for (int x = 0; x &lt; 6 &amp;&amp; rowOffset &lt; end; x++) {</b>
+<b class="fc">&nbsp;      int bestMatch = decodeDigit(row, counters, rowOffset, L_AND_G_PATTERNS);</b>
+<b class="fc">&nbsp;      resultString.append((char) (&#39;0&#39; + bestMatch % 10));</b>
+<b class="fc">&nbsp;      for (int counter : counters) {</b>
+<b class="fc">&nbsp;        rowOffset += counter;</b>
+&nbsp;      }
+<b class="fc">&nbsp;      if (bestMatch &gt;= 10) {</b>
+<b class="fc">&nbsp;        lgPatternFound |= 1 &lt;&lt; (5 - x);</b>
+&nbsp;      }
+&nbsp;    }
+&nbsp;
+<b class="fc">&nbsp;    determineFirstDigit(resultString, lgPatternFound);</b>
+&nbsp;
+<b class="fc">&nbsp;    int[] middleRange = findGuardPattern(row, rowOffset, true, MIDDLE_PATTERN);</b>
+<b class="fc">&nbsp;    rowOffset = middleRange[1];</b>
+&nbsp;
+<b class="fc">&nbsp;    for (int x = 0; x &lt; 6 &amp;&amp; rowOffset &lt; end; x++) {</b>
+<b class="fc">&nbsp;      int bestMatch = decodeDigit(row, counters, rowOffset, L_PATTERNS);</b>
+<b class="fc">&nbsp;      resultString.append((char) (&#39;0&#39; + bestMatch));</b>
+<b class="fc">&nbsp;      for (int counter : counters) {</b>
+<b class="fc">&nbsp;        rowOffset += counter;</b>
+&nbsp;      }
+&nbsp;    }
+&nbsp;
+<b class="fc">&nbsp;    return rowOffset;</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  @Override
+&nbsp;  BarcodeFormat getBarcodeFormat() {
+<b class="fc">&nbsp;    return BarcodeFormat.EAN_13;</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  /**
+&nbsp;   * Based on pattern of odd-even (&#39;L&#39; and &#39;G&#39;) patterns used to encoded the explicitly-encoded
+&nbsp;   * digits in a barcode, determines the implicitly encoded first digit and adds it to the
+&nbsp;   * result string.
+&nbsp;   *
+&nbsp;   * @param resultString string to insert decoded first digit into
+&nbsp;   * @param lgPatternFound int whose bits indicates the pattern of odd/even L/G patterns used to
+&nbsp;   *  encode digits
+&nbsp;   * @throws NotFoundException if first digit cannot be determined
+&nbsp;   */
+&nbsp;  private static void determineFirstDigit(StringBuilder resultString, int lgPatternFound)
+&nbsp;      throws NotFoundException {
+<b class="fc">&nbsp;    for (int d = 0; d &lt; 10; d++) {</b>
+<b class="fc">&nbsp;      if (lgPatternFound == FIRST_DIGIT_ENCODINGS[d]) {</b>
+<b class="fc">&nbsp;        resultString.insert(0, (char) (&#39;0&#39; + d));</b>
+&nbsp;        return;
+&nbsp;      }
+&nbsp;    }
+<b class="fc">&nbsp;    throw NotFoundException.getNotFoundInstance();</b>
+&nbsp;  }
+&nbsp;
+&nbsp;}
+</code>
+</pre>
+</div>
+
+<script type="text/javascript">
+(function() {
+    var msie = false, msie9 = false;
+    /*@cc_on
+      msie = true;
+      @if (@_jscript_version >= 9)
+        msie9 = true;
+      @end
+    @*/
+
+    if (!msie || msie && msie9) {
+      hljs.highlightAll()
+      hljs.initLineNumbersOnLoad();
+    }
+})();
+</script>
+
+<div class="footer">
+    
+    <div style="float:right;">generated on 2023-11-12 23:26</div>
+</div>
+</body>
+</html>

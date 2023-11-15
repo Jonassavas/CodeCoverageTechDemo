@@ -1,0 +1,321 @@
+
+
+
+<!DOCTYPE html>
+<html id="htmlId">
+<head>
+  <meta http-equiv="Content-Type" content="text/html;charset=windows-1252"> 
+  <title>Coverage Report > MonochromeRectangleDetector</title>
+  <style type="text/css">
+    @import "../../css/coverage.css";
+    @import "../../css/idea.min.css";
+  </style>
+  <script type="text/javascript" src="../../js/highlight.min.js"></script>
+  <script type="text/javascript" src="../../js/highlightjs-line-numbers.min.js"></script>
+</head>
+
+<body>
+<div class="content">
+<div class="breadCrumbs">
+Current scope:     <a href="../../index.html">all classes</a>
+    <span class="separator">|</span>
+    <a href="../index.html">com.google.zxing.common.detector</a>
+</div>
+
+<h1>Coverage Summary for Class: MonochromeRectangleDetector (com.google.zxing.common.detector)</h1>
+
+<table class="coverageStats">
+<tr>
+  <th class="name">Class</th>
+<th class="coverageStat 
+">
+  Class, %
+</th>
+<th class="coverageStat 
+">
+  Method, %
+</th>
+<th class="coverageStat 
+">
+  Line, %
+</th>
+</tr>
+<tr>
+  <td class="name">MonochromeRectangleDetector</td>
+<td class="coverageStat">
+  <span class="percent">
+    0%
+  </span>
+  <span class="absValue">
+    (0/1)
+  </span>
+</td>
+<td class="coverageStat">
+  <span class="percent">
+    0%
+  </span>
+  <span class="absValue">
+    (0/4)
+  </span>
+</td>
+<td class="coverageStat">
+  <span class="percent">
+    0%
+  </span>
+  <span class="absValue">
+    (0/77)
+  </span>
+</td>
+</tr>
+
+</table>
+
+<br/>
+<br/>
+
+
+<pre>
+<code class="sourceCode" id="sourceCode">&nbsp;/*
+&nbsp; * Copyright 2009 ZXing authors
+&nbsp; *
+&nbsp; * Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
+&nbsp; * you may not use this file except in compliance with the License.
+&nbsp; * You may obtain a copy of the License at
+&nbsp; *
+&nbsp; *      http://www.apache.org/licenses/LICENSE-2.0
+&nbsp; *
+&nbsp; * Unless required by applicable law or agreed to in writing, software
+&nbsp; * distributed under the License is distributed on an &quot;AS IS&quot; BASIS,
+&nbsp; * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+&nbsp; * See the License for the specific language governing permissions and
+&nbsp; * limitations under the License.
+&nbsp; */
+&nbsp;
+&nbsp;package com.google.zxing.common.detector;
+&nbsp;
+&nbsp;import com.google.zxing.NotFoundException;
+&nbsp;import com.google.zxing.ResultPoint;
+&nbsp;import com.google.zxing.common.BitMatrix;
+&nbsp;
+&nbsp;/**
+&nbsp; * &lt;p&gt;A somewhat generic detector that looks for a barcode-like rectangular region within an image.
+&nbsp; * It looks within a mostly white region of an image for a region of black and white, but mostly
+&nbsp; * black. It returns the four corners of the region, as best it can determine.&lt;/p&gt;
+&nbsp; *
+&nbsp; * @author Sean Owen
+&nbsp; * @deprecated without replacement since 3.3.0
+&nbsp; */
+&nbsp;@Deprecated
+&nbsp;public final class MonochromeRectangleDetector {
+&nbsp;
+&nbsp;  private static final int MAX_MODULES = 32;
+&nbsp;
+&nbsp;  private final BitMatrix image;
+&nbsp;
+<b class="nc">&nbsp;  public MonochromeRectangleDetector(BitMatrix image) {</b>
+<b class="nc">&nbsp;    this.image = image;</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  /**
+&nbsp;   * &lt;p&gt;Detects a rectangular region of black and white -- mostly black -- with a region of mostly
+&nbsp;   * white, in an image.&lt;/p&gt;
+&nbsp;   *
+&nbsp;   * @return {@link ResultPoint}[] describing the corners of the rectangular region. The first and
+&nbsp;   *  last points are opposed on the diagonal, as are the second and third. The first point will be
+&nbsp;   *  the topmost point and the last, the bottommost. The second point will be leftmost and the
+&nbsp;   *  third, the rightmost
+&nbsp;   * @throws NotFoundException if no Data Matrix Code can be found
+&nbsp;   */
+&nbsp;  public ResultPoint[] detect() throws NotFoundException {
+<b class="nc">&nbsp;    int height = image.getHeight();</b>
+<b class="nc">&nbsp;    int width = image.getWidth();</b>
+<b class="nc">&nbsp;    int halfHeight = height / 2;</b>
+<b class="nc">&nbsp;    int halfWidth = width / 2;</b>
+<b class="nc">&nbsp;    int deltaY = Math.max(1, height / (MAX_MODULES * 8));</b>
+<b class="nc">&nbsp;    int deltaX = Math.max(1, width / (MAX_MODULES * 8));</b>
+&nbsp;
+<b class="nc">&nbsp;    int top = 0;</b>
+<b class="nc">&nbsp;    int bottom = height;</b>
+<b class="nc">&nbsp;    int left = 0;</b>
+<b class="nc">&nbsp;    int right = width;</b>
+<b class="nc">&nbsp;    ResultPoint pointA = findCornerFromCenter(halfWidth, 0, left, right,</b>
+&nbsp;        halfHeight, -deltaY, top, bottom, halfWidth / 2);
+<b class="nc">&nbsp;    top = (int) pointA.getY() - 1;</b>
+<b class="nc">&nbsp;    ResultPoint pointB = findCornerFromCenter(halfWidth, -deltaX, left, right,</b>
+&nbsp;        halfHeight, 0, top, bottom, halfHeight / 2);
+<b class="nc">&nbsp;    left = (int) pointB.getX() - 1;</b>
+<b class="nc">&nbsp;    ResultPoint pointC = findCornerFromCenter(halfWidth, deltaX, left, right,</b>
+&nbsp;        halfHeight, 0, top, bottom, halfHeight / 2);
+<b class="nc">&nbsp;    right = (int) pointC.getX() + 1;</b>
+<b class="nc">&nbsp;    ResultPoint pointD = findCornerFromCenter(halfWidth, 0, left, right,</b>
+&nbsp;        halfHeight, deltaY, top, bottom, halfWidth / 2);
+<b class="nc">&nbsp;    bottom = (int) pointD.getY() + 1;</b>
+&nbsp;
+&nbsp;    // Go try to find point A again with better information -- might have been off at first.
+<b class="nc">&nbsp;    pointA = findCornerFromCenter(halfWidth, 0, left, right,</b>
+&nbsp;        halfHeight, -deltaY, top, bottom, halfWidth / 4);
+&nbsp;
+<b class="nc">&nbsp;    return new ResultPoint[] { pointA, pointB, pointC, pointD };</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  /**
+&nbsp;   * Attempts to locate a corner of the barcode by scanning up, down, left or right from a center
+&nbsp;   * point which should be within the barcode.
+&nbsp;   *
+&nbsp;   * @param centerX center&#39;s x component (horizontal)
+&nbsp;   * @param deltaX same as deltaY but change in x per step instead
+&nbsp;   * @param left minimum value of x
+&nbsp;   * @param right maximum value of x
+&nbsp;   * @param centerY center&#39;s y component (vertical)
+&nbsp;   * @param deltaY change in y per step. If scanning up this is negative; down, positive;
+&nbsp;   *  left or right, 0
+&nbsp;   * @param top minimum value of y to search through (meaningless when di == 0)
+&nbsp;   * @param bottom maximum value of y
+&nbsp;   * @param maxWhiteRun maximum run of white pixels that can still be considered to be within
+&nbsp;   *  the barcode
+&nbsp;   * @return a {@link ResultPoint} encapsulating the corner that was found
+&nbsp;   * @throws NotFoundException if such a point cannot be found
+&nbsp;   */
+&nbsp;  private ResultPoint findCornerFromCenter(int centerX,
+&nbsp;                                           int deltaX,
+&nbsp;                                           int left,
+&nbsp;                                           int right,
+&nbsp;                                           int centerY,
+&nbsp;                                           int deltaY,
+&nbsp;                                           int top,
+&nbsp;                                           int bottom,
+&nbsp;                                           int maxWhiteRun) throws NotFoundException {
+<b class="nc">&nbsp;    int[] lastRange = null;</b>
+<b class="nc">&nbsp;    for (int y = centerY, x = centerX;</b>
+<b class="nc">&nbsp;         y &lt; bottom &amp;&amp; y &gt;= top &amp;&amp; x &lt; right &amp;&amp; x &gt;= left;</b>
+<b class="nc">&nbsp;         y += deltaY, x += deltaX) {</b>
+&nbsp;      int[] range;
+<b class="nc">&nbsp;      if (deltaX == 0) {</b>
+&nbsp;        // horizontal slices, up and down
+<b class="nc">&nbsp;        range = blackWhiteRange(y, maxWhiteRun, left, right, true);</b>
+&nbsp;      } else {
+&nbsp;        // vertical slices, left and right
+<b class="nc">&nbsp;        range = blackWhiteRange(x, maxWhiteRun, top, bottom, false);</b>
+&nbsp;      }
+<b class="nc">&nbsp;      if (range == null) {</b>
+<b class="nc">&nbsp;        if (lastRange == null) {</b>
+<b class="nc">&nbsp;          throw NotFoundException.getNotFoundInstance();</b>
+&nbsp;        }
+&nbsp;        // lastRange was found
+<b class="nc">&nbsp;        if (deltaX == 0) {</b>
+<b class="nc">&nbsp;          int lastY = y - deltaY;</b>
+<b class="nc">&nbsp;          if (lastRange[0] &lt; centerX) {</b>
+<b class="nc">&nbsp;            if (lastRange[1] &gt; centerX) {</b>
+&nbsp;              // straddle, choose one or the other based on direction
+<b class="nc">&nbsp;              return new ResultPoint(lastRange[deltaY &gt; 0 ? 0 : 1], lastY);</b>
+&nbsp;            }
+<b class="nc">&nbsp;            return new ResultPoint(lastRange[0], lastY);</b>
+&nbsp;          } else {
+<b class="nc">&nbsp;            return new ResultPoint(lastRange[1], lastY);</b>
+&nbsp;          }
+&nbsp;        } else {
+<b class="nc">&nbsp;          int lastX = x - deltaX;</b>
+<b class="nc">&nbsp;          if (lastRange[0] &lt; centerY) {</b>
+<b class="nc">&nbsp;            if (lastRange[1] &gt; centerY) {</b>
+<b class="nc">&nbsp;              return new ResultPoint(lastX, lastRange[deltaX &lt; 0 ? 0 : 1]);</b>
+&nbsp;            }
+<b class="nc">&nbsp;            return new ResultPoint(lastX, lastRange[0]);</b>
+&nbsp;          } else {
+<b class="nc">&nbsp;            return new ResultPoint(lastX, lastRange[1]);</b>
+&nbsp;          }
+&nbsp;        }
+&nbsp;      }
+<b class="nc">&nbsp;      lastRange = range;</b>
+&nbsp;    }
+<b class="nc">&nbsp;    throw NotFoundException.getNotFoundInstance();</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  /**
+&nbsp;   * Computes the start and end of a region of pixels, either horizontally or vertically, that could
+&nbsp;   * be part of a Data Matrix barcode.
+&nbsp;   *
+&nbsp;   * @param fixedDimension if scanning horizontally, this is the row (the fixed vertical location)
+&nbsp;   *  where we are scanning. If scanning vertically it&#39;s the column, the fixed horizontal location
+&nbsp;   * @param maxWhiteRun largest run of white pixels that can still be considered part of the
+&nbsp;   *  barcode region
+&nbsp;   * @param minDim minimum pixel location, horizontally or vertically, to consider
+&nbsp;   * @param maxDim maximum pixel location, horizontally or vertically, to consider
+&nbsp;   * @param horizontal if true, we&#39;re scanning left-right, instead of up-down
+&nbsp;   * @return int[] with start and end of found range, or null if no such range is found
+&nbsp;   *  (e.g. only white was found)
+&nbsp;   */
+&nbsp;  private int[] blackWhiteRange(int fixedDimension, int maxWhiteRun, int minDim, int maxDim, boolean horizontal) {
+&nbsp;
+<b class="nc">&nbsp;    int center = (minDim + maxDim) / 2;</b>
+&nbsp;
+&nbsp;    // Scan left/up first
+<b class="nc">&nbsp;    int start = center;</b>
+<b class="nc">&nbsp;    while (start &gt;= minDim) {</b>
+<b class="nc">&nbsp;      if (horizontal ? image.get(start, fixedDimension) : image.get(fixedDimension, start)) {</b>
+<b class="nc">&nbsp;        start--;</b>
+&nbsp;      } else {
+<b class="nc">&nbsp;        int whiteRunStart = start;</b>
+&nbsp;        do {
+<b class="nc">&nbsp;          start--;</b>
+<b class="nc">&nbsp;        } while (start &gt;= minDim &amp;&amp; !(horizontal ? image.get(start, fixedDimension) :</b>
+<b class="nc">&nbsp;            image.get(fixedDimension, start)));</b>
+<b class="nc">&nbsp;        int whiteRunSize = whiteRunStart - start;</b>
+<b class="nc">&nbsp;        if (start &lt; minDim || whiteRunSize &gt; maxWhiteRun) {</b>
+<b class="nc">&nbsp;          start = whiteRunStart;</b>
+<b class="nc">&nbsp;          break;</b>
+&nbsp;        }
+<b class="nc">&nbsp;      }</b>
+&nbsp;    }
+<b class="nc">&nbsp;    start++;</b>
+&nbsp;
+&nbsp;    // Then try right/down
+<b class="nc">&nbsp;    int end = center;</b>
+<b class="nc">&nbsp;    while (end &lt; maxDim) {</b>
+<b class="nc">&nbsp;      if (horizontal ? image.get(end, fixedDimension) : image.get(fixedDimension, end)) {</b>
+<b class="nc">&nbsp;        end++;</b>
+&nbsp;      } else {
+<b class="nc">&nbsp;        int whiteRunStart = end;</b>
+&nbsp;        do {
+<b class="nc">&nbsp;          end++;</b>
+<b class="nc">&nbsp;        } while (end &lt; maxDim &amp;&amp; !(horizontal ? image.get(end, fixedDimension) :</b>
+<b class="nc">&nbsp;            image.get(fixedDimension, end)));</b>
+<b class="nc">&nbsp;        int whiteRunSize = end - whiteRunStart;</b>
+<b class="nc">&nbsp;        if (end &gt;= maxDim || whiteRunSize &gt; maxWhiteRun) {</b>
+<b class="nc">&nbsp;          end = whiteRunStart;</b>
+<b class="nc">&nbsp;          break;</b>
+&nbsp;        }
+<b class="nc">&nbsp;      }</b>
+&nbsp;    }
+<b class="nc">&nbsp;    end--;</b>
+&nbsp;
+<b class="nc">&nbsp;    return end &gt; start ? new int[]{start, end} : null;</b>
+&nbsp;  }
+&nbsp;
+&nbsp;}
+</code>
+</pre>
+</div>
+
+<script type="text/javascript">
+(function() {
+    var msie = false, msie9 = false;
+    /*@cc_on
+      msie = true;
+      @if (@_jscript_version >= 9)
+        msie9 = true;
+      @end
+    @*/
+
+    if (!msie || msie && msie9) {
+      hljs.highlightAll()
+      hljs.initLineNumbersOnLoad();
+    }
+})();
+</script>
+
+<div class="footer">
+    
+    <div style="float:right;">generated on 2023-11-12 23:26</div>
+</div>
+</body>
+</html>

@@ -1,0 +1,493 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>DecodeServlet.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">ZXing zxing.org web app</a> &gt; <a href="index.source.html" class="el_package">com.google.zxing.web</a> &gt; <span class="el_source">DecodeServlet.java</span></div><h1>DecodeServlet.java</h1><pre class="source lang-java linenums">/*
+ * Copyright 2008 ZXing authors
+ *
+ * Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an &quot;AS IS&quot; BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+package com.google.zxing.web;
+
+import com.google.zxing.BarcodeFormat;
+import com.google.zxing.BinaryBitmap;
+import com.google.zxing.ChecksumException;
+import com.google.zxing.DecodeHintType;
+import com.google.zxing.FormatException;
+import com.google.zxing.LuminanceSource;
+import com.google.zxing.MultiFormatReader;
+import com.google.zxing.NotFoundException;
+import com.google.zxing.Reader;
+import com.google.zxing.ReaderException;
+import com.google.zxing.Result;
+import com.google.zxing.client.j2se.BufferedImageLuminanceSource;
+import com.google.zxing.client.j2se.ImageReader;
+import com.google.zxing.common.GlobalHistogramBinarizer;
+import com.google.zxing.common.HybridBinarizer;
+import com.google.zxing.multi.GenericMultipleBarcodeReader;
+import com.google.zxing.multi.MultipleBarcodeReader;
+
+import com.google.common.io.Resources;
+import com.google.common.net.HttpHeaders;
+import com.google.common.net.MediaType;
+
+import java.awt.image.BufferedImage;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStreamWriter;
+import java.io.Writer;
+import java.net.HttpURLConnection;
+import java.net.MalformedURLException;
+import java.net.URI;
+import java.net.URISyntaxException;
+import java.net.URL;
+import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.EnumMap;
+import java.util.EnumSet;
+import java.util.Locale;
+import java.util.Map;
+import java.util.ResourceBundle;
+import java.util.Timer;
+import java.util.concurrent.TimeUnit;
+import java.util.logging.Level;
+import java.util.logging.Logger;
+import java.util.regex.Pattern;
+
+import javax.imageio.ImageIO;
+import jakarta.servlet.RequestDispatcher;
+import jakarta.servlet.ServletConfig;
+import jakarta.servlet.ServletContext;
+import jakarta.servlet.ServletException;
+import jakarta.servlet.annotation.MultipartConfig;
+import jakarta.servlet.annotation.WebInitParam;
+import jakarta.servlet.annotation.WebServlet;
+import jakarta.servlet.http.HttpServlet;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
+import jakarta.servlet.http.Part;
+
+/**
+ * {@link HttpServlet} which decodes images containing barcodes. Given a URL, it will
+ * retrieve the image and decode it. It can also process image files uploaded via POST.
+ *
+ * @author Sean Owen
+ */
+@MultipartConfig(
+    maxFileSize = 1L &lt;&lt; 26, // ~64MB
+    maxRequestSize = 1L &lt;&lt; 26, // ~64MB
+    fileSizeThreshold = 1 &lt;&lt; 23, // ~8MB
+    location = &quot;/tmp&quot;)
+@WebServlet(value = &quot;/w/decode&quot;, loadOnStartup = 1, initParams = {
+  @WebInitParam(name = &quot;maxAccessPerTime&quot;, value = &quot;120&quot;),
+  @WebInitParam(name = &quot;accessTimeSec&quot;, value = &quot;120&quot;),
+  @WebInitParam(name = &quot;maxEntries&quot;, value = &quot;100000&quot;)
+})
+<span class="fc" id="L96">public final class DecodeServlet extends HttpServlet {</span>
+
+<span class="fc" id="L98">  private static final Logger log = Logger.getLogger(DecodeServlet.class.getName());</span>
+
+<span class="fc" id="L100">  private static final Pattern WHITESPACE = Pattern.compile(&quot;\\s+&quot;);</span>
+  // No real reason to let people upload more than ~64MB
+  private static final long MAX_IMAGE_SIZE = 1L &lt;&lt; 26;
+  // No real reason to deal with more than ~32 megapixels
+  private static final int MAX_PIXELS = 1 &lt;&lt; 25;
+  private static final Map&lt;DecodeHintType,Object&gt; HINTS;
+  private static final Map&lt;DecodeHintType,Object&gt; HINTS_PURE;
+
+  static {
+<span class="fc" id="L109">    HINTS = new EnumMap&lt;&gt;(DecodeHintType.class);</span>
+<span class="fc" id="L110">    HINTS.put(DecodeHintType.TRY_HARDER, Boolean.TRUE);</span>
+<span class="fc" id="L111">    HINTS.put(DecodeHintType.POSSIBLE_FORMATS, EnumSet.allOf(BarcodeFormat.class));</span>
+<span class="fc" id="L112">    HINTS_PURE = new EnumMap&lt;&gt;(HINTS);</span>
+<span class="fc" id="L113">    HINTS_PURE.put(DecodeHintType.PURE_BARCODE, Boolean.TRUE);</span>
+<span class="fc" id="L114">  }</span>
+
+  private Collection&lt;String&gt; blockedURLSubstrings;
+  private Timer timer;
+  private DoSTracker destHostTracker;
+
+  @Override
+  public void init(ServletConfig servletConfig) throws ServletException {
+<span class="fc" id="L122">    Logger logger = Logger.getLogger(&quot;com.google.zxing&quot;);</span>
+<span class="fc" id="L123">    ServletContext context = servletConfig.getServletContext();</span>
+<span class="fc" id="L124">    logger.addHandler(new ServletContextLogHandler(context));</span>
+
+<span class="fc" id="L126">    URL blockURL = context.getClassLoader().getResource(&quot;/private/uri-block-substrings.txt&quot;);</span>
+<span class="pc bpc" id="L127" title="1 of 2 branches missed.">    if (blockURL == null) {</span>
+<span class="fc" id="L128">      blockedURLSubstrings = Collections.emptyList();</span>
+    } else {
+      try {
+<span class="nc" id="L131">        blockedURLSubstrings = Resources.readLines(blockURL, StandardCharsets.UTF_8);</span>
+<span class="nc" id="L132">      } catch (IOException ioe) {</span>
+<span class="nc" id="L133">        throw new ServletException(ioe);</span>
+<span class="nc" id="L134">      }</span>
+<span class="nc" id="L135">      log.info(&quot;Blocking URIs containing: &quot; + blockedURLSubstrings);</span>
+    }
+
+<span class="fc" id="L138">    int maxAccessPerTime = Integer.parseInt(servletConfig.getInitParameter(&quot;maxAccessPerTime&quot;));</span>
+<span class="fc" id="L139">    int accessTimeSec = Integer.parseInt(servletConfig.getInitParameter(&quot;accessTimeSec&quot;));</span>
+<span class="fc" id="L140">    long accessTimeMS = TimeUnit.MILLISECONDS.convert(accessTimeSec, TimeUnit.SECONDS);</span>
+<span class="fc" id="L141">    int maxEntries = Integer.parseInt(servletConfig.getInitParameter(&quot;maxEntries&quot;));</span>
+
+<span class="fc" id="L143">    String name = getClass().getSimpleName();</span>
+<span class="fc" id="L144">    timer = new Timer(name);</span>
+<span class="fc" id="L145">    destHostTracker = new DoSTracker(timer, name, maxAccessPerTime, accessTimeMS, maxEntries, null);</span>
+<span class="fc" id="L146">  }</span>
+
+  @Override
+  public void destroy() {
+<span class="pc bpc" id="L150" title="1 of 2 branches missed.">    if (timer != null) {</span>
+<span class="fc" id="L151">      timer.cancel();</span>
+    }
+<span class="fc" id="L153">  }</span>
+
+  @Override
+  protected void doGet(HttpServletRequest request,
+                       HttpServletResponse response) throws ServletException, IOException {
+
+<span class="fc" id="L159">    String imageURIString = request.getParameter(&quot;u&quot;);</span>
+<span class="pc bpc" id="L160" title="2 of 4 branches missed.">    if (imageURIString == null || imageURIString.isEmpty()) {</span>
+<span class="nc" id="L161">      log.info(&quot;URI was empty&quot;);</span>
+<span class="nc" id="L162">      errorResponse(request, response, &quot;badurl&quot;);</span>
+<span class="nc" id="L163">      return;</span>
+    }
+
+    // Remove any whitespace to sanitize; none is valid anyway
+<span class="fc" id="L167">    imageURIString = WHITESPACE.matcher(imageURIString).replaceAll(&quot;&quot;);</span>
+
+<span class="pc bpc" id="L169" title="1 of 2 branches missed.">    if (!blockedURLSubstrings.isEmpty()) {</span>
+<span class="nc bnc" id="L170" title="All 2 branches missed.">      for (CharSequence substring : blockedURLSubstrings) {</span>
+<span class="nc bnc" id="L171" title="All 2 branches missed.">        if (imageURIString.contains(substring)) {</span>
+<span class="nc" id="L172">          log.info(&quot;Disallowed URI &quot; + imageURIString);</span>
+<span class="nc" id="L173">          errorResponse(request, response, HttpServletResponse.SC_FORBIDDEN, &quot;badurl&quot;);</span>
+<span class="nc" id="L174">          return;</span>
+        }
+<span class="nc" id="L176">      }</span>
+    }
+
+    URI imageURI;
+    try {
+<span class="fc" id="L181">      imageURI = new URI(imageURIString);</span>
+      // Assume http: if not specified
+<span class="pc bpc" id="L183" title="1 of 2 branches missed.">      if (imageURI.getScheme() == null) {</span>
+<span class="nc" id="L184">        imageURI = new URI(&quot;http://&quot; + imageURIString);</span>
+      }
+<span class="nc" id="L186">    } catch (URISyntaxException e) {</span>
+<span class="nc" id="L187">      log.info(&quot;Error &quot; + e + &quot; while parsing URI: &quot; + imageURIString);</span>
+<span class="nc" id="L188">      errorResponse(request, response, &quot;badurl&quot;);</span>
+<span class="nc" id="L189">      return;</span>
+<span class="fc" id="L190">    }</span>
+
+    // Shortcut for data URI
+<span class="pc bpc" id="L193" title="1 of 2 branches missed.">    if (&quot;data&quot;.equals(imageURI.getScheme())) {</span>
+      BufferedImage image;
+      try {
+<span class="fc" id="L196">        image = ImageReader.readDataURIImage(imageURI);</span>
+<span class="nc" id="L197">      } catch (Exception e) {</span>
+<span class="nc" id="L198">        log.info(&quot;Error &quot; + e + &quot; while reading data URI: &quot; + imageURIString);</span>
+<span class="nc" id="L199">        errorResponse(request, response, &quot;badurl&quot;);</span>
+<span class="nc" id="L200">        return;</span>
+<span class="fc" id="L201">      }</span>
+<span class="pc bpc" id="L202" title="1 of 2 branches missed.">      if (image == null) {</span>
+<span class="nc" id="L203">        log.info(&quot;Couldn't read data URI: &quot; + imageURIString);</span>
+<span class="nc" id="L204">        errorResponse(request, response, &quot;badimage&quot;);</span>
+<span class="nc" id="L205">        return;</span>
+      }
+      try {
+<span class="fc" id="L208">        processImage(image, request, response);</span>
+      } finally {
+<span class="fc" id="L210">        image.flush();</span>
+      }
+<span class="fc" id="L212">      return;</span>
+    }
+
+<span class="nc" id="L215">    String host = imageURI.getHost();</span>
+    // Also should parse for 172.x subnets
+<span class="nc bnc" id="L217" title="All 6 branches missed.">    if (host == null || host.startsWith(&quot;10.&quot;) || host.startsWith(&quot;192.168.&quot;) ||</span>
+<span class="nc bnc" id="L218" title="All 4 branches missed.">        &quot;127.0.0.1&quot;.equals(host) || &quot;localhost&quot;.equals(host) ||</span>
+<span class="nc bnc" id="L219" title="All 2 branches missed.">        destHostTracker.isBanned(host)) {</span>
+<span class="nc" id="L220">      errorResponse(request, response, HttpServletResponse.SC_FORBIDDEN, &quot;badurl&quot;);</span>
+<span class="nc" id="L221">      return;</span>
+    }
+
+    URL imageURL;
+    try {
+<span class="nc" id="L226">      imageURL = imageURI.toURL();</span>
+<span class="nc" id="L227">    } catch (MalformedURLException ignored) {</span>
+<span class="nc" id="L228">      log.info(&quot;URI is not a URL: &quot; + imageURIString);</span>
+<span class="nc" id="L229">      errorResponse(request, response, &quot;badurl&quot;);</span>
+<span class="nc" id="L230">      return;</span>
+<span class="nc" id="L231">    }</span>
+
+<span class="nc" id="L233">    String protocol = imageURL.getProtocol();</span>
+<span class="nc bnc" id="L234" title="All 4 branches missed.">    if (!&quot;http&quot;.equalsIgnoreCase(protocol) &amp;&amp; !&quot;https&quot;.equalsIgnoreCase(protocol)) {</span>
+<span class="nc" id="L235">      log.info(&quot;URL protocol was not valid: &quot; + imageURIString);</span>
+<span class="nc" id="L236">      errorResponse(request, response, &quot;badurl&quot;);</span>
+<span class="nc" id="L237">      return;</span>
+    }
+
+    HttpURLConnection connection;
+    try {
+<span class="nc" id="L242">      connection = (HttpURLConnection) imageURL.openConnection();</span>
+<span class="nc" id="L243">    } catch (IllegalArgumentException ignored) {</span>
+<span class="nc" id="L244">      log.info(&quot;URL could not be opened: &quot; + imageURIString);</span>
+<span class="nc" id="L245">      errorResponse(request, response, &quot;badurl&quot;);</span>
+<span class="nc" id="L246">      return;</span>
+<span class="nc" id="L247">    }</span>
+
+<span class="nc" id="L249">    connection.setAllowUserInteraction(false);</span>
+<span class="nc" id="L250">    connection.setInstanceFollowRedirects(true);</span>
+<span class="nc" id="L251">    connection.setReadTimeout(5000);</span>
+<span class="nc" id="L252">    connection.setConnectTimeout(5000);</span>
+<span class="nc" id="L253">    connection.setRequestProperty(HttpHeaders.USER_AGENT, &quot;zxing.org&quot;);</span>
+<span class="nc" id="L254">    connection.setRequestProperty(HttpHeaders.CONNECTION, &quot;close&quot;);</span>
+
+    try {
+<span class="nc" id="L257">      connection.connect();</span>
+<span class="nc" id="L258">    } catch (Exception e) {</span>
+      // Encompasses lots of stuff, including
+      //  java.net.SocketException, java.net.UnknownHostException,
+      //  javax.net.ssl.SSLPeerUnverifiedException,
+      //  org.apache.http.NoHttpResponseException,
+      //  org.apache.http.client.ClientProtocolException,
+<span class="nc" id="L264">      log.info(&quot;Error &quot; + e + &quot; connecting to &quot; + imageURIString);</span>
+<span class="nc" id="L265">      errorResponse(request, response, &quot;badurl&quot;);</span>
+<span class="nc" id="L266">      return;</span>
+<span class="nc" id="L267">    }</span>
+
+<span class="nc" id="L269">    try (InputStream is = connection.getInputStream()) {</span>
+<span class="nc bnc" id="L270" title="All 2 branches missed.">      if (connection.getResponseCode() != HttpServletResponse.SC_OK) {</span>
+<span class="nc" id="L271">        log.info(&quot;Unsuccessful return code &quot; + connection.getResponseCode() + &quot; from &quot; + imageURIString);</span>
+<span class="nc" id="L272">        errorResponse(request, response, &quot;badurl&quot;);</span>
+<span class="nc" id="L273">        return;</span>
+      }
+<span class="nc" id="L275">      int contentLength = connection.getHeaderFieldInt(HttpHeaders.CONTENT_LENGTH, -1);</span>
+<span class="nc bnc" id="L276" title="All 2 branches missed.">      if (contentLength &lt;= 0) {</span>
+<span class="nc" id="L277">        log.info(&quot;Bad content length: &quot; + imageURIString);</span>
+<span class="nc" id="L278">        errorResponse(request, response, HttpServletResponse.SC_LENGTH_REQUIRED, &quot;badimage&quot;);</span>
+<span class="nc" id="L279">        return;</span>
+      }
+<span class="nc bnc" id="L281" title="All 2 branches missed.">      if (contentLength &gt; MAX_IMAGE_SIZE) {</span>
+<span class="nc" id="L282">        log.info(&quot;Too large: &quot; + imageURIString);</span>
+<span class="nc" id="L283">        errorResponse(request, response, HttpServletResponse.SC_REQUEST_ENTITY_TOO_LARGE, &quot;badimage&quot;);</span>
+<span class="nc" id="L284">        return;</span>
+      }
+      // Assume we'll only handle image/* content types
+<span class="nc" id="L287">      String contentType = connection.getContentType();</span>
+<span class="nc bnc" id="L288" title="All 4 branches missed.">      if (contentType != null &amp;&amp; !contentType.startsWith(&quot;image/&quot;)) {</span>
+<span class="nc" id="L289">        log.info(&quot;Wrong content type &quot; + contentType + &quot;: &quot; + imageURIString);</span>
+<span class="nc" id="L290">        errorResponse(request, response, HttpServletResponse.SC_UNSUPPORTED_MEDIA_TYPE, &quot;badimage&quot;);</span>
+<span class="nc" id="L291">        return;</span>
+      }
+
+<span class="nc" id="L294">      log.info(&quot;Decoding &quot; + imageURIString);</span>
+<span class="nc" id="L295">      processStream(is, request, response);</span>
+<span class="nc bnc" id="L296" title="All 8 branches missed.">    } catch (IOException ioe) {</span>
+<span class="nc" id="L297">      log.info(&quot;Error &quot; + ioe + &quot; processing &quot; + imageURIString);</span>
+<span class="nc" id="L298">      errorResponse(request, response, &quot;badurl&quot;);</span>
+    } finally {
+<span class="nc" id="L300">      connection.disconnect();</span>
+    }
+
+<span class="nc" id="L303">  }</span>
+
+  @Override
+  protected void doPost(HttpServletRequest request, HttpServletResponse response)
+      throws ServletException, IOException {
+    Collection&lt;Part&gt; parts;
+    try {
+<span class="nc" id="L310">      parts = request.getParts();</span>
+<span class="nc" id="L311">    } catch (Exception e) {</span>
+      // Includes IOException, InvalidContentTypeException, other parsing IllegalStateException
+<span class="nc" id="L313">      log.info(e.toString());</span>
+<span class="nc" id="L314">      errorResponse(request, response, &quot;badimage&quot;);</span>
+<span class="nc" id="L315">      return;</span>
+<span class="nc" id="L316">    }</span>
+<span class="nc" id="L317">    Part fileUploadPart = null;</span>
+<span class="nc bnc" id="L318" title="All 2 branches missed.">    for (Part part : parts) {</span>
+<span class="nc bnc" id="L319" title="All 2 branches missed.">      if (part.getHeader(HttpHeaders.CONTENT_DISPOSITION) != null) {</span>
+<span class="nc" id="L320">        fileUploadPart = part;</span>
+<span class="nc" id="L321">        break;</span>
+      }
+<span class="nc" id="L323">    }</span>
+<span class="nc bnc" id="L324" title="All 2 branches missed.">    if (fileUploadPart == null) {</span>
+<span class="nc" id="L325">      log.info(&quot;File upload was not multipart&quot;);</span>
+<span class="nc" id="L326">      errorResponse(request, response, &quot;badimage&quot;);</span>
+    } else {
+<span class="nc" id="L328">      log.info(&quot;Decoding uploaded file &quot; + fileUploadPart.getSubmittedFileName());</span>
+<span class="nc" id="L329">      try (InputStream is = fileUploadPart.getInputStream()) {</span>
+<span class="nc" id="L330">        processStream(is, request, response);</span>
+      }
+    }
+<span class="nc" id="L333">  }</span>
+
+  private static void processStream(InputStream is,
+                                    HttpServletRequest request,
+                                    HttpServletResponse response) throws ServletException, IOException {
+
+    BufferedImage image;
+    try {
+<span class="nc" id="L341">      image = ImageIO.read(is);</span>
+<span class="nc" id="L342">    } catch (Exception e) {</span>
+      // Many possible failures from JAI, so just catch anything as a failure
+<span class="nc" id="L344">      log.info(e.toString());</span>
+<span class="nc" id="L345">      errorResponse(request, response, &quot;badimage&quot;);</span>
+<span class="nc" id="L346">      return;</span>
+<span class="nc" id="L347">    }</span>
+<span class="nc bnc" id="L348" title="All 2 branches missed.">    if (image == null) {</span>
+<span class="nc" id="L349">      errorResponse(request, response, &quot;badimage&quot;);</span>
+<span class="nc" id="L350">      return;</span>
+    }
+    try {
+<span class="nc" id="L353">      int height = image.getHeight();</span>
+<span class="nc" id="L354">      int width = image.getWidth();</span>
+<span class="nc bnc" id="L355" title="All 4 branches missed.">      if (height &lt;= 1 || width &lt;= 1) {</span>
+<span class="nc" id="L356">        log.info(&quot;Dimensions too small: &quot; + width + 'x' + height);</span>
+<span class="nc" id="L357">        errorResponse(request, response, &quot;badimage&quot;);</span>
+<span class="nc" id="L358">        return;</span>
+<span class="nc bnc" id="L359" title="All 2 branches missed.">      } else if (height * width &gt; MAX_PIXELS) {</span>
+<span class="nc" id="L360">        log.info(&quot;Dimensions too large: &quot; + width + 'x' + height);</span>
+<span class="nc" id="L361">        errorResponse(request, response, HttpServletResponse.SC_REQUEST_ENTITY_TOO_LARGE, &quot;badimage&quot;);</span>
+<span class="nc" id="L362">        return;</span>
+      }
+
+<span class="nc" id="L365">      processImage(image, request, response);</span>
+    } finally {
+<span class="nc" id="L367">      image.flush();</span>
+    }
+<span class="nc" id="L369">  }</span>
+
+  private static void processImage(BufferedImage image,
+                                   HttpServletRequest request,
+                                   HttpServletResponse response) throws IOException, ServletException {
+
+<span class="fc" id="L375">    LuminanceSource source = new BufferedImageLuminanceSource(image);</span>
+<span class="fc" id="L376">    BinaryBitmap bitmap = new BinaryBitmap(new GlobalHistogramBinarizer(source));</span>
+<span class="fc" id="L377">    Collection&lt;Result&gt; results = new ArrayList&lt;&gt;(1);</span>
+
+    try {
+
+<span class="fc" id="L381">      Reader reader = new MultiFormatReader();</span>
+<span class="fc" id="L382">      ReaderException savedException = null;</span>
+      try {
+        // Look for multiple barcodes
+<span class="fc" id="L385">        MultipleBarcodeReader multiReader = new GenericMultipleBarcodeReader(reader);</span>
+<span class="nc" id="L386">        Result[] theResults = multiReader.decodeMultiple(bitmap, HINTS);</span>
+<span class="nc bnc" id="L387" title="All 2 branches missed.">        if (theResults != null) {</span>
+<span class="nc" id="L388">          results.addAll(Arrays.asList(theResults));</span>
+        }
+<span class="fc" id="L390">      } catch (ReaderException re) {</span>
+<span class="fc" id="L391">        savedException = re;</span>
+<span class="nc" id="L392">      }</span>
+
+<span class="pc bpc" id="L394" title="2 of 4 branches missed.">      if (results.isEmpty() &amp;&amp; !Thread.currentThread().isInterrupted()) {</span>
+        try {
+          // Look for pure barcode
+<span class="fc" id="L397">          Result theResult = reader.decode(bitmap, HINTS_PURE);</span>
+<span class="pc bpc" id="L398" title="1 of 2 branches missed.">          if (theResult != null) {</span>
+<span class="fc" id="L399">            results.add(theResult);</span>
+          }
+<span class="nc" id="L401">        } catch (ReaderException re) {</span>
+<span class="nc" id="L402">          savedException = re;</span>
+<span class="fc" id="L403">        }</span>
+      }
+
+<span class="pc bpc" id="L406" title="3 of 4 branches missed.">      if (results.isEmpty() &amp;&amp; !Thread.currentThread().isInterrupted()) {</span>
+        try {
+          // Look for normal barcode in photo
+<span class="nc" id="L409">          Result theResult = reader.decode(bitmap, HINTS);</span>
+<span class="nc bnc" id="L410" title="All 2 branches missed.">          if (theResult != null) {</span>
+<span class="nc" id="L411">            results.add(theResult);</span>
+          }
+<span class="nc" id="L413">        } catch (ReaderException re) {</span>
+<span class="nc" id="L414">          savedException = re;</span>
+<span class="nc" id="L415">        }</span>
+      }
+
+<span class="pc bpc" id="L418" title="3 of 4 branches missed.">      if (results.isEmpty() &amp;&amp; !Thread.currentThread().isInterrupted()) {</span>
+        try {
+          // Try again with other binarizer
+<span class="nc" id="L421">          BinaryBitmap hybridBitmap = new BinaryBitmap(new HybridBinarizer(source));</span>
+<span class="nc" id="L422">          Result theResult = reader.decode(hybridBitmap, HINTS);</span>
+<span class="nc bnc" id="L423" title="All 2 branches missed.">          if (theResult != null) {</span>
+<span class="nc" id="L424">            results.add(theResult);</span>
+          }
+<span class="nc" id="L426">        } catch (ReaderException re) {</span>
+<span class="nc" id="L427">          savedException = re;</span>
+<span class="nc" id="L428">        }</span>
+      }
+
+<span class="pc bpc" id="L431" title="1 of 2 branches missed.">      if (results.isEmpty()) {</span>
+        try {
+<span class="nc bnc" id="L433" title="All 2 branches missed.">          throw savedException == null ? NotFoundException.getNotFoundInstance() : savedException;</span>
+<span class="nc" id="L434">        } catch (FormatException | ChecksumException e) {</span>
+<span class="nc" id="L435">          errorResponse(request, response, &quot;format&quot;);</span>
+<span class="nc" id="L436">        } catch (ReaderException e) { // Including NotFoundException</span>
+<span class="nc" id="L437">          errorResponse(request, response, &quot;notfound&quot;);</span>
+<span class="nc" id="L438">        }</span>
+<span class="nc" id="L439">        return;</span>
+      }
+
+<span class="nc" id="L442">    } catch (RuntimeException re) {</span>
+      // Call out unexpected errors in the log clearly
+<span class="nc" id="L444">      log.log(Level.WARNING, &quot;Unexpected exception from library&quot;, re);</span>
+<span class="nc" id="L445">      throw new ServletException(re);</span>
+<span class="fc" id="L446">    }</span>
+
+<span class="fc" id="L448">    String fullParameter = request.getParameter(&quot;full&quot;);</span>
+<span class="pc bpc" id="L449" title="2 of 4 branches missed.">    boolean minimalOutput = fullParameter != null &amp;&amp; !Boolean.parseBoolean(fullParameter);</span>
+<span class="pc bpc" id="L450" title="1 of 2 branches missed.">    if (minimalOutput) {</span>
+<span class="fc" id="L451">      response.setContentType(MediaType.PLAIN_TEXT_UTF_8.toString());</span>
+<span class="fc" id="L452">      response.setCharacterEncoding(StandardCharsets.UTF_8.name());</span>
+<span class="fc" id="L453">      try (Writer out = new OutputStreamWriter(response.getOutputStream(), StandardCharsets.UTF_8)) {</span>
+<span class="fc bfc" id="L454" title="All 2 branches covered.">        for (Result result : results) {</span>
+<span class="fc" id="L455">          out.write(result.getText());</span>
+<span class="fc" id="L456">          out.write('\n');</span>
+<span class="fc" id="L457">        }</span>
+      }
+    } else {
+<span class="nc" id="L460">      request.setAttribute(&quot;results&quot;, results);</span>
+<span class="nc" id="L461">      request.getRequestDispatcher(&quot;decoderesult.jspx&quot;).forward(request, response);</span>
+    }
+<span class="fc" id="L463">  }</span>
+  private static void errorResponse(HttpServletRequest request,
+                                    HttpServletResponse response,
+                                    String key) throws ServletException, IOException {
+<span class="nc" id="L467">    errorResponse(request, response, HttpServletResponse.SC_BAD_REQUEST, key);</span>
+<span class="nc" id="L468">  }</span>
+
+  private static void errorResponse(HttpServletRequest request,
+                                    HttpServletResponse response,
+                                    int httpStatus,
+                                    String key) throws ServletException, IOException {
+<span class="nc" id="L474">    Locale locale = request.getLocale();</span>
+<span class="nc bnc" id="L475" title="All 2 branches missed.">    if (locale == null) {</span>
+<span class="nc" id="L476">      locale = Locale.ENGLISH;</span>
+    }
+<span class="nc" id="L478">    ResourceBundle bundle = ResourceBundle.getBundle(&quot;Strings&quot;, locale);</span>
+<span class="nc" id="L479">    String title = bundle.getString(&quot;response.error.&quot; + key + &quot;.title&quot;);</span>
+<span class="nc" id="L480">    String text = bundle.getString(&quot;response.error.&quot; + key + &quot;.text&quot;);</span>
+<span class="nc" id="L481">    request.setAttribute(&quot;title&quot;, title);</span>
+<span class="nc" id="L482">    request.setAttribute(&quot;text&quot;, text);</span>
+<span class="nc" id="L483">    RequestDispatcher dispatcher = request.getRequestDispatcher(&quot;response.jspx&quot;);</span>
+<span class="nc bnc" id="L484" title="All 2 branches missed.">    if (dispatcher == null) {</span>
+<span class="nc" id="L485">      log.warning(&quot;Can't obtain RequestDispatcher&quot;);</span>
+    } else {
+<span class="nc" id="L487">      response.setStatus(httpStatus);</span>
+<span class="nc" id="L488">      dispatcher.forward(request, response);</span>
+    }
+<span class="nc" id="L490">  }</span>
+
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.11.202310140853</span></div></body></html>

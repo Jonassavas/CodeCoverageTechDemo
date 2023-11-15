@@ -1,0 +1,349 @@
+
+
+
+<!DOCTYPE html>
+<html id="htmlId">
+<head>
+  <meta http-equiv="Content-Type" content="text/html;charset=windows-1252"> 
+  <title>Coverage Report > BitMatrixParser</title>
+  <style type="text/css">
+    @import "../../css/coverage.css";
+    @import "../../css/idea.min.css";
+  </style>
+  <script type="text/javascript" src="../../js/highlight.min.js"></script>
+  <script type="text/javascript" src="../../js/highlightjs-line-numbers.min.js"></script>
+</head>
+
+<body>
+<div class="content">
+<div class="breadCrumbs">
+Current scope:     <a href="../../index.html">all classes</a>
+    <span class="separator">|</span>
+    <a href="../index.html">com.google.zxing.qrcode.decoder</a>
+</div>
+
+<h1>Coverage Summary for Class: BitMatrixParser (com.google.zxing.qrcode.decoder)</h1>
+
+<table class="coverageStats">
+<tr>
+  <th class="name">Class</th>
+<th class="coverageStat 
+">
+  Class, %
+</th>
+<th class="coverageStat 
+">
+  Method, %
+</th>
+<th class="coverageStat 
+">
+  Line, %
+</th>
+</tr>
+<tr>
+  <td class="name">BitMatrixParser</td>
+<td class="coverageStat">
+  <span class="percent">
+    100%
+  </span>
+  <span class="absValue">
+    (1/1)
+  </span>
+</td>
+<td class="coverageStat">
+  <span class="percent">
+    100%
+  </span>
+  <span class="absValue">
+    (8/8)
+  </span>
+</td>
+<td class="coverageStat">
+  <span class="percent">
+    98.9%
+  </span>
+  <span class="absValue">
+    (93/94)
+  </span>
+</td>
+</tr>
+
+</table>
+
+<br/>
+<br/>
+
+
+<pre>
+<code class="sourceCode" id="sourceCode">&nbsp;/*
+&nbsp; * Copyright 2007 ZXing authors
+&nbsp; *
+&nbsp; * Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
+&nbsp; * you may not use this file except in compliance with the License.
+&nbsp; * You may obtain a copy of the License at
+&nbsp; *
+&nbsp; *      http://www.apache.org/licenses/LICENSE-2.0
+&nbsp; *
+&nbsp; * Unless required by applicable law or agreed to in writing, software
+&nbsp; * distributed under the License is distributed on an &quot;AS IS&quot; BASIS,
+&nbsp; * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+&nbsp; * See the License for the specific language governing permissions and
+&nbsp; * limitations under the License.
+&nbsp; */
+&nbsp;
+&nbsp;package com.google.zxing.qrcode.decoder;
+&nbsp;
+&nbsp;import com.google.zxing.FormatException;
+&nbsp;import com.google.zxing.common.BitMatrix;
+&nbsp;
+&nbsp;/**
+&nbsp; * @author Sean Owen
+&nbsp; */
+&nbsp;final class BitMatrixParser {
+&nbsp;
+&nbsp;  private final BitMatrix bitMatrix;
+&nbsp;  private Version parsedVersion;
+&nbsp;  private FormatInformation parsedFormatInfo;
+&nbsp;  private boolean mirror;
+&nbsp;
+&nbsp;  /**
+&nbsp;   * @param bitMatrix {@link BitMatrix} to parse
+&nbsp;   * @throws FormatException if dimension is not &gt;= 21 and 1 mod 4
+&nbsp;   */
+<b class="fc">&nbsp;  BitMatrixParser(BitMatrix bitMatrix) throws FormatException {</b>
+<b class="fc">&nbsp;    int dimension = bitMatrix.getHeight();</b>
+<b class="fc">&nbsp;    if (dimension &lt; 21 || (dimension &amp; 0x03) != 1) {</b>
+<b class="fc">&nbsp;      throw FormatException.getFormatInstance();</b>
+&nbsp;    }
+<b class="fc">&nbsp;    this.bitMatrix = bitMatrix;</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  /**
+&nbsp;   * &lt;p&gt;Reads format information from one of its two locations within the QR Code.&lt;/p&gt;
+&nbsp;   *
+&nbsp;   * @return {@link FormatInformation} encapsulating the QR Code&#39;s format info
+&nbsp;   * @throws FormatException if both format information locations cannot be parsed as
+&nbsp;   * the valid encoding of format information
+&nbsp;   */
+&nbsp;  FormatInformation readFormatInformation() throws FormatException {
+&nbsp;
+<b class="fc">&nbsp;    if (parsedFormatInfo != null) {</b>
+<b class="fc">&nbsp;      return parsedFormatInfo;</b>
+&nbsp;    }
+&nbsp;
+&nbsp;    // Read top-left format info bits
+<b class="fc">&nbsp;    int formatInfoBits1 = 0;</b>
+<b class="fc">&nbsp;    for (int i = 0; i &lt; 6; i++) {</b>
+<b class="fc">&nbsp;      formatInfoBits1 = copyBit(i, 8, formatInfoBits1);</b>
+&nbsp;    }
+&nbsp;    // .. and skip a bit in the timing pattern ...
+<b class="fc">&nbsp;    formatInfoBits1 = copyBit(7, 8, formatInfoBits1);</b>
+<b class="fc">&nbsp;    formatInfoBits1 = copyBit(8, 8, formatInfoBits1);</b>
+<b class="fc">&nbsp;    formatInfoBits1 = copyBit(8, 7, formatInfoBits1);</b>
+&nbsp;    // .. and skip a bit in the timing pattern ...
+<b class="fc">&nbsp;    for (int j = 5; j &gt;= 0; j--) {</b>
+<b class="fc">&nbsp;      formatInfoBits1 = copyBit(8, j, formatInfoBits1);</b>
+&nbsp;    }
+&nbsp;
+&nbsp;    // Read the top-right/bottom-left pattern too
+<b class="fc">&nbsp;    int dimension = bitMatrix.getHeight();</b>
+<b class="fc">&nbsp;    int formatInfoBits2 = 0;</b>
+<b class="fc">&nbsp;    int jMin = dimension - 7;</b>
+<b class="fc">&nbsp;    for (int j = dimension - 1; j &gt;= jMin; j--) {</b>
+<b class="fc">&nbsp;      formatInfoBits2 = copyBit(8, j, formatInfoBits2);</b>
+&nbsp;    }
+<b class="fc">&nbsp;    for (int i = dimension - 8; i &lt; dimension; i++) {</b>
+<b class="fc">&nbsp;      formatInfoBits2 = copyBit(i, 8, formatInfoBits2);</b>
+&nbsp;    }
+&nbsp;
+<b class="fc">&nbsp;    parsedFormatInfo = FormatInformation.decodeFormatInformation(formatInfoBits1, formatInfoBits2);</b>
+<b class="fc">&nbsp;    if (parsedFormatInfo != null) {</b>
+<b class="fc">&nbsp;      return parsedFormatInfo;</b>
+&nbsp;    }
+<b class="fc">&nbsp;    throw FormatException.getFormatInstance();</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  /**
+&nbsp;   * &lt;p&gt;Reads version information from one of its two locations within the QR Code.&lt;/p&gt;
+&nbsp;   *
+&nbsp;   * @return {@link Version} encapsulating the QR Code&#39;s version
+&nbsp;   * @throws FormatException if both version information locations cannot be parsed as
+&nbsp;   * the valid encoding of version information
+&nbsp;   */
+&nbsp;  Version readVersion() throws FormatException {
+&nbsp;
+<b class="fc">&nbsp;    if (parsedVersion != null) {</b>
+<b class="fc">&nbsp;      return parsedVersion;</b>
+&nbsp;    }
+&nbsp;
+<b class="fc">&nbsp;    int dimension = bitMatrix.getHeight();</b>
+&nbsp;
+<b class="fc">&nbsp;    int provisionalVersion = (dimension - 17) / 4;</b>
+<b class="fc">&nbsp;    if (provisionalVersion &lt;= 6) {</b>
+<b class="fc">&nbsp;      return Version.getVersionForNumber(provisionalVersion);</b>
+&nbsp;    }
+&nbsp;
+&nbsp;    // Read top-right version info: 3 wide by 6 tall
+<b class="fc">&nbsp;    int versionBits = 0;</b>
+<b class="fc">&nbsp;    int ijMin = dimension - 11;</b>
+<b class="fc">&nbsp;    for (int j = 5; j &gt;= 0; j--) {</b>
+<b class="fc">&nbsp;      for (int i = dimension - 9; i &gt;= ijMin; i--) {</b>
+<b class="fc">&nbsp;        versionBits = copyBit(i, j, versionBits);</b>
+&nbsp;      }
+&nbsp;    }
+&nbsp;
+<b class="fc">&nbsp;    Version theParsedVersion = Version.decodeVersionInformation(versionBits);</b>
+<b class="fc">&nbsp;    if (theParsedVersion != null &amp;&amp; theParsedVersion.getDimensionForVersion() == dimension) {</b>
+<b class="fc">&nbsp;      parsedVersion = theParsedVersion;</b>
+<b class="fc">&nbsp;      return theParsedVersion;</b>
+&nbsp;    }
+&nbsp;
+&nbsp;    // Hmm, failed. Try bottom left: 6 wide by 3 tall
+<b class="fc">&nbsp;    versionBits = 0;</b>
+<b class="fc">&nbsp;    for (int i = 5; i &gt;= 0; i--) {</b>
+<b class="fc">&nbsp;      for (int j = dimension - 9; j &gt;= ijMin; j--) {</b>
+<b class="fc">&nbsp;        versionBits = copyBit(i, j, versionBits);</b>
+&nbsp;      }
+&nbsp;    }
+&nbsp;
+<b class="fc">&nbsp;    theParsedVersion = Version.decodeVersionInformation(versionBits);</b>
+<b class="fc">&nbsp;    if (theParsedVersion != null &amp;&amp; theParsedVersion.getDimensionForVersion() == dimension) {</b>
+<b class="fc">&nbsp;      parsedVersion = theParsedVersion;</b>
+<b class="fc">&nbsp;      return theParsedVersion;</b>
+&nbsp;    }
+<b class="fc">&nbsp;    throw FormatException.getFormatInstance();</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  private int copyBit(int i, int j, int versionBits) {
+<b class="fc">&nbsp;    boolean bit = mirror ? bitMatrix.get(j, i) : bitMatrix.get(i, j);</b>
+<b class="fc">&nbsp;    return bit ? (versionBits &lt;&lt; 1) | 0x1 : versionBits &lt;&lt; 1;</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  /**
+&nbsp;   * &lt;p&gt;Reads the bits in the {@link BitMatrix} representing the finder pattern in the
+&nbsp;   * correct order in order to reconstruct the codewords bytes contained within the
+&nbsp;   * QR Code.&lt;/p&gt;
+&nbsp;   *
+&nbsp;   * @return bytes encoded within the QR Code
+&nbsp;   * @throws FormatException if the exact number of bytes expected is not read
+&nbsp;   */
+&nbsp;  byte[] readCodewords() throws FormatException {
+&nbsp;
+<b class="fc">&nbsp;    FormatInformation formatInfo = readFormatInformation();</b>
+<b class="fc">&nbsp;    Version version = readVersion();</b>
+&nbsp;
+&nbsp;    // Get the data mask for the format used in this QR Code. This will exclude
+&nbsp;    // some bits from reading as we wind through the bit matrix.
+<b class="fc">&nbsp;    DataMask dataMask = DataMask.values()[formatInfo.getDataMask()];</b>
+<b class="fc">&nbsp;    int dimension = bitMatrix.getHeight();</b>
+<b class="fc">&nbsp;    dataMask.unmaskBitMatrix(bitMatrix, dimension);</b>
+&nbsp;
+<b class="fc">&nbsp;    BitMatrix functionPattern = version.buildFunctionPattern();</b>
+&nbsp;
+<b class="fc">&nbsp;    boolean readingUp = true;</b>
+<b class="fc">&nbsp;    byte[] result = new byte[version.getTotalCodewords()];</b>
+<b class="fc">&nbsp;    int resultOffset = 0;</b>
+<b class="fc">&nbsp;    int currentByte = 0;</b>
+<b class="fc">&nbsp;    int bitsRead = 0;</b>
+&nbsp;    // Read columns in pairs, from right to left
+<b class="fc">&nbsp;    for (int j = dimension - 1; j &gt; 0; j -= 2) {</b>
+<b class="fc">&nbsp;      if (j == 6) {</b>
+&nbsp;        // Skip whole column with vertical alignment pattern;
+&nbsp;        // saves time and makes the other code proceed more cleanly
+<b class="fc">&nbsp;        j--;</b>
+&nbsp;      }
+&nbsp;      // Read alternatingly from bottom to top then top to bottom
+<b class="fc">&nbsp;      for (int count = 0; count &lt; dimension; count++) {</b>
+<b class="fc">&nbsp;        int i = readingUp ? dimension - 1 - count : count;</b>
+<b class="fc">&nbsp;        for (int col = 0; col &lt; 2; col++) {</b>
+&nbsp;          // Ignore bits covered by the function pattern
+<b class="fc">&nbsp;          if (!functionPattern.get(j - col, i)) {</b>
+&nbsp;            // Read a bit
+<b class="fc">&nbsp;            bitsRead++;</b>
+<b class="fc">&nbsp;            currentByte &lt;&lt;= 1;</b>
+<b class="fc">&nbsp;            if (bitMatrix.get(j - col, i)) {</b>
+<b class="fc">&nbsp;              currentByte |= 1;</b>
+&nbsp;            }
+&nbsp;            // If we&#39;ve made a whole byte, save it off
+<b class="fc">&nbsp;            if (bitsRead == 8) {</b>
+<b class="fc">&nbsp;              result[resultOffset++] = (byte) currentByte;</b>
+<b class="fc">&nbsp;              bitsRead = 0;</b>
+<b class="fc">&nbsp;              currentByte = 0;</b>
+&nbsp;            }
+&nbsp;          }
+&nbsp;        }
+&nbsp;      }
+<b class="fc">&nbsp;      readingUp ^= true; // readingUp = !readingUp; // switch directions</b>
+&nbsp;    }
+<b class="fc">&nbsp;    if (resultOffset != version.getTotalCodewords()) {</b>
+<b class="nc">&nbsp;      throw FormatException.getFormatInstance();</b>
+&nbsp;    }
+<b class="fc">&nbsp;    return result;</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  /**
+&nbsp;   * Revert the mask removal done while reading the code words. The bit matrix should revert to its original state.
+&nbsp;   */
+&nbsp;  void remask() {
+<b class="fc">&nbsp;    if (parsedFormatInfo == null) {</b>
+&nbsp;      return; // We have no format information, and have no data mask
+&nbsp;    }
+<b class="fc">&nbsp;    DataMask dataMask = DataMask.values()[parsedFormatInfo.getDataMask()];</b>
+<b class="fc">&nbsp;    int dimension = bitMatrix.getHeight();</b>
+<b class="fc">&nbsp;    dataMask.unmaskBitMatrix(bitMatrix, dimension);</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  /**
+&nbsp;   * Prepare the parser for a mirrored operation.
+&nbsp;   * This flag has effect only on the {@link #readFormatInformation()} and the
+&nbsp;   * {@link #readVersion()}. Before proceeding with {@link #readCodewords()} the
+&nbsp;   * {@link #mirror()} method should be called.
+&nbsp;   *
+&nbsp;   * @param mirror Whether to read version and format information mirrored.
+&nbsp;   */
+&nbsp;  void setMirror(boolean mirror) {
+<b class="fc">&nbsp;    parsedVersion = null;</b>
+<b class="fc">&nbsp;    parsedFormatInfo = null;</b>
+<b class="fc">&nbsp;    this.mirror = mirror;</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  /** Mirror the bit matrix in order to attempt a second reading. */
+&nbsp;  void mirror() {
+<b class="fc">&nbsp;    for (int x = 0; x &lt; bitMatrix.getWidth(); x++) {</b>
+<b class="fc">&nbsp;      for (int y = x + 1; y &lt; bitMatrix.getHeight(); y++) {</b>
+<b class="fc">&nbsp;        if (bitMatrix.get(x, y) != bitMatrix.get(y, x)) {</b>
+<b class="fc">&nbsp;          bitMatrix.flip(y, x);</b>
+<b class="fc">&nbsp;          bitMatrix.flip(x, y);</b>
+&nbsp;        }
+&nbsp;      }
+&nbsp;    }
+&nbsp;  }
+&nbsp;
+&nbsp;}
+</code>
+</pre>
+</div>
+
+<script type="text/javascript">
+(function() {
+    var msie = false, msie9 = false;
+    /*@cc_on
+      msie = true;
+      @if (@_jscript_version >= 9)
+        msie9 = true;
+      @end
+    @*/
+
+    if (!msie || msie && msie9) {
+      hljs.highlightAll()
+      hljs.initLineNumbersOnLoad();
+    }
+})();
+</script>
+
+<div class="footer">
+    
+    <div style="float:right;">generated on 2023-11-12 23:26</div>
+</div>
+</body>
+</html>

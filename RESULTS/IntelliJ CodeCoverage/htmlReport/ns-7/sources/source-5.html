@@ -1,0 +1,204 @@
+
+
+
+<!DOCTYPE html>
+<html id="htmlId">
+<head>
+  <meta http-equiv="Content-Type" content="text/html;charset=windows-1252"> 
+  <title>Coverage Report > BizcardResultParser</title>
+  <style type="text/css">
+    @import "../../css/coverage.css";
+    @import "../../css/idea.min.css";
+  </style>
+  <script type="text/javascript" src="../../js/highlight.min.js"></script>
+  <script type="text/javascript" src="../../js/highlightjs-line-numbers.min.js"></script>
+</head>
+
+<body>
+<div class="content">
+<div class="breadCrumbs">
+Current scope:     <a href="../../index.html">all classes</a>
+    <span class="separator">|</span>
+    <a href="../index.html">com.google.zxing.client.result</a>
+</div>
+
+<h1>Coverage Summary for Class: BizcardResultParser (com.google.zxing.client.result)</h1>
+
+<table class="coverageStats">
+<tr>
+  <th class="name">Class</th>
+<th class="coverageStat 
+">
+  Class, %
+</th>
+<th class="coverageStat 
+">
+  Method, %
+</th>
+<th class="coverageStat 
+">
+  Line, %
+</th>
+</tr>
+<tr>
+  <td class="name">BizcardResultParser</td>
+<td class="coverageStat">
+  <span class="percent">
+    100%
+  </span>
+  <span class="absValue">
+    (1/1)
+  </span>
+</td>
+<td class="coverageStat">
+  <span class="percent">
+    100%
+  </span>
+  <span class="absValue">
+    (4/4)
+  </span>
+</td>
+<td class="coverageStat">
+  <span class="percent">
+    87.1%
+  </span>
+  <span class="absValue">
+    (27/31)
+  </span>
+</td>
+</tr>
+
+</table>
+
+<br/>
+<br/>
+
+
+<pre>
+<code class="sourceCode" id="sourceCode">&nbsp;/*
+&nbsp; * Copyright 2008 ZXing authors
+&nbsp; *
+&nbsp; * Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
+&nbsp; * you may not use this file except in compliance with the License.
+&nbsp; * You may obtain a copy of the License at
+&nbsp; *
+&nbsp; *      http://www.apache.org/licenses/LICENSE-2.0
+&nbsp; *
+&nbsp; * Unless required by applicable law or agreed to in writing, software
+&nbsp; * distributed under the License is distributed on an &quot;AS IS&quot; BASIS,
+&nbsp; * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+&nbsp; * See the License for the specific language governing permissions and
+&nbsp; * limitations under the License.
+&nbsp; */
+&nbsp;
+&nbsp;package com.google.zxing.client.result;
+&nbsp;
+&nbsp;import com.google.zxing.Result;
+&nbsp;
+&nbsp;import java.util.ArrayList;
+&nbsp;import java.util.List;
+&nbsp;
+&nbsp;/**
+&nbsp; * Implements the &quot;BIZCARD&quot; address book entry format, though this has been
+&nbsp; * largely reverse-engineered from examples observed in the wild -- still
+&nbsp; * looking for a definitive reference.
+&nbsp; *
+&nbsp; * @author Sean Owen
+&nbsp; */
+<b class="fc">&nbsp;public final class BizcardResultParser extends AbstractDoCoMoResultParser {</b>
+&nbsp;
+&nbsp;  // Yes, we extend AbstractDoCoMoResultParser since the format is very much
+&nbsp;  // like the DoCoMo MECARD format, but this is not technically one of
+&nbsp;  // DoCoMo&#39;s proposed formats
+&nbsp;
+&nbsp;  @Override
+&nbsp;  public AddressBookParsedResult parse(Result result) {
+<b class="fc">&nbsp;    String rawText = getMassagedText(result);</b>
+<b class="fc">&nbsp;    if (!rawText.startsWith(&quot;BIZCARD:&quot;)) {</b>
+<b class="fc">&nbsp;      return null;</b>
+&nbsp;    }
+<b class="fc">&nbsp;    String firstName = matchSingleDoCoMoPrefixedField(&quot;N:&quot;, rawText, true);</b>
+<b class="fc">&nbsp;    String lastName = matchSingleDoCoMoPrefixedField(&quot;X:&quot;, rawText, true);</b>
+<b class="fc">&nbsp;    String fullName = buildName(firstName, lastName);</b>
+<b class="fc">&nbsp;    String title = matchSingleDoCoMoPrefixedField(&quot;T:&quot;, rawText, true);</b>
+<b class="fc">&nbsp;    String org = matchSingleDoCoMoPrefixedField(&quot;C:&quot;, rawText, true);</b>
+<b class="fc">&nbsp;    String[] addresses = matchDoCoMoPrefixedField(&quot;A:&quot;, rawText);</b>
+<b class="fc">&nbsp;    String phoneNumber1 = matchSingleDoCoMoPrefixedField(&quot;B:&quot;, rawText, true);</b>
+<b class="fc">&nbsp;    String phoneNumber2 = matchSingleDoCoMoPrefixedField(&quot;M:&quot;, rawText, true);</b>
+<b class="fc">&nbsp;    String phoneNumber3 = matchSingleDoCoMoPrefixedField(&quot;F:&quot;, rawText, true);</b>
+<b class="fc">&nbsp;    String email = matchSingleDoCoMoPrefixedField(&quot;E:&quot;, rawText, true);</b>
+&nbsp;
+<b class="fc">&nbsp;    return new AddressBookParsedResult(maybeWrap(fullName),</b>
+&nbsp;                                       null,
+&nbsp;                                       null,
+<b class="fc">&nbsp;                                       buildPhoneNumbers(phoneNumber1, phoneNumber2, phoneNumber3),</b>
+&nbsp;                                       null,
+<b class="fc">&nbsp;                                       maybeWrap(email),</b>
+&nbsp;                                       null,
+&nbsp;                                       null,
+&nbsp;                                       null,
+&nbsp;                                       addresses,
+&nbsp;                                       null,
+&nbsp;                                       org,
+&nbsp;                                       null,
+&nbsp;                                       title,
+&nbsp;                                       null,
+&nbsp;                                       null);
+&nbsp;  }
+&nbsp;
+&nbsp;  private static String[] buildPhoneNumbers(String number1,
+&nbsp;                                            String number2,
+&nbsp;                                            String number3) {
+<b class="fc">&nbsp;    List&lt;String&gt; numbers = new ArrayList&lt;&gt;(3);</b>
+<b class="fc">&nbsp;    if (number1 != null) {</b>
+<b class="nc">&nbsp;      numbers.add(number1);</b>
+&nbsp;    }
+<b class="fc">&nbsp;    if (number2 != null) {</b>
+<b class="fc">&nbsp;      numbers.add(number2);</b>
+&nbsp;    }
+<b class="fc">&nbsp;    if (number3 != null) {</b>
+<b class="nc">&nbsp;      numbers.add(number3);</b>
+&nbsp;    }
+<b class="fc">&nbsp;    int size = numbers.size();</b>
+<b class="fc">&nbsp;    if (size == 0) {</b>
+<b class="nc">&nbsp;      return null;</b>
+&nbsp;    }
+<b class="fc">&nbsp;    return numbers.toArray(new String[size]);</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  private static String buildName(String firstName, String lastName) {
+<b class="fc">&nbsp;    if (firstName == null) {</b>
+<b class="nc">&nbsp;      return lastName;</b>
+&nbsp;    } else {
+<b class="fc">&nbsp;      return lastName == null ? firstName : firstName + &#39; &#39; + lastName;</b>
+&nbsp;    }
+&nbsp;  }
+&nbsp;
+&nbsp;}
+</code>
+</pre>
+</div>
+
+<script type="text/javascript">
+(function() {
+    var msie = false, msie9 = false;
+    /*@cc_on
+      msie = true;
+      @if (@_jscript_version >= 9)
+        msie9 = true;
+      @end
+    @*/
+
+    if (!msie || msie && msie9) {
+      hljs.highlightAll()
+      hljs.initLineNumbersOnLoad();
+    }
+})();
+</script>
+
+<div class="footer">
+    
+    <div style="float:right;">generated on 2023-11-12 23:26</div>
+</div>
+</body>
+</html>

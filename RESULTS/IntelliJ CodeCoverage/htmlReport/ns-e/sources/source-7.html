@@ -1,0 +1,238 @@
+
+
+
+<!DOCTYPE html>
+<html id="htmlId">
+<head>
+  <meta http-equiv="Content-Type" content="text/html;charset=windows-1252"> 
+  <title>Coverage Report > EncoderContext</title>
+  <style type="text/css">
+    @import "../../css/coverage.css";
+    @import "../../css/idea.min.css";
+  </style>
+  <script type="text/javascript" src="../../js/highlight.min.js"></script>
+  <script type="text/javascript" src="../../js/highlightjs-line-numbers.min.js"></script>
+</head>
+
+<body>
+<div class="content">
+<div class="breadCrumbs">
+Current scope:     <a href="../../index.html">all classes</a>
+    <span class="separator">|</span>
+    <a href="../index.html">com.google.zxing.datamatrix.encoder</a>
+</div>
+
+<h1>Coverage Summary for Class: EncoderContext (com.google.zxing.datamatrix.encoder)</h1>
+
+<table class="coverageStats">
+<tr>
+  <th class="name">Class</th>
+<th class="coverageStat 
+">
+  Class, %
+</th>
+<th class="coverageStat 
+">
+  Method, %
+</th>
+<th class="coverageStat 
+">
+  Line, %
+</th>
+</tr>
+<tr>
+  <td class="name">EncoderContext</td>
+<td class="coverageStat">
+  <span class="percent">
+    100%
+  </span>
+  <span class="absValue">
+    (1/1)
+  </span>
+</td>
+<td class="coverageStat">
+  <span class="percent">
+    95.2%
+  </span>
+  <span class="absValue">
+    (20/21)
+  </span>
+</td>
+<td class="coverageStat">
+  <span class="percent">
+    94.1%
+  </span>
+  <span class="absValue">
+    (32/34)
+  </span>
+</td>
+</tr>
+
+</table>
+
+<br/>
+<br/>
+
+
+<pre>
+<code class="sourceCode" id="sourceCode">&nbsp;/*
+&nbsp; * Copyright 2006-2007 Jeremias Maerki.
+&nbsp; *
+&nbsp; * Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
+&nbsp; * you may not use this file except in compliance with the License.
+&nbsp; * You may obtain a copy of the License at
+&nbsp; *
+&nbsp; *      http://www.apache.org/licenses/LICENSE-2.0
+&nbsp; *
+&nbsp; * Unless required by applicable law or agreed to in writing, software
+&nbsp; * distributed under the License is distributed on an &quot;AS IS&quot; BASIS,
+&nbsp; * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+&nbsp; * See the License for the specific language governing permissions and
+&nbsp; * limitations under the License.
+&nbsp; */
+&nbsp;
+&nbsp;package com.google.zxing.datamatrix.encoder;
+&nbsp;
+&nbsp;import com.google.zxing.Dimension;
+&nbsp;
+&nbsp;import java.nio.charset.StandardCharsets;
+&nbsp;
+&nbsp;final class EncoderContext {
+&nbsp;
+&nbsp;  private final String msg;
+&nbsp;  private SymbolShapeHint shape;
+&nbsp;  private Dimension minSize;
+&nbsp;  private Dimension maxSize;
+&nbsp;  private final StringBuilder codewords;
+&nbsp;  int pos;
+&nbsp;  private int newEncoding;
+&nbsp;  private SymbolInfo symbolInfo;
+&nbsp;  private int skipAtEnd;
+&nbsp;
+<b class="fc">&nbsp;  EncoderContext(String msg) {</b>
+&nbsp;    //From this point on Strings are not Unicode anymore!
+<b class="fc">&nbsp;    byte[] msgBinary = msg.getBytes(StandardCharsets.ISO_8859_1);</b>
+<b class="fc">&nbsp;    StringBuilder sb = new StringBuilder(msgBinary.length);</b>
+<b class="fc">&nbsp;    for (int i = 0, c = msgBinary.length; i &lt; c; i++) {</b>
+<b class="fc">&nbsp;      char ch = (char) (msgBinary[i] &amp; 0xff);</b>
+<b class="fc">&nbsp;      if (ch == &#39;?&#39; &amp;&amp; msg.charAt(i) != &#39;?&#39;) {</b>
+<b class="nc">&nbsp;        throw new IllegalArgumentException(&quot;Message contains characters outside ISO-8859-1 encoding.&quot;);</b>
+&nbsp;      }
+<b class="fc">&nbsp;      sb.append(ch);</b>
+&nbsp;    }
+<b class="fc">&nbsp;    this.msg = sb.toString(); //Not Unicode here!</b>
+<b class="fc">&nbsp;    shape = SymbolShapeHint.FORCE_NONE;</b>
+<b class="fc">&nbsp;    this.codewords = new StringBuilder(msg.length());</b>
+<b class="fc">&nbsp;    newEncoding = -1;</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  public void setSymbolShape(SymbolShapeHint shape) {
+<b class="fc">&nbsp;    this.shape = shape;</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  public void setSizeConstraints(Dimension minSize, Dimension maxSize) {
+<b class="fc">&nbsp;    this.minSize = minSize;</b>
+<b class="fc">&nbsp;    this.maxSize = maxSize;</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  public String getMessage() {
+<b class="fc">&nbsp;    return this.msg;</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  public void setSkipAtEnd(int count) {
+<b class="fc">&nbsp;    this.skipAtEnd = count;</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  public char getCurrentChar() {
+<b class="fc">&nbsp;    return msg.charAt(pos);</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  public char getCurrent() {
+<b class="nc">&nbsp;    return msg.charAt(pos);</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  public StringBuilder getCodewords() {
+<b class="fc">&nbsp;    return codewords;</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  public void writeCodewords(String codewords) {
+<b class="fc">&nbsp;    this.codewords.append(codewords);</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  public void writeCodeword(char codeword) {
+<b class="fc">&nbsp;    this.codewords.append(codeword);</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  public int getCodewordCount() {
+<b class="fc">&nbsp;    return this.codewords.length();</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  public int getNewEncoding() {
+<b class="fc">&nbsp;    return newEncoding;</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  public void signalEncoderChange(int encoding) {
+<b class="fc">&nbsp;    this.newEncoding = encoding;</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  public void resetEncoderSignal() {
+<b class="fc">&nbsp;    this.newEncoding = -1;</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  public boolean hasMoreCharacters() {
+<b class="fc">&nbsp;    return pos &lt; getTotalMessageCharCount();</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  private int getTotalMessageCharCount() {
+<b class="fc">&nbsp;    return msg.length() - skipAtEnd;</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  public int getRemainingCharacters() {
+<b class="fc">&nbsp;    return getTotalMessageCharCount() - pos;</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  public SymbolInfo getSymbolInfo() {
+<b class="fc">&nbsp;    return symbolInfo;</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  public void updateSymbolInfo() {
+<b class="fc">&nbsp;    updateSymbolInfo(getCodewordCount());</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  public void updateSymbolInfo(int len) {
+<b class="fc">&nbsp;    if (this.symbolInfo == null || len &gt; this.symbolInfo.getDataCapacity()) {</b>
+<b class="fc">&nbsp;      this.symbolInfo = SymbolInfo.lookup(len, shape, minSize, maxSize, true);</b>
+&nbsp;    }
+&nbsp;  }
+&nbsp;
+&nbsp;  public void resetSymbolInfo() {
+<b class="fc">&nbsp;    this.symbolInfo = null;</b>
+&nbsp;  }
+&nbsp;}
+</code>
+</pre>
+</div>
+
+<script type="text/javascript">
+(function() {
+    var msie = false, msie9 = false;
+    /*@cc_on
+      msie = true;
+      @if (@_jscript_version >= 9)
+        msie9 = true;
+      @end
+    @*/
+
+    if (!msie || msie && msie9) {
+      hljs.highlightAll()
+      hljs.initLineNumbersOnLoad();
+    }
+})();
+</script>
+
+<div class="footer">
+    
+    <div style="float:right;">generated on 2023-11-12 23:26</div>
+</div>
+</body>
+</html>

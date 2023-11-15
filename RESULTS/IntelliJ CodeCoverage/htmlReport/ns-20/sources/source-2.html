@@ -1,0 +1,203 @@
+
+
+
+<!DOCTYPE html>
+<html id="htmlId">
+<head>
+  <meta http-equiv="Content-Type" content="text/html;charset=windows-1252"> 
+  <title>Coverage Report > ByteMatrix</title>
+  <style type="text/css">
+    @import "../../css/coverage.css";
+    @import "../../css/idea.min.css";
+  </style>
+  <script type="text/javascript" src="../../js/highlight.min.js"></script>
+  <script type="text/javascript" src="../../js/highlightjs-line-numbers.min.js"></script>
+</head>
+
+<body>
+<div class="content">
+<div class="breadCrumbs">
+Current scope:     <a href="../../index.html">all classes</a>
+    <span class="separator">|</span>
+    <a href="../index.html">com.google.zxing.qrcode.encoder</a>
+</div>
+
+<h1>Coverage Summary for Class: ByteMatrix (com.google.zxing.qrcode.encoder)</h1>
+
+<table class="coverageStats">
+<tr>
+  <th class="name">Class</th>
+<th class="coverageStat 
+">
+  Class, %
+</th>
+<th class="coverageStat 
+">
+  Method, %
+</th>
+<th class="coverageStat 
+">
+  Line, %
+</th>
+</tr>
+<tr>
+  <td class="name">ByteMatrix</td>
+<td class="coverageStat">
+  <span class="percent">
+    100%
+  </span>
+  <span class="absValue">
+    (1/1)
+  </span>
+</td>
+<td class="coverageStat">
+  <span class="percent">
+    90%
+  </span>
+  <span class="absValue">
+    (9/10)
+  </span>
+</td>
+<td class="coverageStat">
+  <span class="percent">
+    96%
+  </span>
+  <span class="absValue">
+    (24/25)
+  </span>
+</td>
+</tr>
+
+</table>
+
+<br/>
+<br/>
+
+
+<pre>
+<code class="sourceCode" id="sourceCode">&nbsp;/*
+&nbsp; * Copyright 2008 ZXing authors
+&nbsp; *
+&nbsp; * Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
+&nbsp; * you may not use this file except in compliance with the License.
+&nbsp; * You may obtain a copy of the License at
+&nbsp; *
+&nbsp; *      http://www.apache.org/licenses/LICENSE-2.0
+&nbsp; *
+&nbsp; * Unless required by applicable law or agreed to in writing, software
+&nbsp; * distributed under the License is distributed on an &quot;AS IS&quot; BASIS,
+&nbsp; * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+&nbsp; * See the License for the specific language governing permissions and
+&nbsp; * limitations under the License.
+&nbsp; */
+&nbsp;
+&nbsp;package com.google.zxing.qrcode.encoder;
+&nbsp;
+&nbsp;import java.util.Arrays;
+&nbsp;
+&nbsp;/**
+&nbsp; * JAVAPORT: The original code was a 2D array of ints, but since it only ever gets assigned
+&nbsp; * -1, 0, and 1, I&#39;m going to use less memory and go with bytes.
+&nbsp; *
+&nbsp; * @author dswitkin@google.com (Daniel Switkin)
+&nbsp; */
+&nbsp;public final class ByteMatrix {
+&nbsp;
+&nbsp;  private final byte[][] bytes;
+&nbsp;  private final int width;
+&nbsp;  private final int height;
+&nbsp;
+<b class="fc">&nbsp;  public ByteMatrix(int width, int height) {</b>
+<b class="fc">&nbsp;    bytes = new byte[height][width];</b>
+<b class="fc">&nbsp;    this.width = width;</b>
+<b class="fc">&nbsp;    this.height = height;</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  public int getHeight() {
+<b class="fc">&nbsp;    return height;</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  public int getWidth() {
+<b class="fc">&nbsp;    return width;</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  public byte get(int x, int y) {
+<b class="fc">&nbsp;    return bytes[y][x];</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  /**
+&nbsp;   * @return an internal representation as bytes, in row-major order. array[y][x] represents point (x,y)
+&nbsp;   */
+&nbsp;  public byte[][] getArray() {
+<b class="fc">&nbsp;    return bytes;</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  public void set(int x, int y, byte value) {
+<b class="nc">&nbsp;    bytes[y][x] = value;</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  public void set(int x, int y, int value) {
+<b class="fc">&nbsp;    bytes[y][x] = (byte) value;</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  public void set(int x, int y, boolean value) {
+<b class="fc">&nbsp;    bytes[y][x] = (byte) (value ? 1 : 0);</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  public void clear(byte value) {
+<b class="fc">&nbsp;    for (byte[] aByte : bytes) {</b>
+<b class="fc">&nbsp;      Arrays.fill(aByte, value);</b>
+&nbsp;    }
+&nbsp;  }
+&nbsp;
+&nbsp;  @Override
+&nbsp;  public String toString() {
+<b class="fc">&nbsp;    StringBuilder result = new StringBuilder(2 * width * height + 2);</b>
+<b class="fc">&nbsp;    for (int y = 0; y &lt; height; ++y) {</b>
+<b class="fc">&nbsp;      byte[] bytesY = bytes[y];</b>
+<b class="fc">&nbsp;      for (int x = 0; x &lt; width; ++x) {</b>
+<b class="fc">&nbsp;        switch (bytesY[x]) {</b>
+&nbsp;          case 0:
+<b class="fc">&nbsp;            result.append(&quot; 0&quot;);</b>
+<b class="fc">&nbsp;            break;</b>
+&nbsp;          case 1:
+<b class="fc">&nbsp;            result.append(&quot; 1&quot;);</b>
+<b class="fc">&nbsp;            break;</b>
+&nbsp;          default:
+<b class="fc">&nbsp;            result.append(&quot;  &quot;);</b>
+&nbsp;            break;
+&nbsp;        }
+&nbsp;      }
+<b class="fc">&nbsp;      result.append(&#39;\n&#39;);</b>
+&nbsp;    }
+<b class="fc">&nbsp;    return result.toString();</b>
+&nbsp;  }
+&nbsp;
+&nbsp;}
+</code>
+</pre>
+</div>
+
+<script type="text/javascript">
+(function() {
+    var msie = false, msie9 = false;
+    /*@cc_on
+      msie = true;
+      @if (@_jscript_version >= 9)
+        msie9 = true;
+      @end
+    @*/
+
+    if (!msie || msie && msie9) {
+      hljs.highlightAll()
+      hljs.initLineNumbersOnLoad();
+    }
+})();
+</script>
+
+<div class="footer">
+    
+    <div style="float:right;">generated on 2023-11-12 23:26</div>
+</div>
+</body>
+</html>

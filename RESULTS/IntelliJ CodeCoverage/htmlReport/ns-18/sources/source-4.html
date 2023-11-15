@@ -1,0 +1,279 @@
+
+
+
+<!DOCTYPE html>
+<html id="htmlId">
+<head>
+  <meta http-equiv="Content-Type" content="text/html;charset=windows-1252"> 
+  <title>Coverage Report > PDF417Writer</title>
+  <style type="text/css">
+    @import "../../css/coverage.css";
+    @import "../../css/idea.min.css";
+  </style>
+  <script type="text/javascript" src="../../js/highlight.min.js"></script>
+  <script type="text/javascript" src="../../js/highlightjs-line-numbers.min.js"></script>
+</head>
+
+<body>
+<div class="content">
+<div class="breadCrumbs">
+Current scope:     <a href="../../index.html">all classes</a>
+    <span class="separator">|</span>
+    <a href="../index.html">com.google.zxing.pdf417</a>
+</div>
+
+<h1>Coverage Summary for Class: PDF417Writer (com.google.zxing.pdf417)</h1>
+
+<table class="coverageStats">
+<tr>
+  <th class="name">Class</th>
+<th class="coverageStat 
+">
+  Class, %
+</th>
+<th class="coverageStat 
+">
+  Method, %
+</th>
+<th class="coverageStat 
+">
+  Line, %
+</th>
+</tr>
+<tr>
+  <td class="name">PDF417Writer</td>
+<td class="coverageStat">
+  <span class="percent">
+    100%
+  </span>
+  <span class="absValue">
+    (1/1)
+  </span>
+</td>
+<td class="coverageStat">
+  <span class="percent">
+    66.7%
+  </span>
+  <span class="absValue">
+    (4/6)
+  </span>
+</td>
+<td class="coverageStat">
+  <span class="percent">
+    56.7%
+  </span>
+  <span class="absValue">
+    (34/60)
+  </span>
+</td>
+</tr>
+
+</table>
+
+<br/>
+<br/>
+
+
+<pre>
+<code class="sourceCode" id="sourceCode">&nbsp;/*
+&nbsp; * Copyright 2012 ZXing authors
+&nbsp; *
+&nbsp; * Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
+&nbsp; * you may not use this file except in compliance with the License.
+&nbsp; * You may obtain a copy of the License at
+&nbsp; *
+&nbsp; *      http://www.apache.org/licenses/LICENSE-2.0
+&nbsp; *
+&nbsp; * Unless required by applicable law or agreed to in writing, software
+&nbsp; * distributed under the License is distributed on an &quot;AS IS&quot; BASIS,
+&nbsp; * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+&nbsp; * See the License for the specific language governing permissions and
+&nbsp; * limitations under the License.
+&nbsp; */
+&nbsp;
+&nbsp;package com.google.zxing.pdf417;
+&nbsp;
+&nbsp;import com.google.zxing.BarcodeFormat;
+&nbsp;import com.google.zxing.EncodeHintType;
+&nbsp;import com.google.zxing.Writer;
+&nbsp;import com.google.zxing.WriterException;
+&nbsp;import com.google.zxing.common.BitMatrix;
+&nbsp;import com.google.zxing.pdf417.encoder.Compaction;
+&nbsp;import com.google.zxing.pdf417.encoder.Dimensions;
+&nbsp;import com.google.zxing.pdf417.encoder.PDF417;
+&nbsp;
+&nbsp;import java.nio.charset.Charset;
+&nbsp;import java.util.Map;
+&nbsp;
+&nbsp;/**
+&nbsp; * @author Jacob Haynes
+&nbsp; * @author qwandor@google.com (Andrew Walbran)
+&nbsp; */
+<b class="fc">&nbsp;public final class PDF417Writer implements Writer {</b>
+&nbsp;
+&nbsp;  /**
+&nbsp;   * default white space (margin) around the code
+&nbsp;   */
+&nbsp;  private static final int WHITE_SPACE = 30;
+&nbsp;
+&nbsp;  /**
+&nbsp;   * default error correction level
+&nbsp;   */
+&nbsp;  private static final int DEFAULT_ERROR_CORRECTION_LEVEL = 2;
+&nbsp;
+&nbsp;  @Override
+&nbsp;  public BitMatrix encode(String contents,
+&nbsp;                          BarcodeFormat format,
+&nbsp;                          int width,
+&nbsp;                          int height,
+&nbsp;                          Map&lt;EncodeHintType,?&gt; hints) throws WriterException {
+<b class="fc">&nbsp;    if (format != BarcodeFormat.PDF_417) {</b>
+<b class="nc">&nbsp;      throw new IllegalArgumentException(&quot;Can only encode PDF_417, but got &quot; + format);</b>
+&nbsp;    }
+&nbsp;
+<b class="fc">&nbsp;    PDF417 encoder = new PDF417();</b>
+<b class="fc">&nbsp;    int margin = WHITE_SPACE;</b>
+<b class="fc">&nbsp;    int errorCorrectionLevel = DEFAULT_ERROR_CORRECTION_LEVEL;</b>
+<b class="fc">&nbsp;    boolean autoECI = false;</b>
+&nbsp;
+<b class="fc">&nbsp;    if (hints != null) {</b>
+<b class="fc">&nbsp;      if (hints.containsKey(EncodeHintType.PDF417_COMPACT)) {</b>
+<b class="nc">&nbsp;        encoder.setCompact(Boolean.parseBoolean(hints.get(EncodeHintType.PDF417_COMPACT).toString()));</b>
+&nbsp;      }
+<b class="fc">&nbsp;      if (hints.containsKey(EncodeHintType.PDF417_COMPACTION)) {</b>
+<b class="nc">&nbsp;        encoder.setCompaction(Compaction.valueOf(hints.get(EncodeHintType.PDF417_COMPACTION).toString()));</b>
+&nbsp;      }
+<b class="fc">&nbsp;      if (hints.containsKey(EncodeHintType.PDF417_DIMENSIONS)) {</b>
+<b class="nc">&nbsp;        Dimensions dimensions = (Dimensions) hints.get(EncodeHintType.PDF417_DIMENSIONS);</b>
+<b class="nc">&nbsp;        encoder.setDimensions(dimensions.getMaxCols(),</b>
+<b class="nc">&nbsp;                              dimensions.getMinCols(),</b>
+<b class="nc">&nbsp;                              dimensions.getMaxRows(),</b>
+<b class="nc">&nbsp;                              dimensions.getMinRows());</b>
+&nbsp;      }
+<b class="fc">&nbsp;      if (hints.containsKey(EncodeHintType.MARGIN)) {</b>
+<b class="fc">&nbsp;        margin = Integer.parseInt(hints.get(EncodeHintType.MARGIN).toString());</b>
+&nbsp;      }
+<b class="fc">&nbsp;      if (hints.containsKey(EncodeHintType.ERROR_CORRECTION)) {</b>
+<b class="nc">&nbsp;        errorCorrectionLevel = Integer.parseInt(hints.get(EncodeHintType.ERROR_CORRECTION).toString());</b>
+&nbsp;      }
+<b class="fc">&nbsp;      if (hints.containsKey(EncodeHintType.CHARACTER_SET)) {</b>
+<b class="nc">&nbsp;        Charset encoding = Charset.forName(hints.get(EncodeHintType.CHARACTER_SET).toString());</b>
+<b class="nc">&nbsp;        encoder.setEncoding(encoding);</b>
+&nbsp;      }
+<b class="fc">&nbsp;      autoECI = hints.containsKey(EncodeHintType.PDF417_AUTO_ECI) &amp;&amp;</b>
+<b class="nc">&nbsp;          Boolean.parseBoolean(hints.get(EncodeHintType.PDF417_AUTO_ECI).toString());</b>
+&nbsp;    }
+&nbsp;
+<b class="fc">&nbsp;    return bitMatrixFromEncoder(encoder, contents, errorCorrectionLevel, width, height, margin, autoECI);</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  @Override
+&nbsp;  public BitMatrix encode(String contents,
+&nbsp;                          BarcodeFormat format,
+&nbsp;                          int width,
+&nbsp;                          int height) throws WriterException {
+<b class="nc">&nbsp;    return encode(contents, format, width, height, null);</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  /**
+&nbsp;   * Takes encoder, accounts for width/height, and retrieves bit matrix
+&nbsp;   */
+&nbsp;  private static BitMatrix bitMatrixFromEncoder(PDF417 encoder,
+&nbsp;                                                String contents,
+&nbsp;                                                int errorCorrectionLevel,
+&nbsp;                                                int width,
+&nbsp;                                                int height,
+&nbsp;                                                int margin,
+&nbsp;                                                boolean autoECI) throws WriterException {
+<b class="fc">&nbsp;    encoder.generateBarcodeLogic(contents, errorCorrectionLevel, autoECI);</b>
+&nbsp;
+<b class="fc">&nbsp;    int aspectRatio = 4;</b>
+<b class="fc">&nbsp;    byte[][] originalScale = encoder.getBarcodeMatrix().getScaledMatrix(1, aspectRatio);</b>
+<b class="fc">&nbsp;    boolean rotated = false;</b>
+<b class="fc">&nbsp;    if ((height &gt; width) != (originalScale[0].length &lt; originalScale.length)) {</b>
+<b class="nc">&nbsp;      originalScale = rotateArray(originalScale);</b>
+<b class="nc">&nbsp;      rotated = true;</b>
+&nbsp;    }
+&nbsp;
+<b class="fc">&nbsp;    int scaleX = width / originalScale[0].length;</b>
+<b class="fc">&nbsp;    int scaleY = height / originalScale.length;</b>
+<b class="fc">&nbsp;    int scale = Math.min(scaleX, scaleY);</b>
+&nbsp;
+<b class="fc">&nbsp;    if (scale &gt; 1) {</b>
+<b class="nc">&nbsp;      byte[][] scaledMatrix =</b>
+<b class="nc">&nbsp;          encoder.getBarcodeMatrix().getScaledMatrix(scale, scale * aspectRatio);</b>
+<b class="nc">&nbsp;      if (rotated) {</b>
+<b class="nc">&nbsp;        scaledMatrix = rotateArray(scaledMatrix);</b>
+&nbsp;      }
+<b class="nc">&nbsp;      return bitMatrixFromBitArray(scaledMatrix, margin);</b>
+&nbsp;    }
+<b class="fc">&nbsp;    return bitMatrixFromBitArray(originalScale, margin);</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  /**
+&nbsp;   * This takes an array holding the values of the PDF 417
+&nbsp;   *
+&nbsp;   * @param input a byte array of information with 0 is black, and 1 is white
+&nbsp;   * @param margin border around the barcode
+&nbsp;   * @return BitMatrix of the input
+&nbsp;   */
+&nbsp;  private static BitMatrix bitMatrixFromBitArray(byte[][] input, int margin) {
+&nbsp;    // Creates the bit matrix with extra space for whitespace
+<b class="fc">&nbsp;    BitMatrix output = new BitMatrix(input[0].length + 2 * margin, input.length + 2 * margin);</b>
+<b class="fc">&nbsp;    output.clear();</b>
+<b class="fc">&nbsp;    for (int y = 0, yOutput = output.getHeight() - margin - 1; y &lt; input.length; y++, yOutput--) {</b>
+<b class="fc">&nbsp;      byte[] inputY = input[y];</b>
+<b class="fc">&nbsp;      for (int x = 0; x &lt; input[0].length; x++) {</b>
+&nbsp;        // Zero is white in the byte matrix
+<b class="fc">&nbsp;        if (inputY[x] == 1) {</b>
+<b class="fc">&nbsp;          output.set(x + margin, yOutput);</b>
+&nbsp;        }
+&nbsp;      }
+&nbsp;    }
+<b class="fc">&nbsp;    return output;</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  /**
+&nbsp;   * Takes and rotates the it 90 degrees
+&nbsp;   */
+&nbsp;  private static byte[][] rotateArray(byte[][] bitarray) {
+<b class="nc">&nbsp;    byte[][] temp = new byte[bitarray[0].length][bitarray.length];</b>
+<b class="nc">&nbsp;    for (int ii = 0; ii &lt; bitarray.length; ii++) {</b>
+&nbsp;      // This makes the direction consistent on screen when rotating the
+&nbsp;      // screen;
+<b class="nc">&nbsp;      int inverseii = bitarray.length - ii - 1;</b>
+<b class="nc">&nbsp;      for (int jj = 0; jj &lt; bitarray[0].length; jj++) {</b>
+<b class="nc">&nbsp;        temp[jj][inverseii] = bitarray[ii][jj];</b>
+&nbsp;      }
+&nbsp;    }
+<b class="nc">&nbsp;    return temp;</b>
+&nbsp;  }
+&nbsp;
+&nbsp;}
+</code>
+</pre>
+</div>
+
+<script type="text/javascript">
+(function() {
+    var msie = false, msie9 = false;
+    /*@cc_on
+      msie = true;
+      @if (@_jscript_version >= 9)
+        msie9 = true;
+      @end
+    @*/
+
+    if (!msie || msie && msie9) {
+      hljs.highlightAll()
+      hljs.initLineNumbersOnLoad();
+    }
+})();
+</script>
+
+<div class="footer">
+    
+    <div style="float:right;">generated on 2023-11-12 23:26</div>
+</div>
+</body>
+</html>

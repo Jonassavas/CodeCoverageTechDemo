@@ -1,0 +1,271 @@
+
+
+
+<!DOCTYPE html>
+<html id="htmlId">
+<head>
+  <meta http-equiv="Content-Type" content="text/html;charset=windows-1252"> 
+  <title>Coverage Report > DoSTracker</title>
+  <style type="text/css">
+    @import "../../css/coverage.css";
+    @import "../../css/idea.min.css";
+  </style>
+  <script type="text/javascript" src="../../js/highlight.min.js"></script>
+  <script type="text/javascript" src="../../js/highlightjs-line-numbers.min.js"></script>
+</head>
+
+<body>
+<div class="content">
+<div class="breadCrumbs">
+Current scope:     <a href="../../index.html">all classes</a>
+    <span class="separator">|</span>
+    <a href="../index.html">com.google.zxing.web</a>
+</div>
+
+<h1>Coverage Summary for Class: DoSTracker (com.google.zxing.web)</h1>
+
+<table class="coverageStats">
+
+<tr>
+  <th class="name">Class</th>
+<th class="coverageStat 
+">
+  Method, %
+</th>
+<th class="coverageStat 
+">
+  Line, %
+</th>
+</tr>
+<tr>
+  <td class="name">DoSTracker</td>
+<td class="coverageStat">
+  <span class="percent">
+    0%
+  </span>
+  <span class="absValue">
+    (0/4)
+  </span>
+</td>
+<td class="coverageStat">
+  <span class="percent">
+    0%
+  </span>
+  <span class="absValue">
+    (0/15)
+  </span>
+</td>
+</tr>
+  <tr>
+    <td class="name">DoSTracker$1</td>
+  </tr>
+  <tr>
+    <td class="name">DoSTracker$TrackerTask</td>
+<td class="coverageStat">
+  <span class="percent">
+    0%
+  </span>
+  <span class="absValue">
+    (0/3)
+  </span>
+</td>
+<td class="coverageStat">
+  <span class="percent">
+    0%
+  </span>
+  <span class="absValue">
+    (0/37)
+  </span>
+</td>
+  </tr>
+<tr>
+  <td class="name"><strong>Total</strong></td>
+<td class="coverageStat">
+  <span class="percent">
+    0%
+  </span>
+  <span class="absValue">
+    (0/7)
+  </span>
+</td>
+<td class="coverageStat">
+  <span class="percent">
+    0%
+  </span>
+  <span class="absValue">
+    (0/52)
+  </span>
+</td>
+</tr>
+</table>
+
+<br/>
+<br/>
+
+
+<pre>
+<code class="sourceCode" id="sourceCode">&nbsp;/*
+&nbsp; * Copyright 2017 ZXing authors
+&nbsp; *
+&nbsp; * Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
+&nbsp; * you may not use this file except in compliance with the License.
+&nbsp; * You may obtain a copy of the License at
+&nbsp; *
+&nbsp; *      http://www.apache.org/licenses/LICENSE-2.0
+&nbsp; *
+&nbsp; * Unless required by applicable law or agreed to in writing, software
+&nbsp; * distributed under the License is distributed on an &quot;AS IS&quot; BASIS,
+&nbsp; * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+&nbsp; * See the License for the specific language governing permissions and
+&nbsp; * limitations under the License.
+&nbsp; */
+&nbsp;
+&nbsp;package com.google.zxing.web;
+&nbsp;
+&nbsp;import java.lang.management.ManagementFactory;
+&nbsp;import java.lang.management.OperatingSystemMXBean;
+&nbsp;import java.util.Iterator;
+&nbsp;import java.util.Map;
+&nbsp;import java.util.Timer;
+&nbsp;import java.util.TimerTask;
+&nbsp;import java.util.concurrent.atomic.AtomicInteger;
+&nbsp;import java.util.logging.Logger;
+&nbsp;
+&nbsp;/**
+&nbsp; * Simple class which tracks a number of actions that happen per time and can flag when an action has
+&nbsp; * happened too frequently recently. This can be used for example to track and temporarily block access
+&nbsp; * from certain IPs or to certain hosts.
+&nbsp; */
+<b class="nc">&nbsp;final class DoSTracker {</b>
+&nbsp;
+<b class="nc">&nbsp;  private static final Logger log = Logger.getLogger(DoSTracker.class.getName());</b>
+&nbsp;
+&nbsp;  private volatile int maxAccessesPerTime;
+&nbsp;  private final Map&lt;String,AtomicInteger&gt; numRecentAccesses;
+&nbsp;
+&nbsp;  /**
+&nbsp;   * @param timer {@link Timer} to use for scheduling update tasks
+&nbsp;   * @param name identifier for this tracker
+&nbsp;   * @param maxAccessesPerTime maximum number of accesses allowed from one source per {@code accessTimeMS}
+&nbsp;   * @param accessTimeMS interval in milliseconds over which up to {@code maxAccessesPerTime} accesses are allowed
+&nbsp;   * @param maxEntries maximum number of source entries to track before forgetting least recent ones
+&nbsp;   * @param maxLoad if set, dynamically adjust {@code maxAccessesPerTime} downwards when average load per core
+&nbsp;   *                exceeds this value, and upwards when below this value
+&nbsp;   */
+&nbsp;  DoSTracker(Timer timer,
+&nbsp;             String name,
+&nbsp;             int maxAccessesPerTime,
+&nbsp;             long accessTimeMS,
+&nbsp;             int maxEntries,
+<b class="nc">&nbsp;             Double maxLoad) {</b>
+<b class="nc">&nbsp;    this.maxAccessesPerTime = maxAccessesPerTime;</b>
+<b class="nc">&nbsp;    this.numRecentAccesses = new LRUMap&lt;&gt;(maxEntries);</b>
+<b class="nc">&nbsp;    timer.schedule(new TrackerTask(name, maxLoad), accessTimeMS, accessTimeMS);</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  boolean isBanned(String event) {
+<b class="nc">&nbsp;    if (event == null) {</b>
+<b class="nc">&nbsp;      return true;</b>
+&nbsp;    }
+&nbsp;    AtomicInteger count;
+<b class="nc">&nbsp;    synchronized (numRecentAccesses) {</b>
+<b class="nc">&nbsp;      count = numRecentAccesses.get(event);</b>
+<b class="nc">&nbsp;      if (count == null) {</b>
+<b class="nc">&nbsp;        numRecentAccesses.put(event, new AtomicInteger(1));</b>
+<b class="nc">&nbsp;        return false;</b>
+&nbsp;      }
+<b class="nc">&nbsp;    }</b>
+<b class="nc">&nbsp;    return count.incrementAndGet() &gt; maxAccessesPerTime;</b>
+&nbsp;  }
+&nbsp;
+<b class="nc">&nbsp;  private final class TrackerTask extends TimerTask {</b>
+&nbsp;
+&nbsp;    private final String name;
+&nbsp;    private final Double maxLoad;
+&nbsp;
+<b class="nc">&nbsp;    private TrackerTask(String name, Double maxLoad) {</b>
+<b class="nc">&nbsp;      this.name = name;</b>
+<b class="nc">&nbsp;      this.maxLoad = maxLoad;</b>
+&nbsp;    }
+&nbsp;
+&nbsp;    @Override
+&nbsp;    public void run() {
+&nbsp;      // largest count &lt;= maxAccessesPerTime
+<b class="nc">&nbsp;      int maxAllowedCount = 1;</b>
+&nbsp;      // smallest count &gt; maxAccessesPerTime
+<b class="nc">&nbsp;      int minDisallowedCount = Integer.MAX_VALUE;</b>
+<b class="nc">&nbsp;      int localMAPT = maxAccessesPerTime;</b>
+&nbsp;      int totalEntries;
+<b class="nc">&nbsp;      int clearedEntries = 0;</b>
+<b class="nc">&nbsp;      synchronized (numRecentAccesses) {</b>
+<b class="nc">&nbsp;        totalEntries = numRecentAccesses.size();</b>
+<b class="nc">&nbsp;        Iterator&lt;Map.Entry&lt;String,AtomicInteger&gt;&gt; accessIt = numRecentAccesses.entrySet().iterator();</b>
+<b class="nc">&nbsp;        while (accessIt.hasNext()) {</b>
+<b class="nc">&nbsp;          Map.Entry&lt;String,AtomicInteger&gt; entry = accessIt.next();</b>
+<b class="nc">&nbsp;          AtomicInteger atomicCount = entry.getValue();</b>
+<b class="nc">&nbsp;          int count = atomicCount.get();</b>
+&nbsp;          // If number of accesses is below the threshold, remove it entirely
+<b class="nc">&nbsp;          if (count &lt;= localMAPT) {</b>
+<b class="nc">&nbsp;            accessIt.remove();</b>
+<b class="nc">&nbsp;            maxAllowedCount = Math.max(maxAllowedCount, count);</b>
+<b class="nc">&nbsp;            clearedEntries++;</b>
+&nbsp;          } else {
+&nbsp;            // Reduce count of accesses held against the host
+<b class="nc">&nbsp;            atomicCount.getAndAdd(-localMAPT);</b>
+<b class="nc">&nbsp;            minDisallowedCount = Math.min(minDisallowedCount, count);</b>
+&nbsp;          }
+<b class="nc">&nbsp;        }</b>
+<b class="nc">&nbsp;      }</b>
+<b class="nc">&nbsp;      log.info(name + &quot;: &quot; + clearedEntries + &quot; of &quot; + totalEntries + &quot; cleared&quot;);</b>
+&nbsp;
+<b class="nc">&nbsp;      if (maxLoad != null) {</b>
+<b class="nc">&nbsp;        OperatingSystemMXBean mxBean = ManagementFactory.getOperatingSystemMXBean();</b>
+<b class="nc">&nbsp;        if (mxBean == null) {</b>
+<b class="nc">&nbsp;          log.warning(&quot;Could not obtain OperatingSystemMXBean; ignoring load&quot;);</b>
+&nbsp;        } else {
+<b class="nc">&nbsp;          double loadAvg = mxBean.getSystemLoadAverage();</b>
+<b class="nc">&nbsp;          if (loadAvg &gt;= 0.0) {</b>
+<b class="nc">&nbsp;            int cores = mxBean.getAvailableProcessors();</b>
+<b class="nc">&nbsp;            double loadRatio = loadAvg / cores;</b>
+<b class="nc">&nbsp;            int newMaxAccessesPerTime = loadRatio &gt; maxLoad ?</b>
+<b class="nc">&nbsp;                Math.min(maxAllowedCount, Math.max(1, maxAccessesPerTime - 1)) :</b>
+<b class="nc">&nbsp;                Math.max(minDisallowedCount, maxAccessesPerTime);</b>
+<b class="nc">&nbsp;            log.info(name + &quot;: Load ratio: &quot; + loadRatio +</b>
+&nbsp;                &quot; (&quot; + loadAvg + &#39;/&#39; + cores + &quot;) vs &quot; + maxLoad +
+&nbsp;                &quot; ; new maxAccessesPerTime: &quot; + newMaxAccessesPerTime);
+<b class="nc">&nbsp;            maxAccessesPerTime = newMaxAccessesPerTime;</b>
+&nbsp;          }
+&nbsp;        }
+&nbsp;      }
+&nbsp;    }
+&nbsp;
+&nbsp;  }
+&nbsp;
+&nbsp;}
+</code>
+</pre>
+</div>
+
+<script type="text/javascript">
+(function() {
+    var msie = false, msie9 = false;
+    /*@cc_on
+      msie = true;
+      @if (@_jscript_version >= 9)
+        msie9 = true;
+      @end
+    @*/
+
+    if (!msie || msie && msie9) {
+      hljs.highlightAll()
+      hljs.initLineNumbersOnLoad();
+    }
+})();
+</script>
+
+<div class="footer">
+    
+    <div style="float:right;">generated on 2023-11-12 23:26</div>
+</div>
+</body>
+</html>

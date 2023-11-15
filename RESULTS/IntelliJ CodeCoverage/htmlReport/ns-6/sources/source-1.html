@@ -1,0 +1,289 @@
+
+
+
+<!DOCTYPE html>
+<html id="htmlId">
+<head>
+  <meta http-equiv="Content-Type" content="text/html;charset=windows-1252"> 
+  <title>Coverage Report > BufferedImageLuminanceSource</title>
+  <style type="text/css">
+    @import "../../css/coverage.css";
+    @import "../../css/idea.min.css";
+  </style>
+  <script type="text/javascript" src="../../js/highlight.min.js"></script>
+  <script type="text/javascript" src="../../js/highlightjs-line-numbers.min.js"></script>
+</head>
+
+<body>
+<div class="content">
+<div class="breadCrumbs">
+Current scope:     <a href="../../index.html">all classes</a>
+    <span class="separator">|</span>
+    <a href="../index.html">com.google.zxing.client.j2se</a>
+</div>
+
+<h1>Coverage Summary for Class: BufferedImageLuminanceSource (com.google.zxing.client.j2se)</h1>
+
+<table class="coverageStats">
+<tr>
+  <th class="name">Class</th>
+<th class="coverageStat 
+">
+  Class, %
+</th>
+<th class="coverageStat 
+">
+  Method, %
+</th>
+<th class="coverageStat 
+">
+  Line, %
+</th>
+</tr>
+<tr>
+  <td class="name">BufferedImageLuminanceSource</td>
+<td class="coverageStat">
+  <span class="percent">
+    0%
+  </span>
+  <span class="absValue">
+    (0/1)
+  </span>
+</td>
+<td class="coverageStat">
+  <span class="percent">
+    0%
+  </span>
+  <span class="absValue">
+    (0/9)
+  </span>
+</td>
+<td class="coverageStat">
+  <span class="percent">
+    0%
+  </span>
+  <span class="absValue">
+    (0/62)
+  </span>
+</td>
+</tr>
+
+</table>
+
+<br/>
+<br/>
+
+
+<pre>
+<code class="sourceCode" id="sourceCode">&nbsp;/*
+&nbsp; * Copyright 2009 ZXing authors
+&nbsp; *
+&nbsp; * Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
+&nbsp; * you may not use this file except in compliance with the License.
+&nbsp; * You may obtain a copy of the License at
+&nbsp; *
+&nbsp; *      http://www.apache.org/licenses/LICENSE-2.0
+&nbsp; *
+&nbsp; * Unless required by applicable law or agreed to in writing, software
+&nbsp; * distributed under the License is distributed on an &quot;AS IS&quot; BASIS,
+&nbsp; * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+&nbsp; * See the License for the specific language governing permissions and
+&nbsp; * limitations under the License.
+&nbsp; */
+&nbsp;
+&nbsp;package com.google.zxing.client.j2se;
+&nbsp;
+&nbsp;import com.google.zxing.LuminanceSource;
+&nbsp;
+&nbsp;import java.awt.Graphics2D;
+&nbsp;import java.awt.geom.AffineTransform;
+&nbsp;import java.awt.image.BufferedImage;
+&nbsp;import java.awt.image.WritableRaster;
+&nbsp;
+&nbsp;/**
+&nbsp; * This LuminanceSource implementation is meant for J2SE clients and our blackbox unit tests.
+&nbsp; *
+&nbsp; * @author dswitkin@google.com (Daniel Switkin)
+&nbsp; * @author Sean Owen
+&nbsp; * @author code@elektrowolle.de (Wolfgang Jung)
+&nbsp; */
+&nbsp;public final class BufferedImageLuminanceSource extends LuminanceSource {
+&nbsp;
+&nbsp;  private static final double MINUS_45_IN_RADIANS = -0.7853981633974483; // Math.toRadians(-45.0)
+&nbsp;
+&nbsp;  private final BufferedImage image;
+&nbsp;  private final int left;
+&nbsp;  private final int top;
+&nbsp;
+&nbsp;  public BufferedImageLuminanceSource(BufferedImage image) {
+<b class="nc">&nbsp;    this(image, 0, 0, image.getWidth(), image.getHeight());</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  public BufferedImageLuminanceSource(BufferedImage image, int left, int top, int width, int height) {
+<b class="nc">&nbsp;    super(width, height);</b>
+&nbsp;
+<b class="nc">&nbsp;    if (image.getType() == BufferedImage.TYPE_BYTE_GRAY) {</b>
+<b class="nc">&nbsp;      this.image = image;</b>
+&nbsp;    } else {
+<b class="nc">&nbsp;      int sourceWidth = image.getWidth();</b>
+<b class="nc">&nbsp;      int sourceHeight = image.getHeight();</b>
+<b class="nc">&nbsp;      if (left + width &gt; sourceWidth || top + height &gt; sourceHeight) {</b>
+<b class="nc">&nbsp;        throw new IllegalArgumentException(&quot;Crop rectangle does not fit within image data.&quot;);</b>
+&nbsp;      }
+&nbsp;
+<b class="nc">&nbsp;      this.image = new BufferedImage(sourceWidth, sourceHeight, BufferedImage.TYPE_BYTE_GRAY);</b>
+&nbsp;
+<b class="nc">&nbsp;      WritableRaster raster = this.image.getRaster();</b>
+<b class="nc">&nbsp;      int[] buffer = new int[width];</b>
+<b class="nc">&nbsp;      for (int y = top; y &lt; top + height; y++) {</b>
+<b class="nc">&nbsp;        image.getRGB(left, y, width, 1, buffer, 0, sourceWidth);</b>
+<b class="nc">&nbsp;        for (int x = 0; x &lt; width; x++) {</b>
+<b class="nc">&nbsp;          int pixel = buffer[x];</b>
+&nbsp;
+&nbsp;          // The color of fully-transparent pixels is irrelevant. They are often, technically, fully-transparent
+&nbsp;          // black (0 alpha, and then 0 RGB). They are often used, of course as the &quot;white&quot; area in a
+&nbsp;          // barcode image. Force any such pixel to be white:
+<b class="nc">&nbsp;          if ((pixel &amp; 0xFF000000) == 0) {</b>
+&nbsp;            // white, so we know its luminance is 255
+<b class="nc">&nbsp;            buffer[x] = 0xFF;</b>
+&nbsp;          } else {
+&nbsp;            // .299R + 0.587G + 0.114B (YUV/YIQ for PAL and NTSC),
+&nbsp;            // (306*R) &gt;&gt; 10 is approximately equal to R*0.299, and so on.
+&nbsp;            // 0x200 &gt;&gt; 10 is 0.5, it implements rounding.
+<b class="nc">&nbsp;            buffer[x] =</b>
+&nbsp;              (306 * ((pixel &gt;&gt; 16) &amp; 0xFF) +
+&nbsp;                601 * ((pixel &gt;&gt; 8) &amp; 0xFF) +
+&nbsp;                117 * (pixel &amp; 0xFF) +
+&nbsp;                0x200) &gt;&gt; 10;
+&nbsp;          }
+&nbsp;        }
+<b class="nc">&nbsp;        raster.setPixels(left, y, width, 1, buffer);</b>
+&nbsp;      }
+&nbsp;
+&nbsp;    }
+<b class="nc">&nbsp;    this.left = left;</b>
+<b class="nc">&nbsp;    this.top = top;</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  @Override
+&nbsp;  public byte[] getRow(int y, byte[] row) {
+<b class="nc">&nbsp;    if (y &lt; 0 || y &gt;= getHeight()) {</b>
+<b class="nc">&nbsp;      throw new IllegalArgumentException(&quot;Requested row is outside the image: &quot; + y);</b>
+&nbsp;    }
+<b class="nc">&nbsp;    int width = getWidth();</b>
+<b class="nc">&nbsp;    if (row == null || row.length &lt; width) {</b>
+<b class="nc">&nbsp;      row = new byte[width];</b>
+&nbsp;    }
+&nbsp;    // The underlying raster of image consists of bytes with the luminance values
+<b class="nc">&nbsp;    image.getRaster().getDataElements(left, top + y, width, 1, row);</b>
+<b class="nc">&nbsp;    return row;</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  @Override
+&nbsp;  public byte[] getMatrix() {
+<b class="nc">&nbsp;    int width = getWidth();</b>
+<b class="nc">&nbsp;    int height = getHeight();</b>
+<b class="nc">&nbsp;    int area = width * height;</b>
+<b class="nc">&nbsp;    byte[] matrix = new byte[area];</b>
+&nbsp;    // The underlying raster of image consists of area bytes with the luminance values
+<b class="nc">&nbsp;    image.getRaster().getDataElements(left, top, width, height, matrix);</b>
+<b class="nc">&nbsp;    return matrix;</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  @Override
+&nbsp;  public boolean isCropSupported() {
+<b class="nc">&nbsp;    return true;</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  @Override
+&nbsp;  public LuminanceSource crop(int left, int top, int width, int height) {
+<b class="nc">&nbsp;    return new BufferedImageLuminanceSource(image, this.left + left, this.top + top, width, height);</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  /**
+&nbsp;   * This is always true, since the image is a gray-scale image.
+&nbsp;   *
+&nbsp;   * @return true
+&nbsp;   */
+&nbsp;  @Override
+&nbsp;  public boolean isRotateSupported() {
+<b class="nc">&nbsp;    return true;</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  @Override
+&nbsp;  public LuminanceSource rotateCounterClockwise() {
+<b class="nc">&nbsp;    int sourceWidth = image.getWidth();</b>
+<b class="nc">&nbsp;    int sourceHeight = image.getHeight();</b>
+&nbsp;
+&nbsp;    // Rotate 90 degrees counterclockwise.
+<b class="nc">&nbsp;    AffineTransform transform = new AffineTransform(0.0, -1.0, 1.0, 0.0, 0.0, sourceWidth);</b>
+&nbsp;
+&nbsp;    // Note width/height are flipped since we are rotating 90 degrees.
+<b class="nc">&nbsp;    BufferedImage rotatedImage = new BufferedImage(sourceHeight, sourceWidth, BufferedImage.TYPE_BYTE_GRAY);</b>
+&nbsp;
+&nbsp;    // Draw the original image into rotated, via transformation
+<b class="nc">&nbsp;    Graphics2D g = rotatedImage.createGraphics();</b>
+<b class="nc">&nbsp;    g.drawImage(image, transform, null);</b>
+<b class="nc">&nbsp;    g.dispose();</b>
+&nbsp;
+&nbsp;    // Maintain the cropped region, but rotate it too.
+<b class="nc">&nbsp;    int width = getWidth();</b>
+<b class="nc">&nbsp;    return new BufferedImageLuminanceSource(rotatedImage, top, sourceWidth - (left + width), getHeight(), width);</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  @Override
+&nbsp;  public LuminanceSource rotateCounterClockwise45() {
+<b class="nc">&nbsp;    int width = getWidth();</b>
+<b class="nc">&nbsp;    int height = getHeight();</b>
+&nbsp;
+<b class="nc">&nbsp;    int oldCenterX = left + width / 2;</b>
+<b class="nc">&nbsp;    int oldCenterY = top + height / 2;</b>
+&nbsp;
+&nbsp;    // Rotate 45 degrees counterclockwise.
+<b class="nc">&nbsp;    AffineTransform transform = AffineTransform.getRotateInstance(MINUS_45_IN_RADIANS, oldCenterX, oldCenterY);</b>
+&nbsp;
+<b class="nc">&nbsp;    int sourceDimension = Math.max(image.getWidth(), image.getHeight());</b>
+<b class="nc">&nbsp;    BufferedImage rotatedImage = new BufferedImage(sourceDimension, sourceDimension, BufferedImage.TYPE_BYTE_GRAY);</b>
+&nbsp;
+&nbsp;    // Draw the original image into rotated, via transformation
+<b class="nc">&nbsp;    Graphics2D g = rotatedImage.createGraphics();</b>
+<b class="nc">&nbsp;    g.drawImage(image, transform, null);</b>
+<b class="nc">&nbsp;    g.dispose();</b>
+&nbsp;
+<b class="nc">&nbsp;    int halfDimension = Math.max(width, height) / 2;</b>
+<b class="nc">&nbsp;    int newLeft = Math.max(0, oldCenterX - halfDimension);</b>
+<b class="nc">&nbsp;    int newTop = Math.max(0, oldCenterY - halfDimension);</b>
+<b class="nc">&nbsp;    int newRight = Math.min(sourceDimension - 1, oldCenterX + halfDimension);</b>
+<b class="nc">&nbsp;    int newBottom = Math.min(sourceDimension - 1, oldCenterY + halfDimension);</b>
+&nbsp;
+<b class="nc">&nbsp;    return new BufferedImageLuminanceSource(rotatedImage, newLeft, newTop, newRight - newLeft, newBottom - newTop);</b>
+&nbsp;  }
+&nbsp;
+&nbsp;}
+</code>
+</pre>
+</div>
+
+<script type="text/javascript">
+(function() {
+    var msie = false, msie9 = false;
+    /*@cc_on
+      msie = true;
+      @if (@_jscript_version >= 9)
+        msie9 = true;
+      @end
+    @*/
+
+    if (!msie || msie && msie9) {
+      hljs.highlightAll()
+      hljs.initLineNumbersOnLoad();
+    }
+})();
+</script>
+
+<div class="footer">
+    
+    <div style="float:right;">generated on 2023-11-12 23:26</div>
+</div>
+</body>
+</html>

@@ -1,0 +1,321 @@
+
+
+
+<!DOCTYPE html>
+<html id="htmlId">
+<head>
+  <meta http-equiv="Content-Type" content="text/html;charset=windows-1252"> 
+  <title>Coverage Report > ExpandedProductResultParser</title>
+  <style type="text/css">
+    @import "../../css/coverage.css";
+    @import "../../css/idea.min.css";
+  </style>
+  <script type="text/javascript" src="../../js/highlight.min.js"></script>
+  <script type="text/javascript" src="../../js/highlightjs-line-numbers.min.js"></script>
+</head>
+
+<body>
+<div class="content">
+<div class="breadCrumbs">
+Current scope:     <a href="../../index.html">all classes</a>
+    <span class="separator">|</span>
+    <a href="../index.html">com.google.zxing.client.result</a>
+</div>
+
+<h1>Coverage Summary for Class: ExpandedProductResultParser (com.google.zxing.client.result)</h1>
+
+<table class="coverageStats">
+<tr>
+  <th class="name">Class</th>
+<th class="coverageStat 
+">
+  Class, %
+</th>
+<th class="coverageStat 
+">
+  Method, %
+</th>
+<th class="coverageStat 
+">
+  Line, %
+</th>
+</tr>
+<tr>
+  <td class="name">ExpandedProductResultParser</td>
+<td class="coverageStat">
+  <span class="percent">
+    100%
+  </span>
+  <span class="absValue">
+    (1/1)
+  </span>
+</td>
+<td class="coverageStat">
+  <span class="percent">
+    100%
+  </span>
+  <span class="absValue">
+    (4/4)
+  </span>
+</td>
+<td class="coverageStat">
+  <span class="percent">
+    72.9%
+  </span>
+  <span class="absValue">
+    (62/85)
+  </span>
+</td>
+</tr>
+
+</table>
+
+<br/>
+<br/>
+
+
+<pre>
+<code class="sourceCode" id="sourceCode">&nbsp;/*
+&nbsp; * Copyright (C) 2010 ZXing authors
+&nbsp; *
+&nbsp; * Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
+&nbsp; * you may not use this file except in compliance with the License.
+&nbsp; * You may obtain a copy of the License at
+&nbsp; *
+&nbsp; *      http://www.apache.org/licenses/LICENSE-2.0
+&nbsp; *
+&nbsp; * Unless required by applicable law or agreed to in writing, software
+&nbsp; * distributed under the License is distributed on an &quot;AS IS&quot; BASIS,
+&nbsp; * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+&nbsp; * See the License for the specific language governing permissions and
+&nbsp; * limitations under the License.
+&nbsp; */
+&nbsp;
+&nbsp;/*
+&nbsp; * These authors would like to acknowledge the Spanish Ministry of Industry,
+&nbsp; * Tourism and Trade, for the support in the project TSI020301-2008-2
+&nbsp; * &quot;PIRAmIDE: Personalizable Interactions with Resources on AmI-enabled
+&nbsp; * Mobile Dynamic Environments&quot;, led by Treelogic
+&nbsp; * ( http://www.treelogic.com/ ):
+&nbsp; *
+&nbsp; *   http://www.piramidepse.com/
+&nbsp; */
+&nbsp;
+&nbsp;package com.google.zxing.client.result;
+&nbsp;
+&nbsp;import java.util.HashMap;
+&nbsp;import java.util.Map;
+&nbsp;
+&nbsp;import com.google.zxing.BarcodeFormat;
+&nbsp;import com.google.zxing.Result;
+&nbsp;
+&nbsp;/**
+&nbsp; * Parses strings of digits that represent a RSS Extended code.
+&nbsp; * 
+&nbsp; * @author Antonio Manuel Benjumea Conde, Servinform, S.A.
+&nbsp; * @author Agustín Delgado, Servinform, S.A.
+&nbsp; */
+<b class="fc">&nbsp;public final class ExpandedProductResultParser extends ResultParser {</b>
+&nbsp;
+&nbsp;  @Override
+&nbsp;  public ExpandedProductParsedResult parse(Result result) {
+<b class="fc">&nbsp;    BarcodeFormat format = result.getBarcodeFormat();</b>
+<b class="fc">&nbsp;    if (format != BarcodeFormat.RSS_EXPANDED) {</b>
+&nbsp;      // ExtendedProductParsedResult NOT created. Not a RSS Expanded barcode
+<b class="fc">&nbsp;      return null;</b>
+&nbsp;    }
+<b class="fc">&nbsp;    String rawText = getMassagedText(result);</b>
+&nbsp;
+<b class="fc">&nbsp;    String productID = null;</b>
+<b class="fc">&nbsp;    String sscc = null;</b>
+<b class="fc">&nbsp;    String lotNumber = null;</b>
+<b class="fc">&nbsp;    String productionDate = null;</b>
+<b class="fc">&nbsp;    String packagingDate = null;</b>
+<b class="fc">&nbsp;    String bestBeforeDate = null;</b>
+<b class="fc">&nbsp;    String expirationDate = null;</b>
+<b class="fc">&nbsp;    String weight = null;</b>
+<b class="fc">&nbsp;    String weightType = null;</b>
+<b class="fc">&nbsp;    String weightIncrement = null;</b>
+<b class="fc">&nbsp;    String price = null;</b>
+<b class="fc">&nbsp;    String priceIncrement = null;</b>
+<b class="fc">&nbsp;    String priceCurrency = null;</b>
+<b class="fc">&nbsp;    Map&lt;String,String&gt; uncommonAIs = new HashMap&lt;&gt;();</b>
+&nbsp;
+<b class="fc">&nbsp;    int i = 0;</b>
+&nbsp;
+<b class="fc">&nbsp;    while (i &lt; rawText.length()) {</b>
+<b class="fc">&nbsp;      String ai = findAIvalue(i, rawText);</b>
+<b class="fc">&nbsp;      if (ai == null) {</b>
+&nbsp;        // Error. Code doesn&#39;t match with RSS expanded pattern
+&nbsp;        // ExtendedProductParsedResult NOT created. Not match with RSS Expanded pattern
+<b class="nc">&nbsp;        return null;</b>
+&nbsp;      }
+<b class="fc">&nbsp;      i += ai.length() + 2;</b>
+<b class="fc">&nbsp;      String value = findValue(i, rawText);</b>
+<b class="fc">&nbsp;      i += value.length();</b>
+&nbsp;
+<b class="fc">&nbsp;      switch (ai) {</b>
+&nbsp;        case &quot;00&quot;:
+<b class="nc">&nbsp;          sscc = value;</b>
+<b class="nc">&nbsp;          break;</b>
+&nbsp;        case &quot;01&quot;:
+<b class="fc">&nbsp;          productID = value;</b>
+<b class="fc">&nbsp;          break;</b>
+&nbsp;        case &quot;10&quot;:
+<b class="nc">&nbsp;          lotNumber = value;</b>
+<b class="nc">&nbsp;          break;</b>
+&nbsp;        case &quot;11&quot;:
+<b class="nc">&nbsp;          productionDate = value;</b>
+<b class="nc">&nbsp;          break;</b>
+&nbsp;        case &quot;13&quot;:
+<b class="fc">&nbsp;          packagingDate = value;</b>
+<b class="fc">&nbsp;          break;</b>
+&nbsp;        case &quot;15&quot;:
+<b class="nc">&nbsp;          bestBeforeDate = value;</b>
+<b class="nc">&nbsp;          break;</b>
+&nbsp;        case &quot;17&quot;:
+<b class="nc">&nbsp;          expirationDate = value;</b>
+<b class="nc">&nbsp;          break;</b>
+&nbsp;        case &quot;3100&quot;:
+&nbsp;        case &quot;3101&quot;:
+&nbsp;        case &quot;3102&quot;:
+&nbsp;        case &quot;3103&quot;:
+&nbsp;        case &quot;3104&quot;:
+&nbsp;        case &quot;3105&quot;:
+&nbsp;        case &quot;3106&quot;:
+&nbsp;        case &quot;3107&quot;:
+&nbsp;        case &quot;3108&quot;:
+&nbsp;        case &quot;3109&quot;:
+<b class="fc">&nbsp;          weight = value;</b>
+<b class="fc">&nbsp;          weightType = ExpandedProductParsedResult.KILOGRAM;</b>
+<b class="fc">&nbsp;          weightIncrement = ai.substring(3);</b>
+<b class="fc">&nbsp;          break;</b>
+&nbsp;        case &quot;3200&quot;:
+&nbsp;        case &quot;3201&quot;:
+&nbsp;        case &quot;3202&quot;:
+&nbsp;        case &quot;3203&quot;:
+&nbsp;        case &quot;3204&quot;:
+&nbsp;        case &quot;3205&quot;:
+&nbsp;        case &quot;3206&quot;:
+&nbsp;        case &quot;3207&quot;:
+&nbsp;        case &quot;3208&quot;:
+&nbsp;        case &quot;3209&quot;:
+<b class="nc">&nbsp;          weight = value;</b>
+<b class="nc">&nbsp;          weightType = ExpandedProductParsedResult.POUND;</b>
+<b class="nc">&nbsp;          weightIncrement = ai.substring(3);</b>
+<b class="nc">&nbsp;          break;</b>
+&nbsp;        case &quot;3920&quot;:
+&nbsp;        case &quot;3921&quot;:
+&nbsp;        case &quot;3922&quot;:
+&nbsp;        case &quot;3923&quot;:
+<b class="nc">&nbsp;          price = value;</b>
+<b class="nc">&nbsp;          priceIncrement = ai.substring(3);</b>
+<b class="nc">&nbsp;          break;</b>
+&nbsp;        case &quot;3930&quot;:
+&nbsp;        case &quot;3931&quot;:
+&nbsp;        case &quot;3932&quot;:
+&nbsp;        case &quot;3933&quot;:
+<b class="fc">&nbsp;          if (value.length() &lt; 4) {</b>
+&nbsp;            // The value must have more of 3 symbols (3 for currency and
+&nbsp;            // 1 at least for the price)
+&nbsp;            // ExtendedProductParsedResult NOT created. Not match with RSS Expanded pattern
+<b class="nc">&nbsp;            return null;</b>
+&nbsp;          }
+<b class="fc">&nbsp;          price = value.substring(3);</b>
+<b class="fc">&nbsp;          priceCurrency = value.substring(0, 3);</b>
+<b class="fc">&nbsp;          priceIncrement = ai.substring(3);</b>
+<b class="fc">&nbsp;          break;</b>
+&nbsp;        default:
+&nbsp;          // No match with common AIs
+<b class="fc">&nbsp;          uncommonAIs.put(ai, value);</b>
+&nbsp;          break;
+&nbsp;      }
+<b class="fc">&nbsp;    }</b>
+&nbsp;
+<b class="fc">&nbsp;    return new ExpandedProductParsedResult(rawText,</b>
+&nbsp;                                           productID,
+&nbsp;                                           sscc,
+&nbsp;                                           lotNumber,
+&nbsp;                                           productionDate,
+&nbsp;                                           packagingDate,
+&nbsp;                                           bestBeforeDate,
+&nbsp;                                           expirationDate,
+&nbsp;                                           weight,
+&nbsp;                                           weightType,
+&nbsp;                                           weightIncrement,
+&nbsp;                                           price,
+&nbsp;                                           priceIncrement,
+&nbsp;                                           priceCurrency,
+&nbsp;                                           uncommonAIs);
+&nbsp;  }
+&nbsp;
+&nbsp;  private static String findAIvalue(int i, String rawText) {
+<b class="fc">&nbsp;    char c = rawText.charAt(i);</b>
+&nbsp;    // First character must be a open parenthesis.If not, ERROR
+<b class="fc">&nbsp;    if (c != &#39;(&#39;) {</b>
+<b class="nc">&nbsp;      return null;</b>
+&nbsp;    }
+&nbsp;
+<b class="fc">&nbsp;    CharSequence rawTextAux = rawText.substring(i + 1);</b>
+&nbsp;
+<b class="fc">&nbsp;    StringBuilder buf = new StringBuilder();</b>
+<b class="fc">&nbsp;    for (int index = 0; index &lt; rawTextAux.length(); index++) {</b>
+<b class="fc">&nbsp;      char currentChar = rawTextAux.charAt(index);</b>
+<b class="fc">&nbsp;      if (currentChar == &#39;)&#39;) {</b>
+<b class="fc">&nbsp;        return buf.toString();</b>
+&nbsp;      }
+<b class="fc">&nbsp;      if (currentChar &lt; &#39;0&#39; || currentChar &gt; &#39;9&#39;) {</b>
+<b class="nc">&nbsp;        return null;</b>
+&nbsp;      }
+<b class="fc">&nbsp;      buf.append(currentChar);</b>
+&nbsp;    }
+<b class="nc">&nbsp;    return buf.toString();</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  private static String findValue(int i, String rawText) {
+<b class="fc">&nbsp;    StringBuilder buf = new StringBuilder();</b>
+<b class="fc">&nbsp;    String rawTextAux = rawText.substring(i);</b>
+&nbsp;
+<b class="fc">&nbsp;    for (int index = 0; index &lt; rawTextAux.length(); index++) {</b>
+<b class="fc">&nbsp;      char c = rawTextAux.charAt(index);</b>
+<b class="fc">&nbsp;      if (c == &#39;(&#39;) {</b>
+&nbsp;        // We look for a new AI. If it doesn&#39;t exist (ERROR), we continue
+&nbsp;        // with the iteration
+<b class="fc">&nbsp;        if (findAIvalue(index, rawTextAux) != null) {</b>
+<b class="fc">&nbsp;          break;</b>
+&nbsp;        }
+<b class="nc">&nbsp;        buf.append(&#39;(&#39;);</b>
+&nbsp;      } else {
+<b class="fc">&nbsp;        buf.append(c);</b>
+&nbsp;      }
+&nbsp;    }
+<b class="fc">&nbsp;    return buf.toString();</b>
+&nbsp;  }
+&nbsp;}
+</code>
+</pre>
+</div>
+
+<script type="text/javascript">
+(function() {
+    var msie = false, msie9 = false;
+    /*@cc_on
+      msie = true;
+      @if (@_jscript_version >= 9)
+        msie9 = true;
+      @end
+    @*/
+
+    if (!msie || msie && msie9) {
+      hljs.highlightAll()
+      hljs.initLineNumbersOnLoad();
+    }
+})();
+</script>
+
+<div class="footer">
+    
+    <div style="float:right;">generated on 2023-11-12 23:26</div>
+</div>
+</body>
+</html>

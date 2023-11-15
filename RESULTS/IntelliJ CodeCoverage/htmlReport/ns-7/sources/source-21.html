@@ -1,0 +1,222 @@
+
+
+
+<!DOCTYPE html>
+<html id="htmlId">
+<head>
+  <meta http-equiv="Content-Type" content="text/html;charset=windows-1252"> 
+  <title>Coverage Report > VEventResultParser</title>
+  <style type="text/css">
+    @import "../../css/coverage.css";
+    @import "../../css/idea.min.css";
+  </style>
+  <script type="text/javascript" src="../../js/highlight.min.js"></script>
+  <script type="text/javascript" src="../../js/highlightjs-line-numbers.min.js"></script>
+</head>
+
+<body>
+<div class="content">
+<div class="breadCrumbs">
+Current scope:     <a href="../../index.html">all classes</a>
+    <span class="separator">|</span>
+    <a href="../index.html">com.google.zxing.client.result</a>
+</div>
+
+<h1>Coverage Summary for Class: VEventResultParser (com.google.zxing.client.result)</h1>
+
+<table class="coverageStats">
+<tr>
+  <th class="name">Class</th>
+<th class="coverageStat 
+">
+  Class, %
+</th>
+<th class="coverageStat 
+">
+  Method, %
+</th>
+<th class="coverageStat 
+">
+  Line, %
+</th>
+</tr>
+<tr>
+  <td class="name">VEventResultParser</td>
+<td class="coverageStat">
+  <span class="percent">
+    100%
+  </span>
+  <span class="absValue">
+    (1/1)
+  </span>
+</td>
+<td class="coverageStat">
+  <span class="percent">
+    100%
+  </span>
+  <span class="absValue">
+    (5/5)
+  </span>
+</td>
+<td class="coverageStat">
+  <span class="percent">
+    89.1%
+  </span>
+  <span class="absValue">
+    (41/46)
+  </span>
+</td>
+</tr>
+
+</table>
+
+<br/>
+<br/>
+
+
+<pre>
+<code class="sourceCode" id="sourceCode">&nbsp;/*
+&nbsp; * Copyright 2008 ZXing authors
+&nbsp; *
+&nbsp; * Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
+&nbsp; * you may not use this file except in compliance with the License.
+&nbsp; * You may obtain a copy of the License at
+&nbsp; *
+&nbsp; *      http://www.apache.org/licenses/LICENSE-2.0
+&nbsp; *
+&nbsp; * Unless required by applicable law or agreed to in writing, software
+&nbsp; * distributed under the License is distributed on an &quot;AS IS&quot; BASIS,
+&nbsp; * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+&nbsp; * See the License for the specific language governing permissions and
+&nbsp; * limitations under the License.
+&nbsp; */
+&nbsp;
+&nbsp;package com.google.zxing.client.result;
+&nbsp;
+&nbsp;import com.google.zxing.Result;
+&nbsp;
+&nbsp;import java.util.List;
+&nbsp;
+&nbsp;/**
+&nbsp; * Partially implements the iCalendar format&#39;s &quot;VEVENT&quot; format for specifying a
+&nbsp; * calendar event. See RFC 2445. This supports SUMMARY, LOCATION, GEO, DTSTART and DTEND fields.
+&nbsp; *
+&nbsp; * @author Sean Owen
+&nbsp; */
+<b class="fc">&nbsp;public final class VEventResultParser extends ResultParser {</b>
+&nbsp;
+&nbsp;  @Override
+&nbsp;  public CalendarParsedResult parse(Result result) {
+<b class="fc">&nbsp;    String rawText = getMassagedText(result);</b>
+<b class="fc">&nbsp;    int vEventStart = rawText.indexOf(&quot;BEGIN:VEVENT&quot;);</b>
+<b class="fc">&nbsp;    if (vEventStart &lt; 0) {</b>
+<b class="fc">&nbsp;      return null;</b>
+&nbsp;    }
+&nbsp;
+<b class="fc">&nbsp;    String summary = matchSingleVCardPrefixedField(&quot;SUMMARY&quot;, rawText);</b>
+<b class="fc">&nbsp;    String start = matchSingleVCardPrefixedField(&quot;DTSTART&quot;, rawText);</b>
+<b class="fc">&nbsp;    if (start == null) {</b>
+<b class="fc">&nbsp;      return null;</b>
+&nbsp;    }
+<b class="fc">&nbsp;    String end = matchSingleVCardPrefixedField(&quot;DTEND&quot;, rawText);</b>
+<b class="fc">&nbsp;    String duration = matchSingleVCardPrefixedField(&quot;DURATION&quot;, rawText);</b>
+<b class="fc">&nbsp;    String location = matchSingleVCardPrefixedField(&quot;LOCATION&quot;, rawText);</b>
+<b class="fc">&nbsp;    String organizer = stripMailto(matchSingleVCardPrefixedField(&quot;ORGANIZER&quot;, rawText));</b>
+&nbsp;
+<b class="fc">&nbsp;    String[] attendees = matchVCardPrefixedField(&quot;ATTENDEE&quot;, rawText);</b>
+<b class="fc">&nbsp;    if (attendees != null) {</b>
+<b class="fc">&nbsp;      for (int i = 0; i &lt; attendees.length; i++) {</b>
+<b class="fc">&nbsp;        attendees[i] = stripMailto(attendees[i]);</b>
+&nbsp;      }
+&nbsp;    }
+<b class="fc">&nbsp;    String description = matchSingleVCardPrefixedField(&quot;DESCRIPTION&quot;, rawText);</b>
+&nbsp;
+<b class="fc">&nbsp;    String geoString = matchSingleVCardPrefixedField(&quot;GEO&quot;, rawText);</b>
+&nbsp;    double latitude;
+&nbsp;    double longitude;
+<b class="fc">&nbsp;    if (geoString == null) {</b>
+<b class="fc">&nbsp;      latitude = Double.NaN;</b>
+<b class="fc">&nbsp;      longitude = Double.NaN;</b>
+&nbsp;    } else {
+<b class="fc">&nbsp;      int semicolon = geoString.indexOf(&#39;;&#39;);</b>
+<b class="fc">&nbsp;      if (semicolon &lt; 0) {</b>
+<b class="nc">&nbsp;        return null;</b>
+&nbsp;      }
+&nbsp;      try {
+<b class="fc">&nbsp;        latitude = Double.parseDouble(geoString.substring(0, semicolon));</b>
+<b class="fc">&nbsp;        longitude = Double.parseDouble(geoString.substring(semicolon + 1));</b>
+<b class="nc">&nbsp;      } catch (NumberFormatException ignored) {</b>
+<b class="nc">&nbsp;        return null;</b>
+<b class="fc">&nbsp;      }</b>
+&nbsp;    }
+&nbsp;
+&nbsp;    try {
+<b class="fc">&nbsp;      return new CalendarParsedResult(summary,</b>
+&nbsp;                                      start,
+&nbsp;                                      end,
+&nbsp;                                      duration,
+&nbsp;                                      location,
+&nbsp;                                      organizer,
+&nbsp;                                      attendees,
+&nbsp;                                      description,
+&nbsp;                                      latitude,
+&nbsp;                                      longitude);
+<b class="nc">&nbsp;    } catch (IllegalArgumentException ignored) {</b>
+<b class="nc">&nbsp;      return null;</b>
+&nbsp;    }
+&nbsp;  }
+&nbsp;
+&nbsp;  private static String matchSingleVCardPrefixedField(CharSequence prefix,
+&nbsp;                                                      String rawText) {
+<b class="fc">&nbsp;    List&lt;String&gt; values = VCardResultParser.matchSingleVCardPrefixedField(prefix, rawText, true, false);</b>
+<b class="fc">&nbsp;    return values == null || values.isEmpty() ? null : values.get(0);</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  private static String[] matchVCardPrefixedField(CharSequence prefix, String rawText) {
+<b class="fc">&nbsp;    List&lt;List&lt;String&gt;&gt; values = VCardResultParser.matchVCardPrefixedField(prefix, rawText, true, false);</b>
+<b class="fc">&nbsp;    if (values == null || values.isEmpty()) {</b>
+<b class="fc">&nbsp;      return null;</b>
+&nbsp;    }
+<b class="fc">&nbsp;    int size = values.size();</b>
+<b class="fc">&nbsp;    String[] result = new String[size];</b>
+<b class="fc">&nbsp;    for (int i = 0; i &lt; size; i++) {</b>
+<b class="fc">&nbsp;      result[i] = values.get(i).get(0);</b>
+&nbsp;    }
+<b class="fc">&nbsp;    return result;</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  private static String stripMailto(String s) {
+<b class="fc">&nbsp;    if (s != null &amp;&amp; (s.startsWith(&quot;mailto:&quot;) || s.startsWith(&quot;MAILTO:&quot;))) {</b>
+<b class="fc">&nbsp;      s = s.substring(7);</b>
+&nbsp;    }
+<b class="fc">&nbsp;    return s;</b>
+&nbsp;  }
+&nbsp;
+&nbsp;}
+</code>
+</pre>
+</div>
+
+<script type="text/javascript">
+(function() {
+    var msie = false, msie9 = false;
+    /*@cc_on
+      msie = true;
+      @if (@_jscript_version >= 9)
+        msie9 = true;
+      @end
+    @*/
+
+    if (!msie || msie && msie9) {
+      hljs.highlightAll()
+      hljs.initLineNumbersOnLoad();
+    }
+})();
+</script>
+
+<div class="footer">
+    
+    <div style="float:right;">generated on 2023-11-12 23:26</div>
+</div>
+</body>
+</html>

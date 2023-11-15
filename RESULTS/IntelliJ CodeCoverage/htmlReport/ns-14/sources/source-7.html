@@ -1,0 +1,403 @@
+
+
+
+<!DOCTYPE html>
+<html id="htmlId">
+<head>
+  <meta http-equiv="Content-Type" content="text/html;charset=windows-1252"> 
+  <title>Coverage Report > Code93Reader</title>
+  <style type="text/css">
+    @import "../../css/coverage.css";
+    @import "../../css/idea.min.css";
+  </style>
+  <script type="text/javascript" src="../../js/highlight.min.js"></script>
+  <script type="text/javascript" src="../../js/highlightjs-line-numbers.min.js"></script>
+</head>
+
+<body>
+<div class="content">
+<div class="breadCrumbs">
+Current scope:     <a href="../../index.html">all classes</a>
+    <span class="separator">|</span>
+    <a href="../index.html">com.google.zxing.oned</a>
+</div>
+
+<h1>Coverage Summary for Class: Code93Reader (com.google.zxing.oned)</h1>
+
+<table class="coverageStats">
+<tr>
+  <th class="name">Class</th>
+<th class="coverageStat 
+">
+  Class, %
+</th>
+<th class="coverageStat 
+">
+  Method, %
+</th>
+<th class="coverageStat 
+">
+  Line, %
+</th>
+</tr>
+<tr>
+  <td class="name">Code93Reader</td>
+<td class="coverageStat">
+  <span class="percent">
+    100%
+  </span>
+  <span class="absValue">
+    (1/1)
+  </span>
+</td>
+<td class="coverageStat">
+  <span class="percent">
+    100%
+  </span>
+  <span class="absValue">
+    (9/9)
+  </span>
+</td>
+<td class="coverageStat">
+  <span class="percent">
+    95.6%
+  </span>
+  <span class="absValue">
+    (129/135)
+  </span>
+</td>
+</tr>
+
+</table>
+
+<br/>
+<br/>
+
+
+<pre>
+<code class="sourceCode" id="sourceCode">&nbsp;/*
+&nbsp; * Copyright 2010 ZXing authors
+&nbsp; *
+&nbsp; * Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
+&nbsp; * you may not use this file except in compliance with the License.
+&nbsp; * You may obtain a copy of the License at
+&nbsp; *
+&nbsp; *      http://www.apache.org/licenses/LICENSE-2.0
+&nbsp; *
+&nbsp; * Unless required by applicable law or agreed to in writing, software
+&nbsp; * distributed under the License is distributed on an &quot;AS IS&quot; BASIS,
+&nbsp; * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+&nbsp; * See the License for the specific language governing permissions and
+&nbsp; * limitations under the License.
+&nbsp; */
+&nbsp;
+&nbsp;package com.google.zxing.oned;
+&nbsp;
+&nbsp;import com.google.zxing.BarcodeFormat;
+&nbsp;import com.google.zxing.ChecksumException;
+&nbsp;import com.google.zxing.DecodeHintType;
+&nbsp;import com.google.zxing.FormatException;
+&nbsp;import com.google.zxing.NotFoundException;
+&nbsp;import com.google.zxing.Result;
+&nbsp;import com.google.zxing.ResultMetadataType;
+&nbsp;import com.google.zxing.ResultPoint;
+&nbsp;import com.google.zxing.common.BitArray;
+&nbsp;
+&nbsp;import java.util.Arrays;
+&nbsp;import java.util.Map;
+&nbsp;
+&nbsp;/**
+&nbsp; * &lt;p&gt;Decodes Code 93 barcodes.&lt;/p&gt;
+&nbsp; *
+&nbsp; * @author Sean Owen
+&nbsp; * @see Code39Reader
+&nbsp; */
+&nbsp;public final class Code93Reader extends OneDReader {
+&nbsp;
+&nbsp;  // Note that &#39;abcd&#39; are dummy characters in place of control characters.
+&nbsp;  static final String ALPHABET_STRING = &quot;0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ-. $/+%abcd*&quot;;
+<b class="fc">&nbsp;  private static final char[] ALPHABET = ALPHABET_STRING.toCharArray();</b>
+&nbsp;
+&nbsp;  /**
+&nbsp;   * These represent the encodings of characters, as patterns of wide and narrow bars.
+&nbsp;   * The 9 least-significant bits of each int correspond to the pattern of wide and narrow.
+&nbsp;   */
+<b class="fc">&nbsp;  static final int[] CHARACTER_ENCODINGS = {</b>
+&nbsp;      0x114, 0x148, 0x144, 0x142, 0x128, 0x124, 0x122, 0x150, 0x112, 0x10A, // 0-9
+&nbsp;      0x1A8, 0x1A4, 0x1A2, 0x194, 0x192, 0x18A, 0x168, 0x164, 0x162, 0x134, // A-J
+&nbsp;      0x11A, 0x158, 0x14C, 0x146, 0x12C, 0x116, 0x1B4, 0x1B2, 0x1AC, 0x1A6, // K-T
+&nbsp;      0x196, 0x19A, 0x16C, 0x166, 0x136, 0x13A, // U-Z
+&nbsp;      0x12E, 0x1D4, 0x1D2, 0x1CA, 0x16E, 0x176, 0x1AE, // - - %
+&nbsp;      0x126, 0x1DA, 0x1D6, 0x132, 0x15E, // Control chars? $-*
+&nbsp;  };
+<b class="fc">&nbsp;  static final int ASTERISK_ENCODING = CHARACTER_ENCODINGS[47];</b>
+&nbsp;
+&nbsp;  private final StringBuilder decodeRowResult;
+&nbsp;  private final int[] counters;
+&nbsp;
+<b class="fc">&nbsp;  public Code93Reader() {</b>
+<b class="fc">&nbsp;    decodeRowResult = new StringBuilder(20);</b>
+<b class="fc">&nbsp;    counters = new int[6];</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  @Override
+&nbsp;  public Result decodeRow(int rowNumber, BitArray row, Map&lt;DecodeHintType,?&gt; hints)
+&nbsp;      throws NotFoundException, ChecksumException, FormatException {
+&nbsp;
+<b class="fc">&nbsp;    int[] start = findAsteriskPattern(row);</b>
+&nbsp;    // Read off white space
+<b class="fc">&nbsp;    int nextStart = row.getNextSet(start[1]);</b>
+<b class="fc">&nbsp;    int end = row.getSize();</b>
+&nbsp;
+<b class="fc">&nbsp;    int[] theCounters = counters;</b>
+<b class="fc">&nbsp;    Arrays.fill(theCounters, 0);</b>
+<b class="fc">&nbsp;    StringBuilder result = decodeRowResult;</b>
+<b class="fc">&nbsp;    result.setLength(0);</b>
+&nbsp;
+&nbsp;    char decodedChar;
+&nbsp;    int lastStart;
+&nbsp;    do {
+<b class="fc">&nbsp;      recordPattern(row, nextStart, theCounters);</b>
+<b class="fc">&nbsp;      int pattern = toPattern(theCounters);</b>
+<b class="fc">&nbsp;      if (pattern &lt; 0) {</b>
+<b class="fc">&nbsp;        throw NotFoundException.getNotFoundInstance();</b>
+&nbsp;      }
+<b class="fc">&nbsp;      decodedChar = patternToChar(pattern);</b>
+<b class="fc">&nbsp;      result.append(decodedChar);</b>
+<b class="fc">&nbsp;      lastStart = nextStart;</b>
+<b class="fc">&nbsp;      for (int counter : theCounters) {</b>
+<b class="fc">&nbsp;        nextStart += counter;</b>
+&nbsp;      }
+&nbsp;      // Read off white space
+<b class="fc">&nbsp;      nextStart = row.getNextSet(nextStart);</b>
+<b class="fc">&nbsp;    } while (decodedChar != &#39;*&#39;);</b>
+<b class="fc">&nbsp;    result.deleteCharAt(result.length() - 1); // remove asterisk</b>
+&nbsp;
+<b class="fc">&nbsp;    int lastPatternSize = 0;</b>
+<b class="fc">&nbsp;    for (int counter : theCounters) {</b>
+<b class="fc">&nbsp;      lastPatternSize += counter;</b>
+&nbsp;    }
+&nbsp;
+&nbsp;    // Should be at least one more black module
+<b class="fc">&nbsp;    if (nextStart == end || !row.get(nextStart)) {</b>
+<b class="nc">&nbsp;      throw NotFoundException.getNotFoundInstance();</b>
+&nbsp;    }
+&nbsp;
+<b class="fc">&nbsp;    if (result.length() &lt; 2) {</b>
+&nbsp;      // false positive -- need at least 2 checksum digits
+<b class="fc">&nbsp;      throw NotFoundException.getNotFoundInstance();</b>
+&nbsp;    }
+&nbsp;
+<b class="fc">&nbsp;    checkChecksums(result);</b>
+&nbsp;    // Remove checksum digits
+<b class="fc">&nbsp;    result.setLength(result.length() - 2);</b>
+&nbsp;
+<b class="fc">&nbsp;    String resultString = decodeExtended(result);</b>
+&nbsp;
+<b class="fc">&nbsp;    float left = (start[1] + start[0]) / 2.0f;</b>
+<b class="fc">&nbsp;    float right = lastStart + lastPatternSize / 2.0f;</b>
+&nbsp;
+<b class="fc">&nbsp;    Result resultObject = new Result(</b>
+&nbsp;        resultString,
+&nbsp;        null,
+&nbsp;        new ResultPoint[]{
+&nbsp;            new ResultPoint(left, rowNumber),
+&nbsp;            new ResultPoint(right, rowNumber)},
+&nbsp;        BarcodeFormat.CODE_93);
+<b class="fc">&nbsp;    resultObject.putMetadata(ResultMetadataType.SYMBOLOGY_IDENTIFIER, &quot;]G0&quot;);</b>
+<b class="fc">&nbsp;    return resultObject;</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  private int[] findAsteriskPattern(BitArray row) throws NotFoundException {
+<b class="fc">&nbsp;    int width = row.getSize();</b>
+<b class="fc">&nbsp;    int rowOffset = row.getNextSet(0);</b>
+&nbsp;
+<b class="fc">&nbsp;    Arrays.fill(counters, 0);</b>
+<b class="fc">&nbsp;    int[] theCounters = counters;</b>
+<b class="fc">&nbsp;    int patternStart = rowOffset;</b>
+<b class="fc">&nbsp;    boolean isWhite = false;</b>
+<b class="fc">&nbsp;    int patternLength = theCounters.length;</b>
+&nbsp;
+<b class="fc">&nbsp;    int counterPosition = 0;</b>
+<b class="fc">&nbsp;    for (int i = rowOffset; i &lt; width; i++) {</b>
+<b class="fc">&nbsp;      if (row.get(i) != isWhite) {</b>
+<b class="fc">&nbsp;        theCounters[counterPosition]++;</b>
+&nbsp;      } else {
+<b class="fc">&nbsp;        if (counterPosition == patternLength - 1) {</b>
+<b class="fc">&nbsp;          if (toPattern(theCounters) == ASTERISK_ENCODING) {</b>
+<b class="fc">&nbsp;            return new int[]{patternStart, i};</b>
+&nbsp;          }
+<b class="fc">&nbsp;          patternStart += theCounters[0] + theCounters[1];</b>
+<b class="fc">&nbsp;          System.arraycopy(theCounters, 2, theCounters, 0, counterPosition - 1);</b>
+<b class="fc">&nbsp;          theCounters[counterPosition - 1] = 0;</b>
+<b class="fc">&nbsp;          theCounters[counterPosition] = 0;</b>
+<b class="fc">&nbsp;          counterPosition--;</b>
+&nbsp;        } else {
+<b class="fc">&nbsp;          counterPosition++;</b>
+&nbsp;        }
+<b class="fc">&nbsp;        theCounters[counterPosition] = 1;</b>
+<b class="fc">&nbsp;        isWhite = !isWhite;</b>
+&nbsp;      }
+&nbsp;    }
+<b class="fc">&nbsp;    throw NotFoundException.getNotFoundInstance();</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  private static int toPattern(int[] counters) {
+<b class="fc">&nbsp;    int sum = 0;</b>
+<b class="fc">&nbsp;    for (int counter : counters) {</b>
+<b class="fc">&nbsp;      sum += counter;</b>
+&nbsp;    }
+<b class="fc">&nbsp;    int pattern = 0;</b>
+<b class="fc">&nbsp;    int max = counters.length;</b>
+<b class="fc">&nbsp;    for (int i = 0; i &lt; max; i++) {</b>
+<b class="fc">&nbsp;      int scaled = Math.round(counters[i] * 9.0f / sum);</b>
+<b class="fc">&nbsp;      if (scaled &lt; 1 || scaled &gt; 4) {</b>
+<b class="fc">&nbsp;        return -1;</b>
+&nbsp;      }
+<b class="fc">&nbsp;      if ((i &amp; 0x01) == 0) {</b>
+<b class="fc">&nbsp;        for (int j = 0; j &lt; scaled; j++) {</b>
+<b class="fc">&nbsp;          pattern = (pattern &lt;&lt; 1) | 0x01;</b>
+&nbsp;        }
+&nbsp;      } else {
+<b class="fc">&nbsp;        pattern &lt;&lt;= scaled;</b>
+&nbsp;      }
+&nbsp;    }
+<b class="fc">&nbsp;    return pattern;</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  private static char patternToChar(int pattern) throws NotFoundException {
+<b class="fc">&nbsp;    for (int i = 0; i &lt; CHARACTER_ENCODINGS.length; i++) {</b>
+<b class="fc">&nbsp;      if (CHARACTER_ENCODINGS[i] == pattern) {</b>
+<b class="fc">&nbsp;        return ALPHABET[i];</b>
+&nbsp;      }
+&nbsp;    }
+<b class="fc">&nbsp;    throw NotFoundException.getNotFoundInstance();</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  private static String decodeExtended(CharSequence encoded) throws FormatException {
+<b class="fc">&nbsp;    int length = encoded.length();</b>
+<b class="fc">&nbsp;    StringBuilder decoded = new StringBuilder(length);</b>
+<b class="fc">&nbsp;    for (int i = 0; i &lt; length; i++) {</b>
+<b class="fc">&nbsp;      char c = encoded.charAt(i);</b>
+<b class="fc">&nbsp;      if (c &gt;= &#39;a&#39; &amp;&amp; c &lt;= &#39;d&#39;) {</b>
+<b class="fc">&nbsp;        if (i &gt;= length - 1) {</b>
+<b class="nc">&nbsp;          throw FormatException.getFormatInstance();</b>
+&nbsp;        }
+<b class="fc">&nbsp;        char next = encoded.charAt(i + 1);</b>
+<b class="fc">&nbsp;        char decodedChar = &#39;\0&#39;;</b>
+<b class="fc">&nbsp;        switch (c) {</b>
+&nbsp;          case &#39;d&#39;:
+&nbsp;            // +A to +Z map to a to z
+<b class="fc">&nbsp;            if (next &gt;= &#39;A&#39; &amp;&amp; next &lt;= &#39;Z&#39;) {</b>
+<b class="fc">&nbsp;              decodedChar = (char) (next + 32);</b>
+&nbsp;            } else {
+<b class="nc">&nbsp;              throw FormatException.getFormatInstance();</b>
+&nbsp;            }
+&nbsp;            break;
+&nbsp;          case &#39;a&#39;:
+&nbsp;            // $A to $Z map to control codes SH to SB
+<b class="fc">&nbsp;            if (next &gt;= &#39;A&#39; &amp;&amp; next &lt;= &#39;Z&#39;) {</b>
+<b class="fc">&nbsp;              decodedChar = (char) (next - 64);</b>
+&nbsp;            } else {
+<b class="nc">&nbsp;              throw FormatException.getFormatInstance();</b>
+&nbsp;            }
+&nbsp;            break;
+&nbsp;          case &#39;b&#39;:
+<b class="fc">&nbsp;            if (next &gt;= &#39;A&#39; &amp;&amp; next &lt;= &#39;E&#39;) {</b>
+&nbsp;              // %A to %E map to control codes ESC to USep
+<b class="fc">&nbsp;              decodedChar = (char) (next - 38);</b>
+<b class="fc">&nbsp;            } else if (next &gt;= &#39;F&#39; &amp;&amp; next &lt;= &#39;J&#39;) {</b>
+&nbsp;              // %F to %J map to ; &lt; = &gt; ?
+<b class="fc">&nbsp;              decodedChar = (char) (next - 11);</b>
+<b class="fc">&nbsp;            } else if (next &gt;= &#39;K&#39; &amp;&amp; next &lt;= &#39;O&#39;) {</b>
+&nbsp;              // %K to %O map to [ \ ] ^ _
+<b class="fc">&nbsp;              decodedChar = (char) (next + 16);</b>
+<b class="fc">&nbsp;            } else if (next &gt;= &#39;P&#39; &amp;&amp; next &lt;= &#39;T&#39;) {</b>
+&nbsp;              // %P to %T map to { | } ~ DEL
+<b class="fc">&nbsp;              decodedChar = (char) (next + 43);</b>
+<b class="fc">&nbsp;            } else if (next == &#39;U&#39;) {</b>
+&nbsp;              // %U map to NUL
+<b class="fc">&nbsp;              decodedChar = &#39;\0&#39;;</b>
+<b class="fc">&nbsp;            } else if (next == &#39;V&#39;) {</b>
+&nbsp;              // %V map to @
+<b class="fc">&nbsp;              decodedChar = &#39;@&#39;;</b>
+<b class="fc">&nbsp;            } else if (next == &#39;W&#39;) {</b>
+&nbsp;              // %W map to `
+<b class="fc">&nbsp;              decodedChar = &#39;`&#39;;</b>
+<b class="fc">&nbsp;            } else if (next &gt;= &#39;X&#39; &amp;&amp; next &lt;= &#39;Z&#39;) {</b>
+&nbsp;              // %X to %Z all map to DEL (127)
+<b class="fc">&nbsp;              decodedChar = 127;</b>
+&nbsp;            } else {
+<b class="nc">&nbsp;              throw FormatException.getFormatInstance();</b>
+&nbsp;            }
+&nbsp;            break;
+&nbsp;          case &#39;c&#39;:
+&nbsp;            // /A to /O map to ! to , and /Z maps to :
+<b class="fc">&nbsp;            if (next &gt;= &#39;A&#39; &amp;&amp; next &lt;= &#39;O&#39;) {</b>
+<b class="fc">&nbsp;              decodedChar = (char) (next - 32);</b>
+<b class="fc">&nbsp;            } else if (next == &#39;Z&#39;) {</b>
+<b class="fc">&nbsp;              decodedChar = &#39;:&#39;;</b>
+&nbsp;            } else {
+<b class="nc">&nbsp;              throw FormatException.getFormatInstance();</b>
+&nbsp;            }
+&nbsp;            break;
+&nbsp;        }
+<b class="fc">&nbsp;        decoded.append(decodedChar);</b>
+&nbsp;        // bump up i again since we read two characters
+<b class="fc">&nbsp;        i++;</b>
+<b class="fc">&nbsp;      } else {</b>
+<b class="fc">&nbsp;        decoded.append(c);</b>
+&nbsp;      }
+&nbsp;    }
+<b class="fc">&nbsp;    return decoded.toString();</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  private static void checkChecksums(CharSequence result) throws ChecksumException {
+<b class="fc">&nbsp;    int length = result.length();</b>
+<b class="fc">&nbsp;    checkOneChecksum(result, length - 2, 20);</b>
+<b class="fc">&nbsp;    checkOneChecksum(result, length - 1, 15);</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  private static void checkOneChecksum(CharSequence result, int checkPosition, int weightMax)
+&nbsp;      throws ChecksumException {
+<b class="fc">&nbsp;    int weight = 1;</b>
+<b class="fc">&nbsp;    int total = 0;</b>
+<b class="fc">&nbsp;    for (int i = checkPosition - 1; i &gt;= 0; i--) {</b>
+<b class="fc">&nbsp;      total += weight * ALPHABET_STRING.indexOf(result.charAt(i));</b>
+<b class="fc">&nbsp;      if (++weight &gt; weightMax) {</b>
+<b class="fc">&nbsp;        weight = 1;</b>
+&nbsp;      }
+&nbsp;    }
+<b class="fc">&nbsp;    if (result.charAt(checkPosition) != ALPHABET[total % 47]) {</b>
+<b class="fc">&nbsp;      throw ChecksumException.getChecksumInstance();</b>
+&nbsp;    }
+&nbsp;  }
+&nbsp;
+&nbsp;}
+</code>
+</pre>
+</div>
+
+<script type="text/javascript">
+(function() {
+    var msie = false, msie9 = false;
+    /*@cc_on
+      msie = true;
+      @if (@_jscript_version >= 9)
+        msie9 = true;
+      @end
+    @*/
+
+    if (!msie || msie && msie9) {
+      hljs.highlightAll()
+      hljs.initLineNumbersOnLoad();
+    }
+})();
+</script>
+
+<div class="footer">
+    
+    <div style="float:right;">generated on 2023-11-12 23:26</div>
+</div>
+</body>
+</html>

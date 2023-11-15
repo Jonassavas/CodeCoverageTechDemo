@@ -1,0 +1,437 @@
+
+
+
+<!DOCTYPE html>
+<html id="htmlId">
+<head>
+  <meta http-equiv="Content-Type" content="text/html;charset=windows-1252"> 
+  <title>Coverage Report > FieldParser</title>
+  <style type="text/css">
+    @import "../../css/coverage.css";
+    @import "../../css/idea.min.css";
+  </style>
+  <script type="text/javascript" src="../../js/highlight.min.js"></script>
+  <script type="text/javascript" src="../../js/highlightjs-line-numbers.min.js"></script>
+</head>
+
+<body>
+<div class="content">
+<div class="breadCrumbs">
+Current scope:     <a href="../../index.html">all classes</a>
+    <span class="separator">|</span>
+    <a href="../index.html">com.google.zxing.oned.rss.expanded.decoders</a>
+</div>
+
+<h1>Coverage Summary for Class: FieldParser (com.google.zxing.oned.rss.expanded.decoders)</h1>
+
+<table class="coverageStats">
+
+<tr>
+  <th class="name">Class</th>
+<th class="coverageStat 
+">
+  Method, %
+</th>
+<th class="coverageStat 
+">
+  Line, %
+</th>
+</tr>
+<tr>
+  <td class="name">FieldParser</td>
+<td class="coverageStat">
+  <span class="percent">
+    100%
+  </span>
+  <span class="absValue">
+    (4/4)
+  </span>
+</td>
+<td class="coverageStat">
+  <span class="percent">
+    96.3%
+  </span>
+  <span class="absValue">
+    (182/189)
+  </span>
+</td>
+</tr>
+  <tr>
+    <td class="name">FieldParser$DataLength</td>
+<td class="coverageStat">
+  <span class="percent">
+    100%
+  </span>
+  <span class="absValue">
+    (3/3)
+  </span>
+</td>
+<td class="coverageStat">
+  <span class="percent">
+    100%
+  </span>
+  <span class="absValue">
+    (5/5)
+  </span>
+</td>
+  </tr>
+<tr>
+  <td class="name"><strong>Total</strong></td>
+<td class="coverageStat">
+  <span class="percent">
+    100%
+  </span>
+  <span class="absValue">
+    (7/7)
+  </span>
+</td>
+<td class="coverageStat">
+  <span class="percent">
+    96.4%
+  </span>
+  <span class="absValue">
+    (187/194)
+  </span>
+</td>
+</tr>
+</table>
+
+<br/>
+<br/>
+
+
+<pre>
+<code class="sourceCode" id="sourceCode">&nbsp;/*
+&nbsp; * Copyright (C) 2010 ZXing authors
+&nbsp; *
+&nbsp; * Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
+&nbsp; * you may not use this file except in compliance with the License.
+&nbsp; * You may obtain a copy of the License at
+&nbsp; *
+&nbsp; *      http://www.apache.org/licenses/LICENSE-2.0
+&nbsp; *
+&nbsp; * Unless required by applicable law or agreed to in writing, software
+&nbsp; * distributed under the License is distributed on an &quot;AS IS&quot; BASIS,
+&nbsp; * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+&nbsp; * See the License for the specific language governing permissions and
+&nbsp; * limitations under the License.
+&nbsp; */
+&nbsp;
+&nbsp;/*
+&nbsp; * These authors would like to acknowledge the Spanish Ministry of Industry,
+&nbsp; * Tourism and Trade, for the support in the project TSI020301-2008-2
+&nbsp; * &quot;PIRAmIDE: Personalizable Interactions with Resources on AmI-enabled
+&nbsp; * Mobile Dynamic Environments&quot;, led by Treelogic
+&nbsp; * ( http://www.treelogic.com/ ):
+&nbsp; *
+&nbsp; *   http://www.piramidepse.com/
+&nbsp; */
+&nbsp;
+&nbsp;package com.google.zxing.oned.rss.expanded.decoders;
+&nbsp;
+&nbsp;import com.google.zxing.NotFoundException;
+&nbsp;
+&nbsp;import java.util.HashMap;
+&nbsp;import java.util.Map;
+&nbsp;
+&nbsp;/**
+&nbsp; * @author Pablo Orduña, University of Deusto (pablo.orduna@deusto.es)
+&nbsp; * @author Eduardo Castillejo, University of Deusto (eduardo.castillejo@deusto.es)
+&nbsp; */
+&nbsp;final class FieldParser {
+&nbsp;
+<b class="fc">&nbsp;  private static final Map&lt;String,DataLength&gt; TWO_DIGIT_DATA_LENGTH = new HashMap&lt;&gt;();</b>
+&nbsp;  static {
+<b class="fc">&nbsp;    TWO_DIGIT_DATA_LENGTH.put(&quot;00&quot;, DataLength.fixed(18));</b>
+<b class="fc">&nbsp;    TWO_DIGIT_DATA_LENGTH.put(&quot;01&quot;, DataLength.fixed(14));</b>
+<b class="fc">&nbsp;    TWO_DIGIT_DATA_LENGTH.put(&quot;02&quot;, DataLength.fixed(14));</b>
+<b class="fc">&nbsp;    TWO_DIGIT_DATA_LENGTH.put(&quot;10&quot;, DataLength.variable(20));</b>
+<b class="fc">&nbsp;    TWO_DIGIT_DATA_LENGTH.put(&quot;11&quot;, DataLength.fixed(6));</b>
+<b class="fc">&nbsp;    TWO_DIGIT_DATA_LENGTH.put(&quot;12&quot;, DataLength.fixed(6));</b>
+<b class="fc">&nbsp;    TWO_DIGIT_DATA_LENGTH.put(&quot;13&quot;, DataLength.fixed(6));</b>
+<b class="fc">&nbsp;    TWO_DIGIT_DATA_LENGTH.put(&quot;15&quot;, DataLength.fixed(6));</b>
+<b class="fc">&nbsp;    TWO_DIGIT_DATA_LENGTH.put(&quot;16&quot;, DataLength.fixed(6));</b>
+<b class="fc">&nbsp;    TWO_DIGIT_DATA_LENGTH.put(&quot;17&quot;, DataLength.fixed(6));</b>
+<b class="fc">&nbsp;    TWO_DIGIT_DATA_LENGTH.put(&quot;20&quot;, DataLength.fixed(2));</b>
+<b class="fc">&nbsp;    TWO_DIGIT_DATA_LENGTH.put(&quot;21&quot;, DataLength.variable(20));</b>
+<b class="fc">&nbsp;    TWO_DIGIT_DATA_LENGTH.put(&quot;22&quot;, DataLength.variable(29)); // limited to 20 in latest versions of spec</b>
+<b class="fc">&nbsp;    TWO_DIGIT_DATA_LENGTH.put(&quot;30&quot;, DataLength.variable(8));</b>
+<b class="fc">&nbsp;    TWO_DIGIT_DATA_LENGTH.put(&quot;37&quot;, DataLength.variable(8));</b>
+&nbsp;    //internal company codes
+<b class="fc">&nbsp;    for (int i = 90; i &lt;= 99; i++) {</b>
+<b class="fc">&nbsp;      TWO_DIGIT_DATA_LENGTH.put(String.valueOf(i), DataLength.variable(30));</b>
+&nbsp;    }
+&nbsp;  }
+&nbsp;
+<b class="fc">&nbsp;  private static final Map&lt;String,DataLength&gt; THREE_DIGIT_DATA_LENGTH = new HashMap&lt;&gt;();</b>
+&nbsp;  static {
+<b class="fc">&nbsp;    THREE_DIGIT_DATA_LENGTH.put(&quot;235&quot;, DataLength.variable(28));</b>
+<b class="fc">&nbsp;    THREE_DIGIT_DATA_LENGTH.put(&quot;240&quot;, DataLength.variable(30));</b>
+<b class="fc">&nbsp;    THREE_DIGIT_DATA_LENGTH.put(&quot;241&quot;, DataLength.variable(30));</b>
+<b class="fc">&nbsp;    THREE_DIGIT_DATA_LENGTH.put(&quot;242&quot;, DataLength.variable(6));</b>
+<b class="fc">&nbsp;    THREE_DIGIT_DATA_LENGTH.put(&quot;243&quot;, DataLength.variable(20));</b>
+<b class="fc">&nbsp;    THREE_DIGIT_DATA_LENGTH.put(&quot;250&quot;, DataLength.variable(30));</b>
+<b class="fc">&nbsp;    THREE_DIGIT_DATA_LENGTH.put(&quot;251&quot;, DataLength.variable(30));</b>
+<b class="fc">&nbsp;    THREE_DIGIT_DATA_LENGTH.put(&quot;253&quot;, DataLength.variable(30));</b>
+<b class="fc">&nbsp;    THREE_DIGIT_DATA_LENGTH.put(&quot;254&quot;, DataLength.variable(20));</b>
+<b class="fc">&nbsp;    THREE_DIGIT_DATA_LENGTH.put(&quot;255&quot;, DataLength.variable(25));</b>
+<b class="fc">&nbsp;    THREE_DIGIT_DATA_LENGTH.put(&quot;400&quot;, DataLength.variable(30));</b>
+<b class="fc">&nbsp;    THREE_DIGIT_DATA_LENGTH.put(&quot;401&quot;, DataLength.variable(30));</b>
+<b class="fc">&nbsp;    THREE_DIGIT_DATA_LENGTH.put(&quot;402&quot;, DataLength.fixed(17));</b>
+<b class="fc">&nbsp;    THREE_DIGIT_DATA_LENGTH.put(&quot;403&quot;, DataLength.variable(30));</b>
+<b class="fc">&nbsp;    THREE_DIGIT_DATA_LENGTH.put(&quot;410&quot;, DataLength.fixed(13));</b>
+<b class="fc">&nbsp;    THREE_DIGIT_DATA_LENGTH.put(&quot;411&quot;, DataLength.fixed(13));</b>
+<b class="fc">&nbsp;    THREE_DIGIT_DATA_LENGTH.put(&quot;412&quot;, DataLength.fixed(13));</b>
+<b class="fc">&nbsp;    THREE_DIGIT_DATA_LENGTH.put(&quot;413&quot;, DataLength.fixed(13));</b>
+<b class="fc">&nbsp;    THREE_DIGIT_DATA_LENGTH.put(&quot;414&quot;, DataLength.fixed(13));</b>
+<b class="fc">&nbsp;    THREE_DIGIT_DATA_LENGTH.put(&quot;415&quot;, DataLength.fixed(13));</b>
+<b class="fc">&nbsp;    THREE_DIGIT_DATA_LENGTH.put(&quot;416&quot;, DataLength.fixed(13));</b>
+<b class="fc">&nbsp;    THREE_DIGIT_DATA_LENGTH.put(&quot;417&quot;, DataLength.fixed(13));</b>
+<b class="fc">&nbsp;    THREE_DIGIT_DATA_LENGTH.put(&quot;420&quot;, DataLength.variable(20));</b>
+<b class="fc">&nbsp;    THREE_DIGIT_DATA_LENGTH.put(&quot;421&quot;, DataLength.variable(15)); // limited to 12 in latest versions of spec</b>
+<b class="fc">&nbsp;    THREE_DIGIT_DATA_LENGTH.put(&quot;422&quot;, DataLength.fixed(3));</b>
+<b class="fc">&nbsp;    THREE_DIGIT_DATA_LENGTH.put(&quot;423&quot;, DataLength.variable(15));</b>
+<b class="fc">&nbsp;    THREE_DIGIT_DATA_LENGTH.put(&quot;424&quot;, DataLength.fixed(3));</b>
+<b class="fc">&nbsp;    THREE_DIGIT_DATA_LENGTH.put(&quot;425&quot;, DataLength.variable(15));</b>
+<b class="fc">&nbsp;    THREE_DIGIT_DATA_LENGTH.put(&quot;426&quot;, DataLength.fixed(3));</b>
+<b class="fc">&nbsp;    THREE_DIGIT_DATA_LENGTH.put(&quot;427&quot;, DataLength.variable(3));</b>
+<b class="fc">&nbsp;    THREE_DIGIT_DATA_LENGTH.put(&quot;710&quot;, DataLength.variable(20));</b>
+<b class="fc">&nbsp;    THREE_DIGIT_DATA_LENGTH.put(&quot;711&quot;, DataLength.variable(20));</b>
+<b class="fc">&nbsp;    THREE_DIGIT_DATA_LENGTH.put(&quot;712&quot;, DataLength.variable(20));</b>
+<b class="fc">&nbsp;    THREE_DIGIT_DATA_LENGTH.put(&quot;713&quot;, DataLength.variable(20));</b>
+<b class="fc">&nbsp;    THREE_DIGIT_DATA_LENGTH.put(&quot;714&quot;, DataLength.variable(20));</b>
+<b class="fc">&nbsp;    THREE_DIGIT_DATA_LENGTH.put(&quot;715&quot;, DataLength.variable(20));</b>
+&nbsp;  }
+&nbsp;
+<b class="fc">&nbsp;  private static final Map&lt;String,DataLength&gt; THREE_DIGIT_PLUS_DIGIT_DATA_LENGTH = new HashMap&lt;&gt;();</b>
+&nbsp;  static {
+<b class="fc">&nbsp;    for (int i = 310; i &lt;= 316; i++) {</b>
+<b class="fc">&nbsp;      THREE_DIGIT_PLUS_DIGIT_DATA_LENGTH.put(String.valueOf(i), DataLength.fixed(6));</b>
+&nbsp;    }
+<b class="fc">&nbsp;    for (int i = 320; i &lt;= 337; i++) {</b>
+<b class="fc">&nbsp;      THREE_DIGIT_PLUS_DIGIT_DATA_LENGTH.put(String.valueOf(i), DataLength.fixed(6));</b>
+&nbsp;    }
+<b class="fc">&nbsp;    for (int i = 340; i &lt;= 357; i++) {</b>
+<b class="fc">&nbsp;      THREE_DIGIT_PLUS_DIGIT_DATA_LENGTH.put(String.valueOf(i), DataLength.fixed(6));</b>
+&nbsp;    }
+<b class="fc">&nbsp;    for (int i = 360; i &lt;= 369; i++) {</b>
+<b class="fc">&nbsp;      THREE_DIGIT_PLUS_DIGIT_DATA_LENGTH.put(String.valueOf(i), DataLength.fixed(6));</b>
+&nbsp;    }
+<b class="fc">&nbsp;    THREE_DIGIT_PLUS_DIGIT_DATA_LENGTH.put(&quot;390&quot;, DataLength.variable(15));</b>
+<b class="fc">&nbsp;    THREE_DIGIT_PLUS_DIGIT_DATA_LENGTH.put(&quot;391&quot;, DataLength.variable(18));</b>
+<b class="fc">&nbsp;    THREE_DIGIT_PLUS_DIGIT_DATA_LENGTH.put(&quot;392&quot;, DataLength.variable(15));</b>
+<b class="fc">&nbsp;    THREE_DIGIT_PLUS_DIGIT_DATA_LENGTH.put(&quot;393&quot;, DataLength.variable(18));</b>
+<b class="fc">&nbsp;    THREE_DIGIT_PLUS_DIGIT_DATA_LENGTH.put(&quot;394&quot;, DataLength.fixed(4));</b>
+<b class="fc">&nbsp;    THREE_DIGIT_PLUS_DIGIT_DATA_LENGTH.put(&quot;395&quot;, DataLength.fixed(6));</b>
+<b class="fc">&nbsp;    THREE_DIGIT_PLUS_DIGIT_DATA_LENGTH.put(&quot;703&quot;, DataLength.variable(30));</b>
+<b class="fc">&nbsp;    THREE_DIGIT_PLUS_DIGIT_DATA_LENGTH.put(&quot;723&quot;, DataLength.variable(30));</b>
+&nbsp;  }
+&nbsp;
+<b class="fc">&nbsp;  private static final Map&lt;String,DataLength&gt; FOUR_DIGIT_DATA_LENGTH = new HashMap&lt;&gt;();</b>
+&nbsp;  static {
+<b class="fc">&nbsp;    FOUR_DIGIT_DATA_LENGTH.put(&quot;4300&quot;, DataLength.variable(35));</b>
+<b class="fc">&nbsp;    FOUR_DIGIT_DATA_LENGTH.put(&quot;4301&quot;, DataLength.variable(35));</b>
+<b class="fc">&nbsp;    FOUR_DIGIT_DATA_LENGTH.put(&quot;4302&quot;, DataLength.variable(70));</b>
+<b class="fc">&nbsp;    FOUR_DIGIT_DATA_LENGTH.put(&quot;4303&quot;, DataLength.variable(70));</b>
+<b class="fc">&nbsp;    FOUR_DIGIT_DATA_LENGTH.put(&quot;4304&quot;, DataLength.variable(70));</b>
+<b class="fc">&nbsp;    FOUR_DIGIT_DATA_LENGTH.put(&quot;4305&quot;, DataLength.variable(70));</b>
+<b class="fc">&nbsp;    FOUR_DIGIT_DATA_LENGTH.put(&quot;4306&quot;, DataLength.variable(70));</b>
+<b class="fc">&nbsp;    FOUR_DIGIT_DATA_LENGTH.put(&quot;4307&quot;, DataLength.fixed(2));</b>
+<b class="fc">&nbsp;    FOUR_DIGIT_DATA_LENGTH.put(&quot;4308&quot;, DataLength.variable(30));</b>
+<b class="fc">&nbsp;    FOUR_DIGIT_DATA_LENGTH.put(&quot;4309&quot;, DataLength.fixed(20));</b>
+<b class="fc">&nbsp;    FOUR_DIGIT_DATA_LENGTH.put(&quot;4310&quot;, DataLength.variable(35));</b>
+<b class="fc">&nbsp;    FOUR_DIGIT_DATA_LENGTH.put(&quot;4311&quot;, DataLength.variable(35));</b>
+<b class="fc">&nbsp;    FOUR_DIGIT_DATA_LENGTH.put(&quot;4312&quot;, DataLength.variable(70));</b>
+<b class="fc">&nbsp;    FOUR_DIGIT_DATA_LENGTH.put(&quot;4313&quot;, DataLength.variable(70));</b>
+<b class="fc">&nbsp;    FOUR_DIGIT_DATA_LENGTH.put(&quot;4314&quot;, DataLength.variable(70));</b>
+<b class="fc">&nbsp;    FOUR_DIGIT_DATA_LENGTH.put(&quot;4315&quot;, DataLength.variable(70));</b>
+<b class="fc">&nbsp;    FOUR_DIGIT_DATA_LENGTH.put(&quot;4316&quot;, DataLength.variable(70));</b>
+<b class="fc">&nbsp;    FOUR_DIGIT_DATA_LENGTH.put(&quot;4317&quot;, DataLength.fixed(2));</b>
+<b class="fc">&nbsp;    FOUR_DIGIT_DATA_LENGTH.put(&quot;4318&quot;, DataLength.variable(20));</b>
+<b class="fc">&nbsp;    FOUR_DIGIT_DATA_LENGTH.put(&quot;4319&quot;, DataLength.variable(30));</b>
+<b class="fc">&nbsp;    FOUR_DIGIT_DATA_LENGTH.put(&quot;4320&quot;, DataLength.variable(35));</b>
+<b class="fc">&nbsp;    FOUR_DIGIT_DATA_LENGTH.put(&quot;4321&quot;, DataLength.fixed(1));</b>
+<b class="fc">&nbsp;    FOUR_DIGIT_DATA_LENGTH.put(&quot;4322&quot;, DataLength.fixed(1));</b>
+<b class="fc">&nbsp;    FOUR_DIGIT_DATA_LENGTH.put(&quot;4323&quot;, DataLength.fixed(1));</b>
+<b class="fc">&nbsp;    FOUR_DIGIT_DATA_LENGTH.put(&quot;4324&quot;, DataLength.fixed(10));</b>
+<b class="fc">&nbsp;    FOUR_DIGIT_DATA_LENGTH.put(&quot;4325&quot;, DataLength.fixed(10));</b>
+<b class="fc">&nbsp;    FOUR_DIGIT_DATA_LENGTH.put(&quot;4326&quot;, DataLength.fixed(6));</b>
+<b class="fc">&nbsp;    FOUR_DIGIT_DATA_LENGTH.put(&quot;7001&quot;, DataLength.fixed(13));</b>
+<b class="fc">&nbsp;    FOUR_DIGIT_DATA_LENGTH.put(&quot;7002&quot;, DataLength.variable(30));</b>
+<b class="fc">&nbsp;    FOUR_DIGIT_DATA_LENGTH.put(&quot;7003&quot;, DataLength.fixed(10));</b>
+<b class="fc">&nbsp;    FOUR_DIGIT_DATA_LENGTH.put(&quot;7004&quot;, DataLength.variable(4));</b>
+<b class="fc">&nbsp;    FOUR_DIGIT_DATA_LENGTH.put(&quot;7005&quot;, DataLength.variable(12));</b>
+<b class="fc">&nbsp;    FOUR_DIGIT_DATA_LENGTH.put(&quot;7006&quot;, DataLength.fixed(6));</b>
+<b class="fc">&nbsp;    FOUR_DIGIT_DATA_LENGTH.put(&quot;7007&quot;, DataLength.variable(12));</b>
+<b class="fc">&nbsp;    FOUR_DIGIT_DATA_LENGTH.put(&quot;7008&quot;, DataLength.variable(3));</b>
+<b class="fc">&nbsp;    FOUR_DIGIT_DATA_LENGTH.put(&quot;7009&quot;, DataLength.variable(10));</b>
+<b class="fc">&nbsp;    FOUR_DIGIT_DATA_LENGTH.put(&quot;7010&quot;, DataLength.variable(2));</b>
+<b class="fc">&nbsp;    FOUR_DIGIT_DATA_LENGTH.put(&quot;7011&quot;, DataLength.variable(10));</b>
+<b class="fc">&nbsp;    FOUR_DIGIT_DATA_LENGTH.put(&quot;7020&quot;, DataLength.variable(20));</b>
+<b class="fc">&nbsp;    FOUR_DIGIT_DATA_LENGTH.put(&quot;7021&quot;, DataLength.variable(20));</b>
+<b class="fc">&nbsp;    FOUR_DIGIT_DATA_LENGTH.put(&quot;7022&quot;, DataLength.variable(20));</b>
+<b class="fc">&nbsp;    FOUR_DIGIT_DATA_LENGTH.put(&quot;7023&quot;, DataLength.variable(30));</b>
+<b class="fc">&nbsp;    FOUR_DIGIT_DATA_LENGTH.put(&quot;7040&quot;, DataLength.fixed(4));</b>
+<b class="fc">&nbsp;    FOUR_DIGIT_DATA_LENGTH.put(&quot;7240&quot;, DataLength.variable(20));</b>
+<b class="fc">&nbsp;    FOUR_DIGIT_DATA_LENGTH.put(&quot;8001&quot;, DataLength.fixed(14));</b>
+<b class="fc">&nbsp;    FOUR_DIGIT_DATA_LENGTH.put(&quot;8002&quot;, DataLength.variable(20));</b>
+<b class="fc">&nbsp;    FOUR_DIGIT_DATA_LENGTH.put(&quot;8003&quot;, DataLength.variable(30));</b>
+<b class="fc">&nbsp;    FOUR_DIGIT_DATA_LENGTH.put(&quot;8004&quot;, DataLength.variable(30));</b>
+<b class="fc">&nbsp;    FOUR_DIGIT_DATA_LENGTH.put(&quot;8005&quot;, DataLength.fixed(6));</b>
+<b class="fc">&nbsp;    FOUR_DIGIT_DATA_LENGTH.put(&quot;8006&quot;, DataLength.fixed(18));</b>
+<b class="fc">&nbsp;    FOUR_DIGIT_DATA_LENGTH.put(&quot;8007&quot;, DataLength.variable(34));</b>
+<b class="fc">&nbsp;    FOUR_DIGIT_DATA_LENGTH.put(&quot;8008&quot;, DataLength.variable(12));</b>
+<b class="fc">&nbsp;    FOUR_DIGIT_DATA_LENGTH.put(&quot;8009&quot;, DataLength.variable(50));</b>
+<b class="fc">&nbsp;    FOUR_DIGIT_DATA_LENGTH.put(&quot;8010&quot;, DataLength.variable(30));</b>
+<b class="fc">&nbsp;    FOUR_DIGIT_DATA_LENGTH.put(&quot;8011&quot;, DataLength.variable(12));</b>
+<b class="fc">&nbsp;    FOUR_DIGIT_DATA_LENGTH.put(&quot;8012&quot;, DataLength.variable(20));</b>
+<b class="fc">&nbsp;    FOUR_DIGIT_DATA_LENGTH.put(&quot;8013&quot;, DataLength.variable(25));</b>
+<b class="fc">&nbsp;    FOUR_DIGIT_DATA_LENGTH.put(&quot;8017&quot;, DataLength.fixed(18));</b>
+<b class="fc">&nbsp;    FOUR_DIGIT_DATA_LENGTH.put(&quot;8018&quot;, DataLength.fixed(18));</b>
+<b class="fc">&nbsp;    FOUR_DIGIT_DATA_LENGTH.put(&quot;8019&quot;, DataLength.variable(10));</b>
+<b class="fc">&nbsp;    FOUR_DIGIT_DATA_LENGTH.put(&quot;8020&quot;, DataLength.variable(25));</b>
+<b class="fc">&nbsp;    FOUR_DIGIT_DATA_LENGTH.put(&quot;8026&quot;, DataLength.fixed(18));</b>
+<b class="fc">&nbsp;    FOUR_DIGIT_DATA_LENGTH.put(&quot;8100&quot;, DataLength.fixed(6)); // removed from latest versions of spec</b>
+<b class="fc">&nbsp;    FOUR_DIGIT_DATA_LENGTH.put(&quot;8101&quot;, DataLength.fixed(10)); // removed from latest versions of spec</b>
+<b class="fc">&nbsp;    FOUR_DIGIT_DATA_LENGTH.put(&quot;8102&quot;, DataLength.fixed(2)); // removed from latest versions of spec</b>
+<b class="fc">&nbsp;    FOUR_DIGIT_DATA_LENGTH.put(&quot;8110&quot;, DataLength.variable(70));</b>
+<b class="fc">&nbsp;    FOUR_DIGIT_DATA_LENGTH.put(&quot;8111&quot;, DataLength.fixed(4));</b>
+<b class="fc">&nbsp;    FOUR_DIGIT_DATA_LENGTH.put(&quot;8112&quot;, DataLength.variable(70));</b>
+<b class="fc">&nbsp;    FOUR_DIGIT_DATA_LENGTH.put(&quot;8200&quot;, DataLength.variable(70));</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  private FieldParser() {
+&nbsp;  }
+&nbsp;
+&nbsp;  static String parseFieldsInGeneralPurpose(String rawInformation) throws NotFoundException {
+<b class="fc">&nbsp;    if (rawInformation.isEmpty()) {</b>
+<b class="fc">&nbsp;      return null;</b>
+&nbsp;    }
+&nbsp;
+&nbsp;    // Processing 2-digit AIs
+&nbsp;
+<b class="fc">&nbsp;    if (rawInformation.length() &lt; 2) {</b>
+<b class="nc">&nbsp;      throw NotFoundException.getNotFoundInstance();</b>
+&nbsp;    }
+&nbsp;
+<b class="fc">&nbsp;    DataLength twoDigitDataLength = TWO_DIGIT_DATA_LENGTH.get(rawInformation.substring(0, 2));</b>
+<b class="fc">&nbsp;    if (twoDigitDataLength != null) {</b>
+<b class="fc">&nbsp;      if (twoDigitDataLength.variable) {</b>
+<b class="fc">&nbsp;        return processVariableAI(2, twoDigitDataLength.length, rawInformation);</b>
+&nbsp;      }
+<b class="fc">&nbsp;      return processFixedAI(2, twoDigitDataLength.length, rawInformation);</b>
+&nbsp;    }
+&nbsp;
+<b class="fc">&nbsp;    if (rawInformation.length() &lt; 3) {</b>
+<b class="nc">&nbsp;      throw NotFoundException.getNotFoundInstance();</b>
+&nbsp;    }
+&nbsp;
+<b class="fc">&nbsp;    String firstThreeDigits = rawInformation.substring(0, 3);</b>
+<b class="fc">&nbsp;    DataLength threeDigitDataLength = THREE_DIGIT_DATA_LENGTH.get(firstThreeDigits);</b>
+<b class="fc">&nbsp;    if (threeDigitDataLength != null) {</b>
+<b class="fc">&nbsp;      if (threeDigitDataLength.variable) {</b>
+<b class="fc">&nbsp;        return processVariableAI(3, threeDigitDataLength.length, rawInformation);</b>
+&nbsp;      }
+<b class="fc">&nbsp;      return processFixedAI(3, threeDigitDataLength.length, rawInformation);</b>
+&nbsp;    }
+&nbsp;
+<b class="fc">&nbsp;    if (rawInformation.length() &lt; 4) {</b>
+<b class="nc">&nbsp;      throw NotFoundException.getNotFoundInstance();</b>
+&nbsp;    }
+&nbsp;
+<b class="fc">&nbsp;    DataLength threeDigitPlusDigitDataLength = THREE_DIGIT_PLUS_DIGIT_DATA_LENGTH.get(firstThreeDigits);</b>
+<b class="fc">&nbsp;    if (threeDigitPlusDigitDataLength != null) {</b>
+<b class="fc">&nbsp;      if (threeDigitPlusDigitDataLength.variable) {</b>
+<b class="nc">&nbsp;        return processVariableAI(4, threeDigitPlusDigitDataLength.length, rawInformation);</b>
+&nbsp;      }
+<b class="fc">&nbsp;      return processFixedAI(4, threeDigitPlusDigitDataLength.length, rawInformation);</b>
+&nbsp;    }
+&nbsp;
+<b class="fc">&nbsp;    DataLength firstFourDigitLength = FOUR_DIGIT_DATA_LENGTH.get(rawInformation.substring(0, 4));</b>
+<b class="fc">&nbsp;    if (firstFourDigitLength != null) {</b>
+<b class="fc">&nbsp;      if (firstFourDigitLength.variable) {</b>
+<b class="fc">&nbsp;        return processVariableAI(4, firstFourDigitLength.length, rawInformation);</b>
+&nbsp;      }
+<b class="nc">&nbsp;      return processFixedAI(4, firstFourDigitLength.length, rawInformation);</b>
+&nbsp;    }
+&nbsp;
+<b class="fc">&nbsp;    throw NotFoundException.getNotFoundInstance();</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  private static String processFixedAI(int aiSize, int fieldSize, String rawInformation) throws NotFoundException {
+<b class="fc">&nbsp;    if (rawInformation.length() &lt; aiSize) {</b>
+<b class="nc">&nbsp;      throw NotFoundException.getNotFoundInstance();</b>
+&nbsp;    }
+&nbsp;
+<b class="fc">&nbsp;    String ai = rawInformation.substring(0, aiSize);</b>
+&nbsp;
+<b class="fc">&nbsp;    if (rawInformation.length() &lt; aiSize + fieldSize) {</b>
+<b class="nc">&nbsp;      throw NotFoundException.getNotFoundInstance();</b>
+&nbsp;    }
+&nbsp;
+<b class="fc">&nbsp;    String field = rawInformation.substring(aiSize, aiSize + fieldSize);</b>
+<b class="fc">&nbsp;    String remaining = rawInformation.substring(aiSize + fieldSize);</b>
+<b class="fc">&nbsp;    String result = &#39;(&#39; + ai + &#39;)&#39; + field;</b>
+<b class="fc">&nbsp;    String parsedAI = parseFieldsInGeneralPurpose(remaining);</b>
+<b class="fc">&nbsp;    return parsedAI == null ? result : result + parsedAI;</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  private static String processVariableAI(int aiSize, int variableFieldSize, String rawInformation)
+&nbsp;      throws NotFoundException {
+<b class="fc">&nbsp;    String ai = rawInformation.substring(0, aiSize);</b>
+<b class="fc">&nbsp;    int maxSize = Math.min(rawInformation.length(), aiSize + variableFieldSize);</b>
+<b class="fc">&nbsp;    String field = rawInformation.substring(aiSize, maxSize);</b>
+<b class="fc">&nbsp;    String remaining = rawInformation.substring(maxSize);</b>
+<b class="fc">&nbsp;    String result = &#39;(&#39; + ai + &#39;)&#39; + field;</b>
+<b class="fc">&nbsp;    String parsedAI = parseFieldsInGeneralPurpose(remaining);</b>
+<b class="fc">&nbsp;    return parsedAI == null ? result : result + parsedAI;</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  private static final class DataLength {
+&nbsp;
+&nbsp;    final boolean variable;
+&nbsp;    final int length;
+&nbsp;
+<b class="fc">&nbsp;    private DataLength(boolean variable, int length) {</b>
+<b class="fc">&nbsp;      this.variable = variable;</b>
+<b class="fc">&nbsp;      this.length = length;</b>
+&nbsp;    }
+&nbsp;
+&nbsp;    static DataLength fixed(int length) {
+<b class="fc">&nbsp;      return new DataLength(false, length);</b>
+&nbsp;    }
+&nbsp;
+&nbsp;    static DataLength variable(int length) {
+<b class="fc">&nbsp;      return new DataLength(true, length);</b>
+&nbsp;    }
+&nbsp;
+&nbsp;  }
+&nbsp;
+&nbsp;}
+</code>
+</pre>
+</div>
+
+<script type="text/javascript">
+(function() {
+    var msie = false, msie9 = false;
+    /*@cc_on
+      msie = true;
+      @if (@_jscript_version >= 9)
+        msie9 = true;
+      @end
+    @*/
+
+    if (!msie || msie && msie9) {
+      hljs.highlightAll()
+      hljs.initLineNumbersOnLoad();
+    }
+})();
+</script>
+
+<div class="footer">
+    
+    <div style="float:right;">generated on 2023-11-12 23:26</div>
+</div>
+</body>
+</html>

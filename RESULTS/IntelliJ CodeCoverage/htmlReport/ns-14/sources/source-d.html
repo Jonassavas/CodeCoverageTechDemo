@@ -1,0 +1,275 @@
+
+
+
+<!DOCTYPE html>
+<html id="htmlId">
+<head>
+  <meta http-equiv="Content-Type" content="text/html;charset=windows-1252"> 
+  <title>Coverage Report > EANManufacturerOrgSupport</title>
+  <style type="text/css">
+    @import "../../css/coverage.css";
+    @import "../../css/idea.min.css";
+  </style>
+  <script type="text/javascript" src="../../js/highlight.min.js"></script>
+  <script type="text/javascript" src="../../js/highlightjs-line-numbers.min.js"></script>
+</head>
+
+<body>
+<div class="content">
+<div class="breadCrumbs">
+Current scope:     <a href="../../index.html">all classes</a>
+    <span class="separator">|</span>
+    <a href="../index.html">com.google.zxing.oned</a>
+</div>
+
+<h1>Coverage Summary for Class: EANManufacturerOrgSupport (com.google.zxing.oned)</h1>
+
+<table class="coverageStats">
+<tr>
+  <th class="name">Class</th>
+<th class="coverageStat 
+">
+  Class, %
+</th>
+<th class="coverageStat 
+">
+  Method, %
+</th>
+<th class="coverageStat 
+">
+  Line, %
+</th>
+</tr>
+<tr>
+  <td class="name">EANManufacturerOrgSupport</td>
+<td class="coverageStat">
+  <span class="percent">
+    100%
+  </span>
+  <span class="absValue">
+    (1/1)
+  </span>
+</td>
+<td class="coverageStat">
+  <span class="percent">
+    100%
+  </span>
+  <span class="absValue">
+    (4/4)
+  </span>
+</td>
+<td class="coverageStat">
+  <span class="percent">
+    100%
+  </span>
+  <span class="absValue">
+    (124/124)
+  </span>
+</td>
+</tr>
+
+</table>
+
+<br/>
+<br/>
+
+
+<pre>
+<code class="sourceCode" id="sourceCode">&nbsp;/*
+&nbsp; * Copyright (C) 2010 ZXing authors
+&nbsp; *
+&nbsp; * Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
+&nbsp; * you may not use this file except in compliance with the License.
+&nbsp; * You may obtain a copy of the License at
+&nbsp; *
+&nbsp; *      http://www.apache.org/licenses/LICENSE-2.0
+&nbsp; *
+&nbsp; * Unless required by applicable law or agreed to in writing, software
+&nbsp; * distributed under the License is distributed on an &quot;AS IS&quot; BASIS,
+&nbsp; * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+&nbsp; * See the License for the specific language governing permissions and
+&nbsp; * limitations under the License.
+&nbsp; */
+&nbsp;
+&nbsp;package com.google.zxing.oned;
+&nbsp;
+&nbsp;import java.util.ArrayList;
+&nbsp;import java.util.List;
+&nbsp;
+&nbsp;/**
+&nbsp; * Records EAN prefix to GS1 Member Organization, where the member organization
+&nbsp; * correlates strongly with a country. This is an imperfect means of identifying
+&nbsp; * a country of origin by EAN-13 barcode value. See
+&nbsp; * &lt;a href=&quot;http://en.wikipedia.org/wiki/List_of_GS1_country_codes&quot;&gt;
+&nbsp; * http://en.wikipedia.org/wiki/List_of_GS1_country_codes&lt;/a&gt;.
+&nbsp; *
+&nbsp; * @author Sean Owen
+&nbsp; */
+<b class="fc">&nbsp;final class EANManufacturerOrgSupport {</b>
+&nbsp;
+<b class="fc">&nbsp;  private final List&lt;int[]&gt; ranges = new ArrayList&lt;&gt;();</b>
+<b class="fc">&nbsp;  private final List&lt;String&gt; countryIdentifiers = new ArrayList&lt;&gt;();</b>
+&nbsp;
+&nbsp;  String lookupCountryIdentifier(String productCode) {
+<b class="fc">&nbsp;    initIfNeeded();</b>
+<b class="fc">&nbsp;    int prefix = Integer.parseInt(productCode.substring(0, 3));</b>
+<b class="fc">&nbsp;    int max = ranges.size();</b>
+<b class="fc">&nbsp;    for (int i = 0; i &lt; max; i++) {</b>
+<b class="fc">&nbsp;      int[] range = ranges.get(i);</b>
+<b class="fc">&nbsp;      int start = range[0];</b>
+<b class="fc">&nbsp;      if (prefix &lt; start) {</b>
+<b class="fc">&nbsp;        return null;</b>
+&nbsp;      }
+<b class="fc">&nbsp;      int end = range.length == 1 ? start : range[1];</b>
+<b class="fc">&nbsp;      if (prefix &lt;= end) {</b>
+<b class="fc">&nbsp;        return countryIdentifiers.get(i);</b>
+&nbsp;      }
+&nbsp;    }
+<b class="fc">&nbsp;    return null;</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  private void add(int[] range, String id) {
+<b class="fc">&nbsp;    ranges.add(range);</b>
+<b class="fc">&nbsp;    countryIdentifiers.add(id);</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  private synchronized void initIfNeeded() {
+<b class="fc">&nbsp;    if (!ranges.isEmpty()) {</b>
+&nbsp;      return;
+&nbsp;    }
+<b class="fc">&nbsp;    add(new int[] {0,19},    &quot;US/CA&quot;);</b>
+<b class="fc">&nbsp;    add(new int[] {30,39},   &quot;US&quot;);</b>
+<b class="fc">&nbsp;    add(new int[] {60,139},  &quot;US/CA&quot;);</b>
+<b class="fc">&nbsp;    add(new int[] {300,379}, &quot;FR&quot;);</b>
+<b class="fc">&nbsp;    add(new int[] {380},     &quot;BG&quot;);</b>
+<b class="fc">&nbsp;    add(new int[] {383},     &quot;SI&quot;);</b>
+<b class="fc">&nbsp;    add(new int[] {385},     &quot;HR&quot;);</b>
+<b class="fc">&nbsp;    add(new int[] {387},     &quot;BA&quot;);</b>
+<b class="fc">&nbsp;    add(new int[] {400,440}, &quot;DE&quot;);</b>
+<b class="fc">&nbsp;    add(new int[] {450,459}, &quot;JP&quot;);</b>
+<b class="fc">&nbsp;    add(new int[] {460,469}, &quot;RU&quot;);</b>
+<b class="fc">&nbsp;    add(new int[] {471},     &quot;TW&quot;);</b>
+<b class="fc">&nbsp;    add(new int[] {474},     &quot;EE&quot;);</b>
+<b class="fc">&nbsp;    add(new int[] {475},     &quot;LV&quot;);</b>
+<b class="fc">&nbsp;    add(new int[] {476},     &quot;AZ&quot;);</b>
+<b class="fc">&nbsp;    add(new int[] {477},     &quot;LT&quot;);</b>
+<b class="fc">&nbsp;    add(new int[] {478},     &quot;UZ&quot;);</b>
+<b class="fc">&nbsp;    add(new int[] {479},     &quot;LK&quot;);</b>
+<b class="fc">&nbsp;    add(new int[] {480},     &quot;PH&quot;);</b>
+<b class="fc">&nbsp;    add(new int[] {481},     &quot;BY&quot;);</b>
+<b class="fc">&nbsp;    add(new int[] {482},     &quot;UA&quot;);</b>
+<b class="fc">&nbsp;    add(new int[] {484},     &quot;MD&quot;);</b>
+<b class="fc">&nbsp;    add(new int[] {485},     &quot;AM&quot;);</b>
+<b class="fc">&nbsp;    add(new int[] {486},     &quot;GE&quot;);</b>
+<b class="fc">&nbsp;    add(new int[] {487},     &quot;KZ&quot;);</b>
+<b class="fc">&nbsp;    add(new int[] {489},     &quot;HK&quot;);</b>
+<b class="fc">&nbsp;    add(new int[] {490,499}, &quot;JP&quot;);</b>
+<b class="fc">&nbsp;    add(new int[] {500,509}, &quot;GB&quot;);</b>
+<b class="fc">&nbsp;    add(new int[] {520},     &quot;GR&quot;);</b>
+<b class="fc">&nbsp;    add(new int[] {528},     &quot;LB&quot;);</b>
+<b class="fc">&nbsp;    add(new int[] {529},     &quot;CY&quot;);</b>
+<b class="fc">&nbsp;    add(new int[] {531},     &quot;MK&quot;);</b>
+<b class="fc">&nbsp;    add(new int[] {535},     &quot;MT&quot;);</b>
+<b class="fc">&nbsp;    add(new int[] {539},     &quot;IE&quot;);</b>
+<b class="fc">&nbsp;    add(new int[] {540,549}, &quot;BE/LU&quot;);</b>
+<b class="fc">&nbsp;    add(new int[] {560},     &quot;PT&quot;);</b>
+<b class="fc">&nbsp;    add(new int[] {569},     &quot;IS&quot;);</b>
+<b class="fc">&nbsp;    add(new int[] {570,579}, &quot;DK&quot;);</b>
+<b class="fc">&nbsp;    add(new int[] {590},     &quot;PL&quot;);</b>
+<b class="fc">&nbsp;    add(new int[] {594},     &quot;RO&quot;);</b>
+<b class="fc">&nbsp;    add(new int[] {599},     &quot;HU&quot;);</b>
+<b class="fc">&nbsp;    add(new int[] {600,601}, &quot;ZA&quot;);</b>
+<b class="fc">&nbsp;    add(new int[] {603},     &quot;GH&quot;);</b>
+<b class="fc">&nbsp;    add(new int[] {608},     &quot;BH&quot;);</b>
+<b class="fc">&nbsp;    add(new int[] {609},     &quot;MU&quot;);</b>
+<b class="fc">&nbsp;    add(new int[] {611},     &quot;MA&quot;);</b>
+<b class="fc">&nbsp;    add(new int[] {613},     &quot;DZ&quot;);</b>
+<b class="fc">&nbsp;    add(new int[] {616},     &quot;KE&quot;);</b>
+<b class="fc">&nbsp;    add(new int[] {618},     &quot;CI&quot;);</b>
+<b class="fc">&nbsp;    add(new int[] {619},     &quot;TN&quot;);</b>
+<b class="fc">&nbsp;    add(new int[] {621},     &quot;SY&quot;);</b>
+<b class="fc">&nbsp;    add(new int[] {622},     &quot;EG&quot;);</b>
+<b class="fc">&nbsp;    add(new int[] {624},     &quot;LY&quot;);</b>
+<b class="fc">&nbsp;    add(new int[] {625},     &quot;JO&quot;);</b>
+<b class="fc">&nbsp;    add(new int[] {626},     &quot;IR&quot;);</b>
+<b class="fc">&nbsp;    add(new int[] {627},     &quot;KW&quot;);</b>
+<b class="fc">&nbsp;    add(new int[] {628},     &quot;SA&quot;);</b>
+<b class="fc">&nbsp;    add(new int[] {629},     &quot;AE&quot;);</b>
+<b class="fc">&nbsp;    add(new int[] {640,649}, &quot;FI&quot;);</b>
+<b class="fc">&nbsp;    add(new int[] {690,695}, &quot;CN&quot;);</b>
+<b class="fc">&nbsp;    add(new int[] {700,709}, &quot;NO&quot;);</b>
+<b class="fc">&nbsp;    add(new int[] {729},     &quot;IL&quot;);</b>
+<b class="fc">&nbsp;    add(new int[] {730,739}, &quot;SE&quot;);</b>
+<b class="fc">&nbsp;    add(new int[] {740},     &quot;GT&quot;);</b>
+<b class="fc">&nbsp;    add(new int[] {741},     &quot;SV&quot;);</b>
+<b class="fc">&nbsp;    add(new int[] {742},     &quot;HN&quot;);</b>
+<b class="fc">&nbsp;    add(new int[] {743},     &quot;NI&quot;);</b>
+<b class="fc">&nbsp;    add(new int[] {744},     &quot;CR&quot;);</b>
+<b class="fc">&nbsp;    add(new int[] {745},     &quot;PA&quot;);</b>
+<b class="fc">&nbsp;    add(new int[] {746},     &quot;DO&quot;);</b>
+<b class="fc">&nbsp;    add(new int[] {750},     &quot;MX&quot;);</b>
+<b class="fc">&nbsp;    add(new int[] {754,755}, &quot;CA&quot;);</b>
+<b class="fc">&nbsp;    add(new int[] {759},     &quot;VE&quot;);</b>
+<b class="fc">&nbsp;    add(new int[] {760,769}, &quot;CH&quot;);</b>
+<b class="fc">&nbsp;    add(new int[] {770},     &quot;CO&quot;);</b>
+<b class="fc">&nbsp;    add(new int[] {773},     &quot;UY&quot;);</b>
+<b class="fc">&nbsp;    add(new int[] {775},     &quot;PE&quot;);</b>
+<b class="fc">&nbsp;    add(new int[] {777},     &quot;BO&quot;);</b>
+<b class="fc">&nbsp;    add(new int[] {779},     &quot;AR&quot;);</b>
+<b class="fc">&nbsp;    add(new int[] {780},     &quot;CL&quot;);</b>
+<b class="fc">&nbsp;    add(new int[] {784},     &quot;PY&quot;);</b>
+<b class="fc">&nbsp;    add(new int[] {785},     &quot;PE&quot;);</b>
+<b class="fc">&nbsp;    add(new int[] {786},     &quot;EC&quot;);</b>
+<b class="fc">&nbsp;    add(new int[] {789,790}, &quot;BR&quot;);</b>
+<b class="fc">&nbsp;    add(new int[] {800,839}, &quot;IT&quot;);</b>
+<b class="fc">&nbsp;    add(new int[] {840,849}, &quot;ES&quot;);</b>
+<b class="fc">&nbsp;    add(new int[] {850},     &quot;CU&quot;);</b>
+<b class="fc">&nbsp;    add(new int[] {858},     &quot;SK&quot;);</b>
+<b class="fc">&nbsp;    add(new int[] {859},     &quot;CZ&quot;);</b>
+<b class="fc">&nbsp;    add(new int[] {860},     &quot;YU&quot;);</b>
+<b class="fc">&nbsp;    add(new int[] {865},     &quot;MN&quot;);</b>
+<b class="fc">&nbsp;    add(new int[] {867},     &quot;KP&quot;);</b>
+<b class="fc">&nbsp;    add(new int[] {868,869}, &quot;TR&quot;);</b>
+<b class="fc">&nbsp;    add(new int[] {870,879}, &quot;NL&quot;);</b>
+<b class="fc">&nbsp;    add(new int[] {880},     &quot;KR&quot;);</b>
+<b class="fc">&nbsp;    add(new int[] {885},     &quot;TH&quot;);</b>
+<b class="fc">&nbsp;    add(new int[] {888},     &quot;SG&quot;);</b>
+<b class="fc">&nbsp;    add(new int[] {890},     &quot;IN&quot;);</b>
+<b class="fc">&nbsp;    add(new int[] {893},     &quot;VN&quot;);</b>
+<b class="fc">&nbsp;    add(new int[] {896},     &quot;PK&quot;);</b>
+<b class="fc">&nbsp;    add(new int[] {899},     &quot;ID&quot;);</b>
+<b class="fc">&nbsp;    add(new int[] {900,919}, &quot;AT&quot;);</b>
+<b class="fc">&nbsp;    add(new int[] {930,939}, &quot;AU&quot;);</b>
+<b class="fc">&nbsp;    add(new int[] {940,949}, &quot;AZ&quot;);</b>
+<b class="fc">&nbsp;    add(new int[] {955},     &quot;MY&quot;);</b>
+<b class="fc">&nbsp;    add(new int[] {958},     &quot;MO&quot;);</b>
+&nbsp;  }
+&nbsp;
+&nbsp;}
+</code>
+</pre>
+</div>
+
+<script type="text/javascript">
+(function() {
+    var msie = false, msie9 = false;
+    /*@cc_on
+      msie = true;
+      @if (@_jscript_version >= 9)
+        msie9 = true;
+      @end
+    @*/
+
+    if (!msie || msie && msie9) {
+      hljs.highlightAll()
+      hljs.initLineNumbersOnLoad();
+    }
+})();
+</script>
+
+<div class="footer">
+    
+    <div style="float:right;">generated on 2023-11-12 23:26</div>
+</div>
+</body>
+</html>

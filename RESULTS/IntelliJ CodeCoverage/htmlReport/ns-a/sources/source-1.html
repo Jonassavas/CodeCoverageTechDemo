@@ -1,0 +1,271 @@
+
+
+
+<!DOCTYPE html>
+<html id="htmlId">
+<head>
+  <meta http-equiv="Content-Type" content="text/html;charset=windows-1252"> 
+  <title>Coverage Report > GenericGF</title>
+  <style type="text/css">
+    @import "../../css/coverage.css";
+    @import "../../css/idea.min.css";
+  </style>
+  <script type="text/javascript" src="../../js/highlight.min.js"></script>
+  <script type="text/javascript" src="../../js/highlightjs-line-numbers.min.js"></script>
+</head>
+
+<body>
+<div class="content">
+<div class="breadCrumbs">
+Current scope:     <a href="../../index.html">all classes</a>
+    <span class="separator">|</span>
+    <a href="../index.html">com.google.zxing.common.reedsolomon</a>
+</div>
+
+<h1>Coverage Summary for Class: GenericGF (com.google.zxing.common.reedsolomon)</h1>
+
+<table class="coverageStats">
+<tr>
+  <th class="name">Class</th>
+<th class="coverageStat 
+">
+  Class, %
+</th>
+<th class="coverageStat 
+">
+  Method, %
+</th>
+<th class="coverageStat 
+">
+  Line, %
+</th>
+</tr>
+<tr>
+  <td class="name">GenericGF</td>
+<td class="coverageStat">
+  <span class="percent">
+    100%
+  </span>
+  <span class="absValue">
+    (1/1)
+  </span>
+</td>
+<td class="coverageStat">
+  <span class="percent">
+    100%
+  </span>
+  <span class="absValue">
+    (13/13)
+  </span>
+</td>
+<td class="coverageStat">
+  <span class="percent">
+    93.8%
+  </span>
+  <span class="absValue">
+    (45/48)
+  </span>
+</td>
+</tr>
+
+</table>
+
+<br/>
+<br/>
+
+
+<pre>
+<code class="sourceCode" id="sourceCode">&nbsp;/*
+&nbsp; * Copyright 2007 ZXing authors
+&nbsp; *
+&nbsp; * Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
+&nbsp; * you may not use this file except in compliance with the License.
+&nbsp; * You may obtain a copy of the License at
+&nbsp; *
+&nbsp; *      http://www.apache.org/licenses/LICENSE-2.0
+&nbsp; *
+&nbsp; * Unless required by applicable law or agreed to in writing, software
+&nbsp; * distributed under the License is distributed on an &quot;AS IS&quot; BASIS,
+&nbsp; * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+&nbsp; * See the License for the specific language governing permissions and
+&nbsp; * limitations under the License.
+&nbsp; */
+&nbsp;
+&nbsp;package com.google.zxing.common.reedsolomon;
+&nbsp;
+&nbsp;/**
+&nbsp; * &lt;p&gt;This class contains utility methods for performing mathematical operations over
+&nbsp; * the Galois Fields. Operations use a given primitive polynomial in calculations.&lt;/p&gt;
+&nbsp; *
+&nbsp; * &lt;p&gt;Throughout this package, elements of the GF are represented as an {@code int}
+&nbsp; * for convenience and speed (but at the cost of memory).&lt;/p&gt;
+&nbsp; *
+&nbsp; * &lt;p&gt;The size of the GF is assumed to be a power of two.&lt;/p&gt;
+&nbsp; *
+&nbsp; * @author Sean Owen
+&nbsp; * @author David Olivier
+&nbsp; */
+&nbsp;public final class GenericGF {
+&nbsp;
+<b class="fc">&nbsp;  public static final GenericGF AZTEC_DATA_12 = new GenericGF(0b1000001101001, 4096, 1); // x^12 + x^6 + x^5 + x^3 + 1</b>
+<b class="fc">&nbsp;  public static final GenericGF AZTEC_DATA_10 = new GenericGF(0b10000001001, 1024, 1); // x^10 + x^3 + 1</b>
+<b class="fc">&nbsp;  public static final GenericGF AZTEC_DATA_6 = new GenericGF(0b1000011, 64, 1); // x^6 + x + 1</b>
+<b class="fc">&nbsp;  public static final GenericGF AZTEC_PARAM = new GenericGF(0b10011, 16, 1); // x^4 + x + 1</b>
+<b class="fc">&nbsp;  public static final GenericGF QR_CODE_FIELD_256 = new GenericGF(0b100011101, 256, 0); // x^8 + x^4 + x^3 + x^2 + 1</b>
+<b class="fc">&nbsp;  public static final GenericGF DATA_MATRIX_FIELD_256 = new GenericGF(0b100101101, 256, 1); // x^8 + x^5 + x^3 + x^2 + 1</b>
+<b class="fc">&nbsp;  public static final GenericGF AZTEC_DATA_8 = DATA_MATRIX_FIELD_256;</b>
+<b class="fc">&nbsp;  public static final GenericGF MAXICODE_FIELD_64 = AZTEC_DATA_6;</b>
+&nbsp;
+&nbsp;  private final int[] expTable;
+&nbsp;  private final int[] logTable;
+&nbsp;  private final GenericGFPoly zero;
+&nbsp;  private final GenericGFPoly one;
+&nbsp;  private final int size;
+&nbsp;  private final int primitive;
+&nbsp;  private final int generatorBase;
+&nbsp;
+&nbsp;  /**
+&nbsp;   * Create a representation of GF(size) using the given primitive polynomial.
+&nbsp;   *
+&nbsp;   * @param primitive irreducible polynomial whose coefficients are represented by
+&nbsp;   *  the bits of an int, where the least-significant bit represents the constant
+&nbsp;   *  coefficient
+&nbsp;   * @param size the size of the field
+&nbsp;   * @param b the factor b in the generator polynomial can be 0- or 1-based
+&nbsp;   *  (g(x) = (x+a^b)(x+a^(b+1))...(x+a^(b+2t-1))).
+&nbsp;   *  In most cases it should be 1, but for QR code it is 0.
+&nbsp;   */
+<b class="fc">&nbsp;  public GenericGF(int primitive, int size, int b) {</b>
+<b class="fc">&nbsp;    this.primitive = primitive;</b>
+<b class="fc">&nbsp;    this.size = size;</b>
+<b class="fc">&nbsp;    this.generatorBase = b;</b>
+&nbsp;
+<b class="fc">&nbsp;    expTable = new int[size];</b>
+<b class="fc">&nbsp;    logTable = new int[size];</b>
+<b class="fc">&nbsp;    int x = 1;</b>
+<b class="fc">&nbsp;    for (int i = 0; i &lt; size; i++) {</b>
+<b class="fc">&nbsp;      expTable[i] = x;</b>
+<b class="fc">&nbsp;      x *= 2; // 2 (the polynomial x) is a primitive element</b>
+<b class="fc">&nbsp;      if (x &gt;= size) {</b>
+<b class="fc">&nbsp;        x ^= primitive;</b>
+<b class="fc">&nbsp;        x &amp;= size - 1;</b>
+&nbsp;      }
+&nbsp;    }
+<b class="fc">&nbsp;    for (int i = 0; i &lt; size - 1; i++) {</b>
+<b class="fc">&nbsp;      logTable[expTable[i]] = i;</b>
+&nbsp;    }
+&nbsp;    // logTable[0] == 0 but this should never be used
+<b class="fc">&nbsp;    zero = new GenericGFPoly(this, new int[]{0});</b>
+<b class="fc">&nbsp;    one = new GenericGFPoly(this, new int[]{1});</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  GenericGFPoly getZero() {
+<b class="fc">&nbsp;    return zero;</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  GenericGFPoly getOne() {
+<b class="fc">&nbsp;    return one;</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  /**
+&nbsp;   * @return the monomial representing coefficient * x^degree
+&nbsp;   */
+&nbsp;  GenericGFPoly buildMonomial(int degree, int coefficient) {
+<b class="fc">&nbsp;    if (degree &lt; 0) {</b>
+<b class="nc">&nbsp;      throw new IllegalArgumentException();</b>
+&nbsp;    }
+<b class="fc">&nbsp;    if (coefficient == 0) {</b>
+<b class="fc">&nbsp;      return zero;</b>
+&nbsp;    }
+<b class="fc">&nbsp;    int[] coefficients = new int[degree + 1];</b>
+<b class="fc">&nbsp;    coefficients[0] = coefficient;</b>
+<b class="fc">&nbsp;    return new GenericGFPoly(this, coefficients);</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  /**
+&nbsp;   * Implements both addition and subtraction -- they are the same in GF(size).
+&nbsp;   *
+&nbsp;   * @return sum/difference of a and b
+&nbsp;   */
+&nbsp;  static int addOrSubtract(int a, int b) {
+<b class="fc">&nbsp;    return a ^ b;</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  /**
+&nbsp;   * @return 2 to the power of a in GF(size)
+&nbsp;   */
+&nbsp;  int exp(int a) {
+<b class="fc">&nbsp;    return expTable[a];</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  /**
+&nbsp;   * @return base 2 log of a in GF(size)
+&nbsp;   */
+&nbsp;  int log(int a) {
+<b class="fc">&nbsp;    if (a == 0) {</b>
+<b class="nc">&nbsp;      throw new IllegalArgumentException();</b>
+&nbsp;    }
+<b class="fc">&nbsp;    return logTable[a];</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  /**
+&nbsp;   * @return multiplicative inverse of a
+&nbsp;   */
+&nbsp;  int inverse(int a) {
+<b class="fc">&nbsp;    if (a == 0) {</b>
+<b class="nc">&nbsp;      throw new ArithmeticException();</b>
+&nbsp;    }
+<b class="fc">&nbsp;    return expTable[size - logTable[a] - 1];</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  /**
+&nbsp;   * @return product of a and b in GF(size)
+&nbsp;   */
+&nbsp;  int multiply(int a, int b) {
+<b class="fc">&nbsp;    if (a == 0 || b == 0) {</b>
+<b class="fc">&nbsp;      return 0;</b>
+&nbsp;    }
+<b class="fc">&nbsp;    return expTable[(logTable[a] + logTable[b]) % (size - 1)];</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  public int getSize() {
+<b class="fc">&nbsp;    return size;</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  public int getGeneratorBase() {
+<b class="fc">&nbsp;    return generatorBase;</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  @Override
+&nbsp;  public String toString() {
+<b class="fc">&nbsp;    return &quot;GF(0x&quot; + Integer.toHexString(primitive) + &#39;,&#39; + size + &#39;)&#39;;</b>
+&nbsp;  }
+&nbsp;
+&nbsp;}
+</code>
+</pre>
+</div>
+
+<script type="text/javascript">
+(function() {
+    var msie = false, msie9 = false;
+    /*@cc_on
+      msie = true;
+      @if (@_jscript_version >= 9)
+        msie9 = true;
+      @end
+    @*/
+
+    if (!msie || msie && msie9) {
+      hljs.highlightAll()
+      hljs.initLineNumbersOnLoad();
+    }
+})();
+</script>
+
+<div class="footer">
+    
+    <div style="float:right;">generated on 2023-11-12 23:26</div>
+</div>
+</body>
+</html>

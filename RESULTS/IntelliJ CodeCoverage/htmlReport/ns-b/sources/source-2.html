@@ -1,0 +1,324 @@
+
+
+
+<!DOCTYPE html>
+<html id="htmlId">
+<head>
+  <meta http-equiv="Content-Type" content="text/html;charset=windows-1252"> 
+  <title>Coverage Report > DataMatrixWriter</title>
+  <style type="text/css">
+    @import "../../css/coverage.css";
+    @import "../../css/idea.min.css";
+  </style>
+  <script type="text/javascript" src="../../js/highlight.min.js"></script>
+  <script type="text/javascript" src="../../js/highlightjs-line-numbers.min.js"></script>
+</head>
+
+<body>
+<div class="content">
+<div class="breadCrumbs">
+Current scope:     <a href="../../index.html">all classes</a>
+    <span class="separator">|</span>
+    <a href="../index.html">com.google.zxing.datamatrix</a>
+</div>
+
+<h1>Coverage Summary for Class: DataMatrixWriter (com.google.zxing.datamatrix)</h1>
+
+<table class="coverageStats">
+<tr>
+  <th class="name">Class</th>
+<th class="coverageStat 
+">
+  Class, %
+</th>
+<th class="coverageStat 
+">
+  Method, %
+</th>
+<th class="coverageStat 
+">
+  Line, %
+</th>
+</tr>
+<tr>
+  <td class="name">DataMatrixWriter</td>
+<td class="coverageStat">
+  <span class="percent">
+    100%
+  </span>
+  <span class="absValue">
+    (1/1)
+  </span>
+</td>
+<td class="coverageStat">
+  <span class="percent">
+    80%
+  </span>
+  <span class="absValue">
+    (4/5)
+  </span>
+</td>
+<td class="coverageStat">
+  <span class="percent">
+    81.8%
+  </span>
+  <span class="absValue">
+    (72/88)
+  </span>
+</td>
+</tr>
+
+</table>
+
+<br/>
+<br/>
+
+
+<pre>
+<code class="sourceCode" id="sourceCode">&nbsp;/*
+&nbsp; * Copyright 2008 ZXing authors
+&nbsp; *
+&nbsp; * Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
+&nbsp; * you may not use this file except in compliance with the License.
+&nbsp; * You may obtain a copy of the License at
+&nbsp; *
+&nbsp; *      http://www.apache.org/licenses/LICENSE-2.0
+&nbsp; *
+&nbsp; * Unless required by applicable law or agreed to in writing, software
+&nbsp; * distributed under the License is distributed on an &quot;AS IS&quot; BASIS,
+&nbsp; * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+&nbsp; * See the License for the specific language governing permissions and
+&nbsp; * limitations under the License.
+&nbsp; */
+&nbsp;
+&nbsp;package com.google.zxing.datamatrix;
+&nbsp;
+&nbsp;import com.google.zxing.BarcodeFormat;
+&nbsp;import com.google.zxing.EncodeHintType;
+&nbsp;import com.google.zxing.Writer;
+&nbsp;import com.google.zxing.common.BitMatrix;
+&nbsp;import com.google.zxing.datamatrix.encoder.DefaultPlacement;
+&nbsp;import com.google.zxing.Dimension;
+&nbsp;import com.google.zxing.datamatrix.encoder.ErrorCorrection;
+&nbsp;import com.google.zxing.datamatrix.encoder.HighLevelEncoder;
+&nbsp;import com.google.zxing.datamatrix.encoder.MinimalEncoder;
+&nbsp;import com.google.zxing.datamatrix.encoder.SymbolInfo;
+&nbsp;import com.google.zxing.datamatrix.encoder.SymbolShapeHint;
+&nbsp;import com.google.zxing.qrcode.encoder.ByteMatrix;
+&nbsp;
+&nbsp;import java.util.Map;
+&nbsp;import java.nio.charset.Charset;
+&nbsp;
+&nbsp;/**
+&nbsp; * This object renders a Data Matrix code as a BitMatrix 2D array of greyscale values.
+&nbsp; *
+&nbsp; * @author dswitkin@google.com (Daniel Switkin)
+&nbsp; * @author Guillaume Le Biller Added to zxing lib.
+&nbsp; */
+<b class="fc">&nbsp;public final class DataMatrixWriter implements Writer {</b>
+&nbsp;
+&nbsp;  @Override
+&nbsp;  public BitMatrix encode(String contents, BarcodeFormat format, int width, int height) {
+<b class="nc">&nbsp;    return encode(contents, format, width, height, null);</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  @Override
+&nbsp;  public BitMatrix encode(String contents, BarcodeFormat format, int width, int height, Map&lt;EncodeHintType,?&gt; hints) {
+&nbsp;
+<b class="fc">&nbsp;    if (contents.isEmpty()) {</b>
+<b class="nc">&nbsp;      throw new IllegalArgumentException(&quot;Found empty contents&quot;);</b>
+&nbsp;    }
+&nbsp;
+<b class="fc">&nbsp;    if (format != BarcodeFormat.DATA_MATRIX) {</b>
+<b class="nc">&nbsp;      throw new IllegalArgumentException(&quot;Can only encode DATA_MATRIX, but got &quot; + format);</b>
+&nbsp;    }
+&nbsp;
+<b class="fc">&nbsp;    if (width &lt; 0 || height &lt; 0) {</b>
+<b class="nc">&nbsp;      throw new IllegalArgumentException(&quot;Requested dimensions can&#39;t be negative: &quot; + width + &#39;x&#39; + height);</b>
+&nbsp;    }
+&nbsp;
+&nbsp;    // Try to get force shape &amp; min / max size
+<b class="fc">&nbsp;    SymbolShapeHint shape = SymbolShapeHint.FORCE_NONE;</b>
+<b class="fc">&nbsp;    Dimension minSize = null;</b>
+<b class="fc">&nbsp;    Dimension maxSize = null;</b>
+<b class="fc">&nbsp;    if (hints != null) {</b>
+<b class="fc">&nbsp;      SymbolShapeHint requestedShape = (SymbolShapeHint) hints.get(EncodeHintType.DATA_MATRIX_SHAPE);</b>
+<b class="fc">&nbsp;      if (requestedShape != null) {</b>
+<b class="fc">&nbsp;        shape = requestedShape;</b>
+&nbsp;      }
+&nbsp;      @SuppressWarnings(&quot;deprecation&quot;)
+<b class="fc">&nbsp;      Dimension requestedMinSize = (Dimension) hints.get(EncodeHintType.MIN_SIZE);</b>
+<b class="fc">&nbsp;      if (requestedMinSize != null) {</b>
+<b class="nc">&nbsp;        minSize = requestedMinSize;</b>
+&nbsp;      }
+&nbsp;      @SuppressWarnings(&quot;deprecation&quot;)
+<b class="fc">&nbsp;      Dimension requestedMaxSize = (Dimension) hints.get(EncodeHintType.MAX_SIZE);</b>
+<b class="fc">&nbsp;      if (requestedMaxSize != null) {</b>
+<b class="nc">&nbsp;        maxSize = requestedMaxSize;</b>
+&nbsp;      }
+&nbsp;    }
+&nbsp;
+&nbsp;
+&nbsp;    //1. step: Data encodation
+&nbsp;    String encoded;
+&nbsp;
+<b class="fc">&nbsp;    boolean hasCompactionHint = hints != null &amp;&amp; hints.containsKey(EncodeHintType.DATA_MATRIX_COMPACT) &amp;&amp;</b>
+<b class="nc">&nbsp;        Boolean.parseBoolean(hints.get(EncodeHintType.DATA_MATRIX_COMPACT).toString());</b>
+<b class="fc">&nbsp;    if (hasCompactionHint) {</b>
+&nbsp;
+<b class="nc">&nbsp;      boolean hasGS1FormatHint = hints.containsKey(EncodeHintType.GS1_FORMAT) &amp;&amp;</b>
+<b class="nc">&nbsp;          Boolean.parseBoolean(hints.get(EncodeHintType.GS1_FORMAT).toString());</b>
+&nbsp;
+<b class="nc">&nbsp;      Charset charset = null;</b>
+<b class="nc">&nbsp;      boolean hasEncodingHint = hints.containsKey(EncodeHintType.CHARACTER_SET);</b>
+<b class="nc">&nbsp;      if (hasEncodingHint) {</b>
+<b class="nc">&nbsp;        charset = Charset.forName(hints.get(EncodeHintType.CHARACTER_SET).toString());</b>
+&nbsp;      }
+<b class="nc">&nbsp;      encoded = MinimalEncoder.encodeHighLevel(contents, charset, hasGS1FormatHint ? 0x1D : -1, shape);</b>
+<b class="nc">&nbsp;    } else {</b>
+<b class="fc">&nbsp;      boolean hasForceC40Hint = hints != null &amp;&amp; hints.containsKey(EncodeHintType.FORCE_C40) &amp;&amp;</b>
+<b class="nc">&nbsp;          Boolean.parseBoolean(hints.get(EncodeHintType.FORCE_C40).toString());</b>
+<b class="fc">&nbsp;      encoded = HighLevelEncoder.encodeHighLevel(contents, shape, minSize, maxSize, hasForceC40Hint);</b>
+&nbsp;    }
+&nbsp;
+<b class="fc">&nbsp;    SymbolInfo symbolInfo = SymbolInfo.lookup(encoded.length(), shape, minSize, maxSize, true);</b>
+&nbsp;
+&nbsp;    //2. step: ECC generation
+<b class="fc">&nbsp;    String codewords = ErrorCorrection.encodeECC200(encoded, symbolInfo);</b>
+&nbsp;
+&nbsp;    //3. step: Module placement in Matrix
+<b class="fc">&nbsp;    DefaultPlacement placement =</b>
+<b class="fc">&nbsp;        new DefaultPlacement(codewords, symbolInfo.getSymbolDataWidth(), symbolInfo.getSymbolDataHeight());</b>
+<b class="fc">&nbsp;    placement.place();</b>
+&nbsp;
+&nbsp;    //4. step: low-level encoding
+<b class="fc">&nbsp;    return encodeLowLevel(placement, symbolInfo, width, height);</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  /**
+&nbsp;   * Encode the given symbol info to a bit matrix.
+&nbsp;   *
+&nbsp;   * @param placement  The DataMatrix placement.
+&nbsp;   * @param symbolInfo The symbol info to encode.
+&nbsp;   * @return The bit matrix generated.
+&nbsp;   */
+&nbsp;  private static BitMatrix encodeLowLevel(DefaultPlacement placement, SymbolInfo symbolInfo, int width, int height) {
+<b class="fc">&nbsp;    int symbolWidth = symbolInfo.getSymbolDataWidth();</b>
+<b class="fc">&nbsp;    int symbolHeight = symbolInfo.getSymbolDataHeight();</b>
+&nbsp;
+<b class="fc">&nbsp;    ByteMatrix matrix = new ByteMatrix(symbolInfo.getSymbolWidth(), symbolInfo.getSymbolHeight());</b>
+&nbsp;
+<b class="fc">&nbsp;    int matrixY = 0;</b>
+&nbsp;
+<b class="fc">&nbsp;    for (int y = 0; y &lt; symbolHeight; y++) {</b>
+&nbsp;      // Fill the top edge with alternate 0 / 1
+&nbsp;      int matrixX;
+<b class="fc">&nbsp;      if ((y % symbolInfo.matrixHeight) == 0) {</b>
+<b class="fc">&nbsp;        matrixX = 0;</b>
+<b class="fc">&nbsp;        for (int x = 0; x &lt; symbolInfo.getSymbolWidth(); x++) {</b>
+<b class="fc">&nbsp;          matrix.set(matrixX, matrixY, (x % 2) == 0);</b>
+<b class="fc">&nbsp;          matrixX++;</b>
+&nbsp;        }
+<b class="fc">&nbsp;        matrixY++;</b>
+&nbsp;      }
+<b class="fc">&nbsp;      matrixX = 0;</b>
+<b class="fc">&nbsp;      for (int x = 0; x &lt; symbolWidth; x++) {</b>
+&nbsp;        // Fill the right edge with full 1
+<b class="fc">&nbsp;        if ((x % symbolInfo.matrixWidth) == 0) {</b>
+<b class="fc">&nbsp;          matrix.set(matrixX, matrixY, true);</b>
+<b class="fc">&nbsp;          matrixX++;</b>
+&nbsp;        }
+<b class="fc">&nbsp;        matrix.set(matrixX, matrixY, placement.getBit(x, y));</b>
+<b class="fc">&nbsp;        matrixX++;</b>
+&nbsp;        // Fill the right edge with alternate 0 / 1
+<b class="fc">&nbsp;        if ((x % symbolInfo.matrixWidth) == symbolInfo.matrixWidth - 1) {</b>
+<b class="fc">&nbsp;          matrix.set(matrixX, matrixY, (y % 2) == 0);</b>
+<b class="fc">&nbsp;          matrixX++;</b>
+&nbsp;        }
+&nbsp;      }
+<b class="fc">&nbsp;      matrixY++;</b>
+&nbsp;      // Fill the bottom edge with full 1
+<b class="fc">&nbsp;      if ((y % symbolInfo.matrixHeight) == symbolInfo.matrixHeight - 1) {</b>
+<b class="fc">&nbsp;        matrixX = 0;</b>
+<b class="fc">&nbsp;        for (int x = 0; x &lt; symbolInfo.getSymbolWidth(); x++) {</b>
+<b class="fc">&nbsp;          matrix.set(matrixX, matrixY, true);</b>
+<b class="fc">&nbsp;          matrixX++;</b>
+&nbsp;        }
+<b class="fc">&nbsp;        matrixY++;</b>
+&nbsp;      }
+&nbsp;    }
+&nbsp;
+<b class="fc">&nbsp;    return convertByteMatrixToBitMatrix(matrix, width, height);</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  /**
+&nbsp;   * Convert the ByteMatrix to BitMatrix.
+&nbsp;   *
+&nbsp;   * @param reqHeight The requested height of the image (in pixels) with the Datamatrix code
+&nbsp;   * @param reqWidth The requested width of the image (in pixels) with the Datamatrix code
+&nbsp;   * @param matrix The input matrix.
+&nbsp;   * @return The output matrix.
+&nbsp;   */
+&nbsp;  private static BitMatrix convertByteMatrixToBitMatrix(ByteMatrix matrix, int reqWidth, int reqHeight) {
+<b class="fc">&nbsp;    int matrixWidth = matrix.getWidth();</b>
+<b class="fc">&nbsp;    int matrixHeight = matrix.getHeight();</b>
+<b class="fc">&nbsp;    int outputWidth = Math.max(reqWidth, matrixWidth);</b>
+<b class="fc">&nbsp;    int outputHeight = Math.max(reqHeight, matrixHeight);</b>
+&nbsp;
+<b class="fc">&nbsp;    int multiple = Math.min(outputWidth / matrixWidth, outputHeight / matrixHeight);</b>
+&nbsp;
+<b class="fc">&nbsp;    int leftPadding = (outputWidth - (matrixWidth * multiple)) / 2 ;</b>
+<b class="fc">&nbsp;    int topPadding = (outputHeight - (matrixHeight * multiple)) / 2 ;</b>
+&nbsp;
+&nbsp;    BitMatrix output;
+&nbsp;
+&nbsp;    // remove padding if requested width and height are too small
+<b class="fc">&nbsp;    if (reqHeight &lt; matrixHeight || reqWidth &lt; matrixWidth) {</b>
+<b class="fc">&nbsp;      leftPadding = 0;</b>
+<b class="fc">&nbsp;      topPadding = 0;</b>
+<b class="fc">&nbsp;      output = new BitMatrix(matrixWidth, matrixHeight);</b>
+&nbsp;    } else {
+<b class="fc">&nbsp;      output = new BitMatrix(reqWidth, reqHeight);</b>
+&nbsp;    }
+&nbsp;
+<b class="fc">&nbsp;    output.clear();</b>
+<b class="fc">&nbsp;    for (int inputY = 0, outputY = topPadding; inputY &lt; matrixHeight; inputY++, outputY += multiple) {</b>
+&nbsp;      // Write the contents of this row of the bytematrix
+<b class="fc">&nbsp;      for (int inputX = 0, outputX = leftPadding; inputX &lt; matrixWidth; inputX++, outputX += multiple) {</b>
+<b class="fc">&nbsp;        if (matrix.get(inputX, inputY) == 1) {</b>
+<b class="fc">&nbsp;          output.setRegion(outputX, outputY, multiple, multiple);</b>
+&nbsp;        }
+&nbsp;      }
+&nbsp;    }
+&nbsp;
+<b class="fc">&nbsp;    return output;</b>
+&nbsp;  }
+&nbsp;
+&nbsp;}
+</code>
+</pre>
+</div>
+
+<script type="text/javascript">
+(function() {
+    var msie = false, msie9 = false;
+    /*@cc_on
+      msie = true;
+      @if (@_jscript_version >= 9)
+        msie9 = true;
+      @end
+    @*/
+
+    if (!msie || msie && msie9) {
+      hljs.highlightAll()
+      hljs.initLineNumbersOnLoad();
+    }
+})();
+</script>
+
+<div class="footer">
+    
+    <div style="float:right;">generated on 2023-11-12 23:26</div>
+</div>
+</body>
+</html>

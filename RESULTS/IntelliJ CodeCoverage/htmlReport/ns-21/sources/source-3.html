@@ -1,0 +1,299 @@
+
+
+
+<!DOCTYPE html>
+<html id="htmlId">
+<head>
+  <meta http-equiv="Content-Type" content="text/html;charset=windows-1252"> 
+  <title>Coverage Report > ChartServlet</title>
+  <style type="text/css">
+    @import "../../css/coverage.css";
+    @import "../../css/idea.min.css";
+  </style>
+  <script type="text/javascript" src="../../js/highlight.min.js"></script>
+  <script type="text/javascript" src="../../js/highlightjs-line-numbers.min.js"></script>
+</head>
+
+<body>
+<div class="content">
+<div class="breadCrumbs">
+Current scope:     <a href="../../index.html">all classes</a>
+    <span class="separator">|</span>
+    <a href="../index.html">com.google.zxing.web</a>
+</div>
+
+<h1>Coverage Summary for Class: ChartServlet (com.google.zxing.web)</h1>
+
+<table class="coverageStats">
+<tr>
+  <th class="name">Class</th>
+<th class="coverageStat 
+">
+  Class, %
+</th>
+<th class="coverageStat 
+">
+  Method, %
+</th>
+<th class="coverageStat 
+">
+  Line, %
+</th>
+</tr>
+<tr>
+  <td class="name">ChartServlet</td>
+<td class="coverageStat">
+  <span class="percent">
+    0%
+  </span>
+  <span class="absValue">
+    (0/1)
+  </span>
+</td>
+<td class="coverageStat">
+  <span class="percent">
+    0%
+  </span>
+  <span class="absValue">
+    (0/6)
+  </span>
+</td>
+<td class="coverageStat">
+  <span class="percent">
+    0%
+  </span>
+  <span class="absValue">
+    (0/74)
+  </span>
+</td>
+</tr>
+
+</table>
+
+<br/>
+<br/>
+
+
+<pre>
+<code class="sourceCode" id="sourceCode">&nbsp;/*
+&nbsp; * Copyright 2013 ZXing authors
+&nbsp; *
+&nbsp; * Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
+&nbsp; * you may not use this file except in compliance with the License.
+&nbsp; * You may obtain a copy of the License at
+&nbsp; *
+&nbsp; *      http://www.apache.org/licenses/LICENSE-2.0
+&nbsp; *
+&nbsp; * Unless required by applicable law or agreed to in writing, software
+&nbsp; * distributed under the License is distributed on an &quot;AS IS&quot; BASIS,
+&nbsp; * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+&nbsp; * See the License for the specific language governing permissions and
+&nbsp; * limitations under the License.
+&nbsp; */
+&nbsp;
+&nbsp;package com.google.zxing.web;
+&nbsp;
+&nbsp;import com.google.common.base.Preconditions;
+&nbsp;import com.google.common.collect.ImmutableSet;
+&nbsp;import com.google.common.io.CharStreams;
+&nbsp;import com.google.zxing.BarcodeFormat;
+&nbsp;import com.google.zxing.EncodeHintType;
+&nbsp;import com.google.zxing.WriterException;
+&nbsp;import com.google.zxing.client.j2se.MatrixToImageWriter;
+&nbsp;import com.google.zxing.common.BitMatrix;
+&nbsp;import com.google.zxing.qrcode.QRCodeWriter;
+&nbsp;import com.google.zxing.qrcode.decoder.ErrorCorrectionLevel;
+&nbsp;
+&nbsp;import jakarta.servlet.ServletRequest;
+&nbsp;import jakarta.servlet.annotation.WebServlet;
+&nbsp;import jakarta.servlet.http.HttpServlet;
+&nbsp;import jakarta.servlet.http.HttpServletRequest;
+&nbsp;import jakarta.servlet.http.HttpServletResponse;
+&nbsp;import java.io.ByteArrayOutputStream;
+&nbsp;import java.io.IOException;
+&nbsp;import java.nio.charset.Charset;
+&nbsp;import java.nio.charset.StandardCharsets;
+&nbsp;import java.util.Collection;
+&nbsp;import java.util.EnumMap;
+&nbsp;import java.util.Locale;
+&nbsp;import java.util.Map;
+&nbsp;
+&nbsp;/**
+&nbsp; * A reimplementation of the
+&nbsp; * &lt;a href=&quot;https://google-developers.appspot.com/chart/infographics/docs/qr_codes&quot;&gt;
+&nbsp; * Google Chart Server&#39;s QR code encoder&lt;/a&gt;, which is now deprecated. See
+&nbsp; * &lt;a href=&quot;https://github.com/zxing/zxing/wiki/Chart-Server-Parameters&quot;&gt;the chart server
+&nbsp; * parameters wiki page&lt;/a&gt; for docs.
+&nbsp; *
+&nbsp; * @author Sean Owen
+&nbsp; */
+&nbsp;@WebServlet({&quot;/w/chart&quot;, &quot;/w/chart.png&quot;, &quot;/w/chart.gif&quot;, &quot;/w/chart.jpg&quot;, &quot;/w/chart.jpeg&quot;})
+<b class="nc">&nbsp;public final class ChartServlet extends HttpServlet {</b>
+&nbsp;
+&nbsp;  private static final int MAX_DIMENSION = 4096;
+<b class="nc">&nbsp;  private static final Collection&lt;Charset&gt; SUPPORTED_OUTPUT_ENCODINGS = ImmutableSet.&lt;Charset&gt;builder()</b>
+<b class="nc">&nbsp;      .add(StandardCharsets.UTF_8).add(StandardCharsets.ISO_8859_1).add(Charset.forName(&quot;Shift_JIS&quot;)).build();</b>
+&nbsp;
+&nbsp;  @Override
+&nbsp;  protected void doGet(HttpServletRequest request, HttpServletResponse response) throws IOException {
+<b class="nc">&nbsp;    doEncode(request, response, false);</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  @Override
+&nbsp;  protected void doPost(HttpServletRequest request, HttpServletResponse response) throws IOException {
+<b class="nc">&nbsp;    doEncode(request, response, true);</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  private static void doEncode(HttpServletRequest request, HttpServletResponse response, boolean isPost)
+&nbsp;      throws IOException {
+&nbsp;
+&nbsp;    ChartServletRequestParameters parameters;
+&nbsp;    try {
+<b class="nc">&nbsp;      parameters = doParseParameters(request, isPost);</b>
+<b class="nc">&nbsp;    } catch (IllegalArgumentException | NullPointerException e) {</b>
+<b class="nc">&nbsp;      response.sendError(HttpServletResponse.SC_BAD_REQUEST, e.toString());</b>
+&nbsp;      return;
+<b class="nc">&nbsp;    }</b>
+&nbsp;
+<b class="nc">&nbsp;    Map&lt;EncodeHintType,Object&gt; hints = new EnumMap&lt;&gt;(EncodeHintType.class);</b>
+<b class="nc">&nbsp;    hints.put(EncodeHintType.MARGIN, parameters.getMargin());</b>
+<b class="nc">&nbsp;    if (!StandardCharsets.ISO_8859_1.equals(parameters.getOutputEncoding())) {</b>
+&nbsp;      // Only set if not QR code default
+<b class="nc">&nbsp;      hints.put(EncodeHintType.CHARACTER_SET, parameters.getOutputEncoding().name());</b>
+&nbsp;    }
+<b class="nc">&nbsp;    hints.put(EncodeHintType.ERROR_CORRECTION, parameters.getEcLevel());</b>
+&nbsp;
+&nbsp;    BitMatrix matrix;
+&nbsp;    try {
+<b class="nc">&nbsp;      matrix = new QRCodeWriter().encode(parameters.getText(),</b>
+&nbsp;                                         BarcodeFormat.QR_CODE,
+<b class="nc">&nbsp;                                         parameters.getWidth(),</b>
+<b class="nc">&nbsp;                                         parameters.getHeight(),</b>
+&nbsp;                                         hints);
+<b class="nc">&nbsp;    } catch (WriterException we) {</b>
+<b class="nc">&nbsp;      response.sendError(HttpServletResponse.SC_BAD_REQUEST, we.toString());</b>
+&nbsp;      return;
+<b class="nc">&nbsp;    }</b>
+&nbsp;
+<b class="nc">&nbsp;    String requestURI = request.getRequestURI();</b>
+<b class="nc">&nbsp;    if (requestURI == null) {</b>
+<b class="nc">&nbsp;      response.sendError(HttpServletResponse.SC_BAD_REQUEST);</b>
+&nbsp;      return;
+&nbsp;    }
+<b class="nc">&nbsp;    int lastDot = requestURI.lastIndexOf(&#39;.&#39;);</b>
+&nbsp;    String imageFormat;
+<b class="nc">&nbsp;    if (lastDot &gt; 0) {</b>
+<b class="nc">&nbsp;      imageFormat = requestURI.substring(lastDot + 1).toUpperCase(Locale.ROOT);</b>
+&nbsp;      // Special-case jpg -&gt; JPEG
+<b class="nc">&nbsp;      if (&quot;JPG&quot;.equals(imageFormat)) {</b>
+<b class="nc">&nbsp;        imageFormat = &quot;JPEG&quot;;</b>
+&nbsp;      }
+&nbsp;    } else {
+<b class="nc">&nbsp;      imageFormat = &quot;PNG&quot;;</b>
+&nbsp;    }
+&nbsp;
+&nbsp;    String contentType;
+<b class="nc">&nbsp;    switch (imageFormat) {</b>
+&nbsp;      case &quot;PNG&quot;:
+<b class="nc">&nbsp;        contentType = &quot;image/png&quot;;</b>
+<b class="nc">&nbsp;        break;</b>
+&nbsp;      case &quot;JPEG&quot;:
+<b class="nc">&nbsp;        contentType = &quot;image/jpeg&quot;;</b>
+<b class="nc">&nbsp;        break;</b>
+&nbsp;      case &quot;GIF&quot;:
+<b class="nc">&nbsp;        contentType = &quot;image/gif&quot;;</b>
+<b class="nc">&nbsp;        break;</b>
+&nbsp;      default:
+<b class="nc">&nbsp;        throw new IllegalArgumentException(&quot;Unknown format &quot; + imageFormat);</b>
+&nbsp;    }
+&nbsp;
+<b class="nc">&nbsp;    ByteArrayOutputStream imageOut = new ByteArrayOutputStream(1024);</b>
+<b class="nc">&nbsp;    MatrixToImageWriter.writeToStream(matrix, imageFormat, imageOut);</b>
+<b class="nc">&nbsp;    byte[] imageData = imageOut.toByteArray();</b>
+&nbsp;
+<b class="nc">&nbsp;    response.setContentType(contentType);</b>
+<b class="nc">&nbsp;    response.setContentLength(imageData.length);</b>
+<b class="nc">&nbsp;    response.setHeader(&quot;Cache-Control&quot;, &quot;public&quot;);</b>
+<b class="nc">&nbsp;    response.getOutputStream().write(imageData);</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  private static ChartServletRequestParameters doParseParameters(ServletRequest request, boolean readBody)
+&nbsp;      throws IOException {
+&nbsp;
+<b class="nc">&nbsp;    String chartType = request.getParameter(&quot;cht&quot;);</b>
+<b class="nc">&nbsp;    Preconditions.checkArgument(chartType == null || &quot;qr&quot;.equals(chartType), &quot;Bad type&quot;);</b>
+&nbsp;
+<b class="nc">&nbsp;    String widthXHeight = request.getParameter(&quot;chs&quot;);</b>
+<b class="nc">&nbsp;    Preconditions.checkNotNull(widthXHeight, &quot;No size&quot;);</b>
+<b class="nc">&nbsp;    int xIndex = widthXHeight.indexOf(&#39;x&#39;);</b>
+<b class="nc">&nbsp;    Preconditions.checkArgument(xIndex &gt;= 0, &quot;Bad size&quot;);</b>
+&nbsp;
+<b class="nc">&nbsp;    int width = Integer.parseInt(widthXHeight.substring(0, xIndex));</b>
+<b class="nc">&nbsp;    int height = Integer.parseInt(widthXHeight.substring(xIndex + 1));</b>
+<b class="nc">&nbsp;    Preconditions.checkArgument(width &gt; 0 &amp;&amp; height &gt; 0, &quot;Bad size&quot;);</b>
+<b class="nc">&nbsp;    Preconditions.checkArgument(width &lt;= MAX_DIMENSION &amp;&amp; height &lt;= MAX_DIMENSION, &quot;Bad size&quot;);</b>
+&nbsp;
+<b class="nc">&nbsp;    String outputEncodingName = request.getParameter(&quot;choe&quot;);</b>
+&nbsp;    Charset outputEncoding;
+<b class="nc">&nbsp;    if (outputEncodingName == null) {</b>
+<b class="nc">&nbsp;      outputEncoding = StandardCharsets.UTF_8;</b>
+&nbsp;    } else {
+<b class="nc">&nbsp;      outputEncoding = Charset.forName(outputEncodingName);</b>
+<b class="nc">&nbsp;      Preconditions.checkArgument(SUPPORTED_OUTPUT_ENCODINGS.contains(outputEncoding), &quot;Bad output encoding&quot;);</b>
+&nbsp;    }
+&nbsp;
+<b class="nc">&nbsp;    ErrorCorrectionLevel ecLevel = ErrorCorrectionLevel.L;</b>
+<b class="nc">&nbsp;    int margin = 4;</b>
+&nbsp;
+<b class="nc">&nbsp;    String ldString = request.getParameter(&quot;chld&quot;);</b>
+<b class="nc">&nbsp;    if (ldString != null) {</b>
+<b class="nc">&nbsp;      int pipeIndex = ldString.indexOf(&#39;|&#39;);</b>
+<b class="nc">&nbsp;      if (pipeIndex &lt; 0) {</b>
+&nbsp;        // Only an EC level
+<b class="nc">&nbsp;        ecLevel = ErrorCorrectionLevel.valueOf(ldString);</b>
+&nbsp;      } else {
+<b class="nc">&nbsp;        ecLevel = ErrorCorrectionLevel.valueOf(ldString.substring(0, pipeIndex));</b>
+<b class="nc">&nbsp;        margin = Integer.parseInt(ldString.substring(pipeIndex + 1));</b>
+<b class="nc">&nbsp;        Preconditions.checkArgument(margin &gt; 0, &quot;Bad margin&quot;);</b>
+&nbsp;      }
+&nbsp;    }
+&nbsp;
+&nbsp;    String text;
+<b class="nc">&nbsp;    if (readBody) {</b>
+<b class="nc">&nbsp;      text = CharStreams.toString(request.getReader());</b>
+&nbsp;    } else {
+<b class="nc">&nbsp;      text = request.getParameter(&quot;chl&quot;);</b>
+&nbsp;    }
+<b class="nc">&nbsp;    Preconditions.checkArgument(text != null &amp;&amp; !text.isEmpty(), &quot;No input&quot;);</b>
+&nbsp;
+<b class="nc">&nbsp;    return new ChartServletRequestParameters(width, height, outputEncoding, ecLevel, margin, text);</b>
+&nbsp;  }
+&nbsp;
+&nbsp;}
+</code>
+</pre>
+</div>
+
+<script type="text/javascript">
+(function() {
+    var msie = false, msie9 = false;
+    /*@cc_on
+      msie = true;
+      @if (@_jscript_version >= 9)
+        msie9 = true;
+      @end
+    @*/
+
+    if (!msie || msie && msie9) {
+      hljs.highlightAll()
+      hljs.initLineNumbersOnLoad();
+    }
+})();
+</script>
+
+<div class="footer">
+    
+    <div style="float:right;">generated on 2023-11-12 23:26</div>
+</div>
+</body>
+</html>

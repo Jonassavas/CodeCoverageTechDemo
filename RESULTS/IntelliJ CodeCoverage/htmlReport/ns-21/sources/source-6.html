@@ -1,0 +1,596 @@
+
+
+
+<!DOCTYPE html>
+<html id="htmlId">
+<head>
+  <meta http-equiv="Content-Type" content="text/html;charset=windows-1252"> 
+  <title>Coverage Report > DecodeServlet</title>
+  <style type="text/css">
+    @import "../../css/coverage.css";
+    @import "../../css/idea.min.css";
+  </style>
+  <script type="text/javascript" src="../../js/highlight.min.js"></script>
+  <script type="text/javascript" src="../../js/highlightjs-line-numbers.min.js"></script>
+</head>
+
+<body>
+<div class="content">
+<div class="breadCrumbs">
+Current scope:     <a href="../../index.html">all classes</a>
+    <span class="separator">|</span>
+    <a href="../index.html">com.google.zxing.web</a>
+</div>
+
+<h1>Coverage Summary for Class: DecodeServlet (com.google.zxing.web)</h1>
+
+<table class="coverageStats">
+<tr>
+  <th class="name">Class</th>
+<th class="coverageStat 
+">
+  Class, %
+</th>
+<th class="coverageStat 
+">
+  Method, %
+</th>
+<th class="coverageStat 
+">
+  Line, %
+</th>
+</tr>
+<tr>
+  <td class="name">DecodeServlet</td>
+<td class="coverageStat">
+  <span class="percent">
+    0%
+  </span>
+  <span class="absValue">
+    (0/1)
+  </span>
+</td>
+<td class="coverageStat">
+  <span class="percent">
+    0%
+  </span>
+  <span class="absValue">
+    (0/10)
+  </span>
+</td>
+<td class="coverageStat">
+  <span class="percent">
+    0%
+  </span>
+  <span class="absValue">
+    (0/218)
+  </span>
+</td>
+</tr>
+
+</table>
+
+<br/>
+<br/>
+
+
+<pre>
+<code class="sourceCode" id="sourceCode">&nbsp;/*
+&nbsp; * Copyright 2008 ZXing authors
+&nbsp; *
+&nbsp; * Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
+&nbsp; * you may not use this file except in compliance with the License.
+&nbsp; * You may obtain a copy of the License at
+&nbsp; *
+&nbsp; *      http://www.apache.org/licenses/LICENSE-2.0
+&nbsp; *
+&nbsp; * Unless required by applicable law or agreed to in writing, software
+&nbsp; * distributed under the License is distributed on an &quot;AS IS&quot; BASIS,
+&nbsp; * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+&nbsp; * See the License for the specific language governing permissions and
+&nbsp; * limitations under the License.
+&nbsp; */
+&nbsp;
+&nbsp;package com.google.zxing.web;
+&nbsp;
+&nbsp;import com.google.zxing.BarcodeFormat;
+&nbsp;import com.google.zxing.BinaryBitmap;
+&nbsp;import com.google.zxing.ChecksumException;
+&nbsp;import com.google.zxing.DecodeHintType;
+&nbsp;import com.google.zxing.FormatException;
+&nbsp;import com.google.zxing.LuminanceSource;
+&nbsp;import com.google.zxing.MultiFormatReader;
+&nbsp;import com.google.zxing.NotFoundException;
+&nbsp;import com.google.zxing.Reader;
+&nbsp;import com.google.zxing.ReaderException;
+&nbsp;import com.google.zxing.Result;
+&nbsp;import com.google.zxing.client.j2se.BufferedImageLuminanceSource;
+&nbsp;import com.google.zxing.client.j2se.ImageReader;
+&nbsp;import com.google.zxing.common.GlobalHistogramBinarizer;
+&nbsp;import com.google.zxing.common.HybridBinarizer;
+&nbsp;import com.google.zxing.multi.GenericMultipleBarcodeReader;
+&nbsp;import com.google.zxing.multi.MultipleBarcodeReader;
+&nbsp;
+&nbsp;import com.google.common.io.Resources;
+&nbsp;import com.google.common.net.HttpHeaders;
+&nbsp;import com.google.common.net.MediaType;
+&nbsp;
+&nbsp;import java.awt.image.BufferedImage;
+&nbsp;import java.io.IOException;
+&nbsp;import java.io.InputStream;
+&nbsp;import java.io.OutputStreamWriter;
+&nbsp;import java.io.Writer;
+&nbsp;import java.net.HttpURLConnection;
+&nbsp;import java.net.MalformedURLException;
+&nbsp;import java.net.URI;
+&nbsp;import java.net.URISyntaxException;
+&nbsp;import java.net.URL;
+&nbsp;import java.nio.charset.StandardCharsets;
+&nbsp;import java.util.ArrayList;
+&nbsp;import java.util.Arrays;
+&nbsp;import java.util.Collection;
+&nbsp;import java.util.Collections;
+&nbsp;import java.util.EnumMap;
+&nbsp;import java.util.EnumSet;
+&nbsp;import java.util.Locale;
+&nbsp;import java.util.Map;
+&nbsp;import java.util.ResourceBundle;
+&nbsp;import java.util.Timer;
+&nbsp;import java.util.concurrent.TimeUnit;
+&nbsp;import java.util.logging.Level;
+&nbsp;import java.util.logging.Logger;
+&nbsp;import java.util.regex.Pattern;
+&nbsp;
+&nbsp;import javax.imageio.ImageIO;
+&nbsp;import jakarta.servlet.RequestDispatcher;
+&nbsp;import jakarta.servlet.ServletConfig;
+&nbsp;import jakarta.servlet.ServletContext;
+&nbsp;import jakarta.servlet.ServletException;
+&nbsp;import jakarta.servlet.annotation.MultipartConfig;
+&nbsp;import jakarta.servlet.annotation.WebInitParam;
+&nbsp;import jakarta.servlet.annotation.WebServlet;
+&nbsp;import jakarta.servlet.http.HttpServlet;
+&nbsp;import jakarta.servlet.http.HttpServletRequest;
+&nbsp;import jakarta.servlet.http.HttpServletResponse;
+&nbsp;import jakarta.servlet.http.Part;
+&nbsp;
+&nbsp;/**
+&nbsp; * {@link HttpServlet} which decodes images containing barcodes. Given a URL, it will
+&nbsp; * retrieve the image and decode it. It can also process image files uploaded via POST.
+&nbsp; *
+&nbsp; * @author Sean Owen
+&nbsp; */
+&nbsp;@MultipartConfig(
+&nbsp;    maxFileSize = 1L &lt;&lt; 26, // ~64MB
+&nbsp;    maxRequestSize = 1L &lt;&lt; 26, // ~64MB
+&nbsp;    fileSizeThreshold = 1 &lt;&lt; 23, // ~8MB
+&nbsp;    location = &quot;/tmp&quot;)
+&nbsp;@WebServlet(value = &quot;/w/decode&quot;, loadOnStartup = 1, initParams = {
+&nbsp;  @WebInitParam(name = &quot;maxAccessPerTime&quot;, value = &quot;120&quot;),
+&nbsp;  @WebInitParam(name = &quot;accessTimeSec&quot;, value = &quot;120&quot;),
+&nbsp;  @WebInitParam(name = &quot;maxEntries&quot;, value = &quot;100000&quot;)
+&nbsp;})
+<b class="nc">&nbsp;public final class DecodeServlet extends HttpServlet {</b>
+&nbsp;
+<b class="nc">&nbsp;  private static final Logger log = Logger.getLogger(DecodeServlet.class.getName());</b>
+&nbsp;
+<b class="nc">&nbsp;  private static final Pattern WHITESPACE = Pattern.compile(&quot;\\s+&quot;);</b>
+&nbsp;  // No real reason to let people upload more than ~64MB
+&nbsp;  private static final long MAX_IMAGE_SIZE = 1L &lt;&lt; 26;
+&nbsp;  // No real reason to deal with more than ~32 megapixels
+&nbsp;  private static final int MAX_PIXELS = 1 &lt;&lt; 25;
+&nbsp;  private static final Map&lt;DecodeHintType,Object&gt; HINTS;
+&nbsp;  private static final Map&lt;DecodeHintType,Object&gt; HINTS_PURE;
+&nbsp;
+&nbsp;  static {
+<b class="nc">&nbsp;    HINTS = new EnumMap&lt;&gt;(DecodeHintType.class);</b>
+<b class="nc">&nbsp;    HINTS.put(DecodeHintType.TRY_HARDER, Boolean.TRUE);</b>
+<b class="nc">&nbsp;    HINTS.put(DecodeHintType.POSSIBLE_FORMATS, EnumSet.allOf(BarcodeFormat.class));</b>
+<b class="nc">&nbsp;    HINTS_PURE = new EnumMap&lt;&gt;(HINTS);</b>
+<b class="nc">&nbsp;    HINTS_PURE.put(DecodeHintType.PURE_BARCODE, Boolean.TRUE);</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  private Collection&lt;String&gt; blockedURLSubstrings;
+&nbsp;  private Timer timer;
+&nbsp;  private DoSTracker destHostTracker;
+&nbsp;
+&nbsp;  @Override
+&nbsp;  public void init(ServletConfig servletConfig) throws ServletException {
+<b class="nc">&nbsp;    Logger logger = Logger.getLogger(&quot;com.google.zxing&quot;);</b>
+<b class="nc">&nbsp;    ServletContext context = servletConfig.getServletContext();</b>
+<b class="nc">&nbsp;    logger.addHandler(new ServletContextLogHandler(context));</b>
+&nbsp;
+<b class="nc">&nbsp;    URL blockURL = context.getClassLoader().getResource(&quot;/private/uri-block-substrings.txt&quot;);</b>
+<b class="nc">&nbsp;    if (blockURL == null) {</b>
+<b class="nc">&nbsp;      blockedURLSubstrings = Collections.emptyList();</b>
+&nbsp;    } else {
+&nbsp;      try {
+<b class="nc">&nbsp;        blockedURLSubstrings = Resources.readLines(blockURL, StandardCharsets.UTF_8);</b>
+<b class="nc">&nbsp;      } catch (IOException ioe) {</b>
+<b class="nc">&nbsp;        throw new ServletException(ioe);</b>
+<b class="nc">&nbsp;      }</b>
+<b class="nc">&nbsp;      log.info(&quot;Blocking URIs containing: &quot; + blockedURLSubstrings);</b>
+&nbsp;    }
+&nbsp;
+<b class="nc">&nbsp;    int maxAccessPerTime = Integer.parseInt(servletConfig.getInitParameter(&quot;maxAccessPerTime&quot;));</b>
+<b class="nc">&nbsp;    int accessTimeSec = Integer.parseInt(servletConfig.getInitParameter(&quot;accessTimeSec&quot;));</b>
+<b class="nc">&nbsp;    long accessTimeMS = TimeUnit.MILLISECONDS.convert(accessTimeSec, TimeUnit.SECONDS);</b>
+<b class="nc">&nbsp;    int maxEntries = Integer.parseInt(servletConfig.getInitParameter(&quot;maxEntries&quot;));</b>
+&nbsp;
+<b class="nc">&nbsp;    String name = getClass().getSimpleName();</b>
+<b class="nc">&nbsp;    timer = new Timer(name);</b>
+<b class="nc">&nbsp;    destHostTracker = new DoSTracker(timer, name, maxAccessPerTime, accessTimeMS, maxEntries, null);</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  @Override
+&nbsp;  public void destroy() {
+<b class="nc">&nbsp;    if (timer != null) {</b>
+<b class="nc">&nbsp;      timer.cancel();</b>
+&nbsp;    }
+&nbsp;  }
+&nbsp;
+&nbsp;  @Override
+&nbsp;  protected void doGet(HttpServletRequest request,
+&nbsp;                       HttpServletResponse response) throws ServletException, IOException {
+&nbsp;
+<b class="nc">&nbsp;    String imageURIString = request.getParameter(&quot;u&quot;);</b>
+<b class="nc">&nbsp;    if (imageURIString == null || imageURIString.isEmpty()) {</b>
+<b class="nc">&nbsp;      log.info(&quot;URI was empty&quot;);</b>
+<b class="nc">&nbsp;      errorResponse(request, response, &quot;badurl&quot;);</b>
+&nbsp;      return;
+&nbsp;    }
+&nbsp;
+&nbsp;    // Remove any whitespace to sanitize; none is valid anyway
+<b class="nc">&nbsp;    imageURIString = WHITESPACE.matcher(imageURIString).replaceAll(&quot;&quot;);</b>
+&nbsp;
+<b class="nc">&nbsp;    if (!blockedURLSubstrings.isEmpty()) {</b>
+<b class="nc">&nbsp;      for (CharSequence substring : blockedURLSubstrings) {</b>
+<b class="nc">&nbsp;        if (imageURIString.contains(substring)) {</b>
+<b class="nc">&nbsp;          log.info(&quot;Disallowed URI &quot; + imageURIString);</b>
+<b class="nc">&nbsp;          errorResponse(request, response, HttpServletResponse.SC_FORBIDDEN, &quot;badurl&quot;);</b>
+&nbsp;          return;
+&nbsp;        }
+<b class="nc">&nbsp;      }</b>
+&nbsp;    }
+&nbsp;
+&nbsp;    URI imageURI;
+&nbsp;    try {
+<b class="nc">&nbsp;      imageURI = new URI(imageURIString);</b>
+&nbsp;      // Assume http: if not specified
+<b class="nc">&nbsp;      if (imageURI.getScheme() == null) {</b>
+<b class="nc">&nbsp;        imageURI = new URI(&quot;http://&quot; + imageURIString);</b>
+&nbsp;      }
+<b class="nc">&nbsp;    } catch (URISyntaxException e) {</b>
+<b class="nc">&nbsp;      log.info(&quot;Error &quot; + e + &quot; while parsing URI: &quot; + imageURIString);</b>
+<b class="nc">&nbsp;      errorResponse(request, response, &quot;badurl&quot;);</b>
+&nbsp;      return;
+<b class="nc">&nbsp;    }</b>
+&nbsp;
+&nbsp;    // Shortcut for data URI
+<b class="nc">&nbsp;    if (&quot;data&quot;.equals(imageURI.getScheme())) {</b>
+&nbsp;      BufferedImage image;
+&nbsp;      try {
+<b class="nc">&nbsp;        image = ImageReader.readDataURIImage(imageURI);</b>
+<b class="nc">&nbsp;      } catch (Exception e) {</b>
+<b class="nc">&nbsp;        log.info(&quot;Error &quot; + e + &quot; while reading data URI: &quot; + imageURIString);</b>
+<b class="nc">&nbsp;        errorResponse(request, response, &quot;badurl&quot;);</b>
+&nbsp;        return;
+<b class="nc">&nbsp;      }</b>
+<b class="nc">&nbsp;      if (image == null) {</b>
+<b class="nc">&nbsp;        log.info(&quot;Couldn&#39;t read data URI: &quot; + imageURIString);</b>
+<b class="nc">&nbsp;        errorResponse(request, response, &quot;badimage&quot;);</b>
+&nbsp;        return;
+&nbsp;      }
+&nbsp;      try {
+<b class="nc">&nbsp;        processImage(image, request, response);</b>
+&nbsp;      } finally {
+<b class="nc">&nbsp;        image.flush();</b>
+<b class="nc">&nbsp;      }</b>
+&nbsp;      return;
+&nbsp;    }
+&nbsp;
+<b class="nc">&nbsp;    String host = imageURI.getHost();</b>
+&nbsp;    // Also should parse for 172.x subnets
+<b class="nc">&nbsp;    if (host == null || host.startsWith(&quot;10.&quot;) || host.startsWith(&quot;192.168.&quot;) ||</b>
+<b class="nc">&nbsp;        &quot;127.0.0.1&quot;.equals(host) || &quot;localhost&quot;.equals(host) ||</b>
+<b class="nc">&nbsp;        destHostTracker.isBanned(host)) {</b>
+<b class="nc">&nbsp;      errorResponse(request, response, HttpServletResponse.SC_FORBIDDEN, &quot;badurl&quot;);</b>
+&nbsp;      return;
+&nbsp;    }
+&nbsp;
+&nbsp;    URL imageURL;
+&nbsp;    try {
+<b class="nc">&nbsp;      imageURL = imageURI.toURL();</b>
+<b class="nc">&nbsp;    } catch (MalformedURLException ignored) {</b>
+<b class="nc">&nbsp;      log.info(&quot;URI is not a URL: &quot; + imageURIString);</b>
+<b class="nc">&nbsp;      errorResponse(request, response, &quot;badurl&quot;);</b>
+&nbsp;      return;
+<b class="nc">&nbsp;    }</b>
+&nbsp;
+<b class="nc">&nbsp;    String protocol = imageURL.getProtocol();</b>
+<b class="nc">&nbsp;    if (!&quot;http&quot;.equalsIgnoreCase(protocol) &amp;&amp; !&quot;https&quot;.equalsIgnoreCase(protocol)) {</b>
+<b class="nc">&nbsp;      log.info(&quot;URL protocol was not valid: &quot; + imageURIString);</b>
+<b class="nc">&nbsp;      errorResponse(request, response, &quot;badurl&quot;);</b>
+&nbsp;      return;
+&nbsp;    }
+&nbsp;
+&nbsp;    HttpURLConnection connection;
+&nbsp;    try {
+<b class="nc">&nbsp;      connection = (HttpURLConnection) imageURL.openConnection();</b>
+<b class="nc">&nbsp;    } catch (IllegalArgumentException ignored) {</b>
+<b class="nc">&nbsp;      log.info(&quot;URL could not be opened: &quot; + imageURIString);</b>
+<b class="nc">&nbsp;      errorResponse(request, response, &quot;badurl&quot;);</b>
+&nbsp;      return;
+<b class="nc">&nbsp;    }</b>
+&nbsp;
+<b class="nc">&nbsp;    connection.setAllowUserInteraction(false);</b>
+<b class="nc">&nbsp;    connection.setInstanceFollowRedirects(true);</b>
+<b class="nc">&nbsp;    connection.setReadTimeout(5000);</b>
+<b class="nc">&nbsp;    connection.setConnectTimeout(5000);</b>
+<b class="nc">&nbsp;    connection.setRequestProperty(HttpHeaders.USER_AGENT, &quot;zxing.org&quot;);</b>
+<b class="nc">&nbsp;    connection.setRequestProperty(HttpHeaders.CONNECTION, &quot;close&quot;);</b>
+&nbsp;
+&nbsp;    try {
+<b class="nc">&nbsp;      connection.connect();</b>
+<b class="nc">&nbsp;    } catch (Exception e) {</b>
+&nbsp;      // Encompasses lots of stuff, including
+&nbsp;      //  java.net.SocketException, java.net.UnknownHostException,
+&nbsp;      //  javax.net.ssl.SSLPeerUnverifiedException,
+&nbsp;      //  org.apache.http.NoHttpResponseException,
+&nbsp;      //  org.apache.http.client.ClientProtocolException,
+<b class="nc">&nbsp;      log.info(&quot;Error &quot; + e + &quot; connecting to &quot; + imageURIString);</b>
+<b class="nc">&nbsp;      errorResponse(request, response, &quot;badurl&quot;);</b>
+&nbsp;      return;
+<b class="nc">&nbsp;    }</b>
+&nbsp;
+<b class="nc">&nbsp;    try (InputStream is = connection.getInputStream()) {</b>
+<b class="nc">&nbsp;      if (connection.getResponseCode() != HttpServletResponse.SC_OK) {</b>
+<b class="nc">&nbsp;        log.info(&quot;Unsuccessful return code &quot; + connection.getResponseCode() + &quot; from &quot; + imageURIString);</b>
+<b class="nc">&nbsp;        errorResponse(request, response, &quot;badurl&quot;);</b>
+&nbsp;        return;
+&nbsp;      }
+<b class="nc">&nbsp;      int contentLength = connection.getHeaderFieldInt(HttpHeaders.CONTENT_LENGTH, -1);</b>
+<b class="nc">&nbsp;      if (contentLength &lt;= 0) {</b>
+<b class="nc">&nbsp;        log.info(&quot;Bad content length: &quot; + imageURIString);</b>
+<b class="nc">&nbsp;        errorResponse(request, response, HttpServletResponse.SC_LENGTH_REQUIRED, &quot;badimage&quot;);</b>
+&nbsp;        return;
+&nbsp;      }
+<b class="nc">&nbsp;      if (contentLength &gt; MAX_IMAGE_SIZE) {</b>
+<b class="nc">&nbsp;        log.info(&quot;Too large: &quot; + imageURIString);</b>
+<b class="nc">&nbsp;        errorResponse(request, response, HttpServletResponse.SC_REQUEST_ENTITY_TOO_LARGE, &quot;badimage&quot;);</b>
+&nbsp;        return;
+&nbsp;      }
+&nbsp;      // Assume we&#39;ll only handle image/* content types
+<b class="nc">&nbsp;      String contentType = connection.getContentType();</b>
+<b class="nc">&nbsp;      if (contentType != null &amp;&amp; !contentType.startsWith(&quot;image/&quot;)) {</b>
+<b class="nc">&nbsp;        log.info(&quot;Wrong content type &quot; + contentType + &quot;: &quot; + imageURIString);</b>
+<b class="nc">&nbsp;        errorResponse(request, response, HttpServletResponse.SC_UNSUPPORTED_MEDIA_TYPE, &quot;badimage&quot;);</b>
+&nbsp;        return;
+&nbsp;      }
+&nbsp;
+<b class="nc">&nbsp;      log.info(&quot;Decoding &quot; + imageURIString);</b>
+<b class="nc">&nbsp;      processStream(is, request, response);</b>
+<b class="nc">&nbsp;    } catch (IOException ioe) {</b>
+<b class="nc">&nbsp;      log.info(&quot;Error &quot; + ioe + &quot; processing &quot; + imageURIString);</b>
+<b class="nc">&nbsp;      errorResponse(request, response, &quot;badurl&quot;);</b>
+&nbsp;    } finally {
+<b class="nc">&nbsp;      connection.disconnect();</b>
+<b class="nc">&nbsp;    }</b>
+&nbsp;
+&nbsp;  }
+&nbsp;
+&nbsp;  @Override
+&nbsp;  protected void doPost(HttpServletRequest request, HttpServletResponse response)
+&nbsp;      throws ServletException, IOException {
+&nbsp;    Collection&lt;Part&gt; parts;
+&nbsp;    try {
+<b class="nc">&nbsp;      parts = request.getParts();</b>
+<b class="nc">&nbsp;    } catch (Exception e) {</b>
+&nbsp;      // Includes IOException, InvalidContentTypeException, other parsing IllegalStateException
+<b class="nc">&nbsp;      log.info(e.toString());</b>
+<b class="nc">&nbsp;      errorResponse(request, response, &quot;badimage&quot;);</b>
+&nbsp;      return;
+<b class="nc">&nbsp;    }</b>
+<b class="nc">&nbsp;    Part fileUploadPart = null;</b>
+<b class="nc">&nbsp;    for (Part part : parts) {</b>
+<b class="nc">&nbsp;      if (part.getHeader(HttpHeaders.CONTENT_DISPOSITION) != null) {</b>
+<b class="nc">&nbsp;        fileUploadPart = part;</b>
+<b class="nc">&nbsp;        break;</b>
+&nbsp;      }
+<b class="nc">&nbsp;    }</b>
+<b class="nc">&nbsp;    if (fileUploadPart == null) {</b>
+<b class="nc">&nbsp;      log.info(&quot;File upload was not multipart&quot;);</b>
+<b class="nc">&nbsp;      errorResponse(request, response, &quot;badimage&quot;);</b>
+&nbsp;    } else {
+<b class="nc">&nbsp;      log.info(&quot;Decoding uploaded file &quot; + fileUploadPart.getSubmittedFileName());</b>
+<b class="nc">&nbsp;      try (InputStream is = fileUploadPart.getInputStream()) {</b>
+<b class="nc">&nbsp;        processStream(is, request, response);</b>
+<b class="nc">&nbsp;      }</b>
+&nbsp;    }
+&nbsp;  }
+&nbsp;
+&nbsp;  private static void processStream(InputStream is,
+&nbsp;                                    HttpServletRequest request,
+&nbsp;                                    HttpServletResponse response) throws ServletException, IOException {
+&nbsp;
+&nbsp;    BufferedImage image;
+&nbsp;    try {
+<b class="nc">&nbsp;      image = ImageIO.read(is);</b>
+<b class="nc">&nbsp;    } catch (Exception e) {</b>
+&nbsp;      // Many possible failures from JAI, so just catch anything as a failure
+<b class="nc">&nbsp;      log.info(e.toString());</b>
+<b class="nc">&nbsp;      errorResponse(request, response, &quot;badimage&quot;);</b>
+&nbsp;      return;
+<b class="nc">&nbsp;    }</b>
+<b class="nc">&nbsp;    if (image == null) {</b>
+<b class="nc">&nbsp;      errorResponse(request, response, &quot;badimage&quot;);</b>
+&nbsp;      return;
+&nbsp;    }
+&nbsp;    try {
+<b class="nc">&nbsp;      int height = image.getHeight();</b>
+<b class="nc">&nbsp;      int width = image.getWidth();</b>
+<b class="nc">&nbsp;      if (height &lt;= 1 || width &lt;= 1) {</b>
+<b class="nc">&nbsp;        log.info(&quot;Dimensions too small: &quot; + width + &#39;x&#39; + height);</b>
+<b class="nc">&nbsp;        errorResponse(request, response, &quot;badimage&quot;);</b>
+&nbsp;        return;
+<b class="nc">&nbsp;      } else if (height * width &gt; MAX_PIXELS) {</b>
+<b class="nc">&nbsp;        log.info(&quot;Dimensions too large: &quot; + width + &#39;x&#39; + height);</b>
+<b class="nc">&nbsp;        errorResponse(request, response, HttpServletResponse.SC_REQUEST_ENTITY_TOO_LARGE, &quot;badimage&quot;);</b>
+&nbsp;        return;
+&nbsp;      }
+&nbsp;
+<b class="nc">&nbsp;      processImage(image, request, response);</b>
+&nbsp;    } finally {
+<b class="nc">&nbsp;      image.flush();</b>
+<b class="nc">&nbsp;    }</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  private static void processImage(BufferedImage image,
+&nbsp;                                   HttpServletRequest request,
+&nbsp;                                   HttpServletResponse response) throws IOException, ServletException {
+&nbsp;
+<b class="nc">&nbsp;    LuminanceSource source = new BufferedImageLuminanceSource(image);</b>
+<b class="nc">&nbsp;    BinaryBitmap bitmap = new BinaryBitmap(new GlobalHistogramBinarizer(source));</b>
+<b class="nc">&nbsp;    Collection&lt;Result&gt; results = new ArrayList&lt;&gt;(1);</b>
+&nbsp;
+&nbsp;    try {
+&nbsp;
+<b class="nc">&nbsp;      Reader reader = new MultiFormatReader();</b>
+<b class="nc">&nbsp;      ReaderException savedException = null;</b>
+&nbsp;      try {
+&nbsp;        // Look for multiple barcodes
+<b class="nc">&nbsp;        MultipleBarcodeReader multiReader = new GenericMultipleBarcodeReader(reader);</b>
+<b class="nc">&nbsp;        Result[] theResults = multiReader.decodeMultiple(bitmap, HINTS);</b>
+<b class="nc">&nbsp;        if (theResults != null) {</b>
+<b class="nc">&nbsp;          results.addAll(Arrays.asList(theResults));</b>
+&nbsp;        }
+<b class="nc">&nbsp;      } catch (ReaderException re) {</b>
+<b class="nc">&nbsp;        savedException = re;</b>
+<b class="nc">&nbsp;      }</b>
+&nbsp;
+<b class="nc">&nbsp;      if (results.isEmpty() &amp;&amp; !Thread.currentThread().isInterrupted()) {</b>
+&nbsp;        try {
+&nbsp;          // Look for pure barcode
+<b class="nc">&nbsp;          Result theResult = reader.decode(bitmap, HINTS_PURE);</b>
+<b class="nc">&nbsp;          if (theResult != null) {</b>
+<b class="nc">&nbsp;            results.add(theResult);</b>
+&nbsp;          }
+<b class="nc">&nbsp;        } catch (ReaderException re) {</b>
+<b class="nc">&nbsp;          savedException = re;</b>
+<b class="nc">&nbsp;        }</b>
+&nbsp;      }
+&nbsp;
+<b class="nc">&nbsp;      if (results.isEmpty() &amp;&amp; !Thread.currentThread().isInterrupted()) {</b>
+&nbsp;        try {
+&nbsp;          // Look for normal barcode in photo
+<b class="nc">&nbsp;          Result theResult = reader.decode(bitmap, HINTS);</b>
+<b class="nc">&nbsp;          if (theResult != null) {</b>
+<b class="nc">&nbsp;            results.add(theResult);</b>
+&nbsp;          }
+<b class="nc">&nbsp;        } catch (ReaderException re) {</b>
+<b class="nc">&nbsp;          savedException = re;</b>
+<b class="nc">&nbsp;        }</b>
+&nbsp;      }
+&nbsp;
+<b class="nc">&nbsp;      if (results.isEmpty() &amp;&amp; !Thread.currentThread().isInterrupted()) {</b>
+&nbsp;        try {
+&nbsp;          // Try again with other binarizer
+<b class="nc">&nbsp;          BinaryBitmap hybridBitmap = new BinaryBitmap(new HybridBinarizer(source));</b>
+<b class="nc">&nbsp;          Result theResult = reader.decode(hybridBitmap, HINTS);</b>
+<b class="nc">&nbsp;          if (theResult != null) {</b>
+<b class="nc">&nbsp;            results.add(theResult);</b>
+&nbsp;          }
+<b class="nc">&nbsp;        } catch (ReaderException re) {</b>
+<b class="nc">&nbsp;          savedException = re;</b>
+<b class="nc">&nbsp;        }</b>
+&nbsp;      }
+&nbsp;
+<b class="nc">&nbsp;      if (results.isEmpty()) {</b>
+&nbsp;        try {
+<b class="nc">&nbsp;          throw savedException == null ? NotFoundException.getNotFoundInstance() : savedException;</b>
+<b class="nc">&nbsp;        } catch (FormatException | ChecksumException e) {</b>
+<b class="nc">&nbsp;          errorResponse(request, response, &quot;format&quot;);</b>
+<b class="nc">&nbsp;        } catch (ReaderException e) { // Including NotFoundException</b>
+<b class="nc">&nbsp;          errorResponse(request, response, &quot;notfound&quot;);</b>
+<b class="nc">&nbsp;        }</b>
+&nbsp;        return;
+&nbsp;      }
+&nbsp;
+<b class="nc">&nbsp;    } catch (RuntimeException re) {</b>
+&nbsp;      // Call out unexpected errors in the log clearly
+<b class="nc">&nbsp;      log.log(Level.WARNING, &quot;Unexpected exception from library&quot;, re);</b>
+<b class="nc">&nbsp;      throw new ServletException(re);</b>
+<b class="nc">&nbsp;    }</b>
+&nbsp;
+<b class="nc">&nbsp;    String fullParameter = request.getParameter(&quot;full&quot;);</b>
+<b class="nc">&nbsp;    boolean minimalOutput = fullParameter != null &amp;&amp; !Boolean.parseBoolean(fullParameter);</b>
+<b class="nc">&nbsp;    if (minimalOutput) {</b>
+<b class="nc">&nbsp;      response.setContentType(MediaType.PLAIN_TEXT_UTF_8.toString());</b>
+<b class="nc">&nbsp;      response.setCharacterEncoding(StandardCharsets.UTF_8.name());</b>
+<b class="nc">&nbsp;      try (Writer out = new OutputStreamWriter(response.getOutputStream(), StandardCharsets.UTF_8)) {</b>
+<b class="nc">&nbsp;        for (Result result : results) {</b>
+<b class="nc">&nbsp;          out.write(result.getText());</b>
+<b class="nc">&nbsp;          out.write(&#39;\n&#39;);</b>
+<b class="nc">&nbsp;        }</b>
+<b class="nc">&nbsp;      }</b>
+&nbsp;    } else {
+<b class="nc">&nbsp;      request.setAttribute(&quot;results&quot;, results);</b>
+<b class="nc">&nbsp;      request.getRequestDispatcher(&quot;decoderesult.jspx&quot;).forward(request, response);</b>
+&nbsp;    }
+&nbsp;  }
+&nbsp;  private static void errorResponse(HttpServletRequest request,
+&nbsp;                                    HttpServletResponse response,
+&nbsp;                                    String key) throws ServletException, IOException {
+<b class="nc">&nbsp;    errorResponse(request, response, HttpServletResponse.SC_BAD_REQUEST, key);</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  private static void errorResponse(HttpServletRequest request,
+&nbsp;                                    HttpServletResponse response,
+&nbsp;                                    int httpStatus,
+&nbsp;                                    String key) throws ServletException, IOException {
+<b class="nc">&nbsp;    Locale locale = request.getLocale();</b>
+<b class="nc">&nbsp;    if (locale == null) {</b>
+<b class="nc">&nbsp;      locale = Locale.ENGLISH;</b>
+&nbsp;    }
+<b class="nc">&nbsp;    ResourceBundle bundle = ResourceBundle.getBundle(&quot;Strings&quot;, locale);</b>
+<b class="nc">&nbsp;    String title = bundle.getString(&quot;response.error.&quot; + key + &quot;.title&quot;);</b>
+<b class="nc">&nbsp;    String text = bundle.getString(&quot;response.error.&quot; + key + &quot;.text&quot;);</b>
+<b class="nc">&nbsp;    request.setAttribute(&quot;title&quot;, title);</b>
+<b class="nc">&nbsp;    request.setAttribute(&quot;text&quot;, text);</b>
+<b class="nc">&nbsp;    RequestDispatcher dispatcher = request.getRequestDispatcher(&quot;response.jspx&quot;);</b>
+<b class="nc">&nbsp;    if (dispatcher == null) {</b>
+<b class="nc">&nbsp;      log.warning(&quot;Can&#39;t obtain RequestDispatcher&quot;);</b>
+&nbsp;    } else {
+<b class="nc">&nbsp;      response.setStatus(httpStatus);</b>
+<b class="nc">&nbsp;      dispatcher.forward(request, response);</b>
+&nbsp;    }
+&nbsp;  }
+&nbsp;
+&nbsp;}
+</code>
+</pre>
+</div>
+
+<script type="text/javascript">
+(function() {
+    var msie = false, msie9 = false;
+    /*@cc_on
+      msie = true;
+      @if (@_jscript_version >= 9)
+        msie9 = true;
+      @end
+    @*/
+
+    if (!msie || msie && msie9) {
+      hljs.highlightAll()
+      hljs.initLineNumbersOnLoad();
+    }
+})();
+</script>
+
+<div class="footer">
+    
+    <div style="float:right;">generated on 2023-11-12 23:26</div>
+</div>
+</body>
+</html>

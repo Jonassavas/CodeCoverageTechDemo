@@ -1,0 +1,262 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>DetectionResultRowIndicatorColumn.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">ZXing Core</a> &gt; <a href="index.source.html" class="el_package">com.google.zxing.pdf417.decoder</a> &gt; <span class="el_source">DetectionResultRowIndicatorColumn.java</span></div><h1>DetectionResultRowIndicatorColumn.java</h1><pre class="source lang-java linenums">/*
+ * Copyright 2013 ZXing authors
+ *
+ * Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an &quot;AS IS&quot; BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+package com.google.zxing.pdf417.decoder;
+
+import com.google.zxing.ResultPoint;
+import com.google.zxing.pdf417.PDF417Common;
+
+/**
+ * @author Guenther Grau
+ */
+final class DetectionResultRowIndicatorColumn extends DetectionResultColumn {
+
+  private final boolean isLeft;
+
+  DetectionResultRowIndicatorColumn(BoundingBox boundingBox, boolean isLeft) {
+<span class="fc" id="L30">    super(boundingBox);</span>
+<span class="fc" id="L31">    this.isLeft = isLeft;</span>
+<span class="fc" id="L32">  }</span>
+
+  private void setRowNumbers() {
+<span class="fc bfc" id="L35" title="All 2 branches covered.">    for (Codeword codeword : getCodewords()) {</span>
+<span class="fc bfc" id="L36" title="All 2 branches covered.">      if (codeword != null) {</span>
+<span class="fc" id="L37">        codeword.setRowNumberAsRowIndicatorColumn();</span>
+      }
+    }
+<span class="fc" id="L40">  }</span>
+
+  // TODO implement properly
+  // TODO maybe we should add missing codewords to store the correct row number to make
+  // finding row numbers for other columns easier
+  // use row height count to make detection of invalid row numbers more reliable
+  void adjustCompleteIndicatorColumnRowNumbers(BarcodeMetadata barcodeMetadata) {
+<span class="fc" id="L47">    Codeword[] codewords = getCodewords();</span>
+<span class="fc" id="L48">    setRowNumbers();</span>
+<span class="fc" id="L49">    removeIncorrectCodewords(codewords, barcodeMetadata);</span>
+<span class="fc" id="L50">    BoundingBox boundingBox = getBoundingBox();</span>
+<span class="fc bfc" id="L51" title="All 2 branches covered.">    ResultPoint top = isLeft ? boundingBox.getTopLeft() : boundingBox.getTopRight();</span>
+<span class="fc bfc" id="L52" title="All 2 branches covered.">    ResultPoint bottom = isLeft ? boundingBox.getBottomLeft() : boundingBox.getBottomRight();</span>
+<span class="fc" id="L53">    int firstRow = imageRowToCodewordIndex((int) top.getY());</span>
+<span class="fc" id="L54">    int lastRow = imageRowToCodewordIndex((int) bottom.getY());</span>
+    // We need to be careful using the average row height. Barcode could be skewed so that we have smaller and
+    // taller rows
+    //float averageRowHeight = (lastRow - firstRow) / (float) barcodeMetadata.getRowCount();
+<span class="fc" id="L58">    int barcodeRow = -1;</span>
+<span class="fc" id="L59">    int maxRowHeight = 1;</span>
+<span class="fc" id="L60">    int currentRowHeight = 0;</span>
+<span class="fc bfc" id="L61" title="All 2 branches covered.">    for (int codewordsRow = firstRow; codewordsRow &lt; lastRow; codewordsRow++) {</span>
+<span class="fc bfc" id="L62" title="All 2 branches covered.">      if (codewords[codewordsRow] == null) {</span>
+<span class="fc" id="L63">        continue;</span>
+      }
+<span class="fc" id="L65">      Codeword codeword = codewords[codewordsRow];</span>
+
+<span class="fc" id="L67">      int rowDifference = codeword.getRowNumber() - barcodeRow;</span>
+
+      // TODO improve handling with case where first row indicator doesn't start with 0
+
+<span class="fc bfc" id="L71" title="All 2 branches covered.">      if (rowDifference == 0) {</span>
+<span class="fc" id="L72">        currentRowHeight++;</span>
+<span class="fc bfc" id="L73" title="All 2 branches covered.">      } else if (rowDifference == 1) {</span>
+<span class="fc" id="L74">        maxRowHeight = Math.max(maxRowHeight, currentRowHeight);</span>
+<span class="fc" id="L75">        currentRowHeight = 1;</span>
+<span class="fc" id="L76">        barcodeRow = codeword.getRowNumber();</span>
+<span class="fc bfc" id="L77" title="All 2 branches covered.">      } else if (rowDifference &lt; 0 ||</span>
+<span class="pc bpc" id="L78" title="1 of 4 branches missed.">                 codeword.getRowNumber() &gt;= barcodeMetadata.getRowCount() ||</span>
+                 rowDifference &gt; codewordsRow) {
+<span class="fc" id="L80">        codewords[codewordsRow] = null;</span>
+      } else {
+        int checkedRows;
+<span class="fc bfc" id="L83" title="All 2 branches covered.">        if (maxRowHeight &gt; 2) {</span>
+<span class="fc" id="L84">          checkedRows = (maxRowHeight - 2) * rowDifference;</span>
+        } else {
+<span class="fc" id="L86">          checkedRows = rowDifference;</span>
+        }
+<span class="fc bfc" id="L88" title="All 2 branches covered.">        boolean closePreviousCodewordFound = checkedRows &gt;= codewordsRow;</span>
+<span class="fc bfc" id="L89" title="All 4 branches covered.">        for (int i = 1; i &lt;= checkedRows &amp;&amp; !closePreviousCodewordFound; i++) {</span>
+          // there must be (height * rowDifference) number of codewords missing. For now we assume height = 1.
+          // This should hopefully get rid of most problems already.
+<span class="fc bfc" id="L92" title="All 2 branches covered.">          closePreviousCodewordFound = codewords[codewordsRow - i] != null;</span>
+        }
+<span class="fc bfc" id="L94" title="All 2 branches covered.">        if (closePreviousCodewordFound) {</span>
+<span class="fc" id="L95">          codewords[codewordsRow] = null;</span>
+        } else {
+<span class="fc" id="L97">          barcodeRow = codeword.getRowNumber();</span>
+<span class="fc" id="L98">          currentRowHeight = 1;</span>
+        }
+      }
+    }
+    //return (int) (averageRowHeight + 0.5);
+<span class="fc" id="L103">  }</span>
+
+  int[] getRowHeights() {
+<span class="fc" id="L106">    BarcodeMetadata barcodeMetadata = getBarcodeMetadata();</span>
+<span class="pc bpc" id="L107" title="1 of 2 branches missed.">    if (barcodeMetadata == null) {</span>
+<span class="nc" id="L108">      return null;</span>
+    }
+<span class="fc" id="L110">    adjustIncompleteIndicatorColumnRowNumbers(barcodeMetadata);</span>
+<span class="fc" id="L111">    int[] result = new int[barcodeMetadata.getRowCount()];</span>
+<span class="fc bfc" id="L112" title="All 2 branches covered.">    for (Codeword codeword : getCodewords()) {</span>
+<span class="fc bfc" id="L113" title="All 2 branches covered.">      if (codeword != null) {</span>
+<span class="fc" id="L114">        int rowNumber = codeword.getRowNumber();</span>
+<span class="fc bfc" id="L115" title="All 2 branches covered.">        if (rowNumber &gt;= result.length) {</span>
+          // We have more rows than the barcode metadata allows for, ignore them.
+<span class="fc" id="L117">          continue;</span>
+        }
+<span class="fc" id="L119">        result[rowNumber]++;</span>
+      } // else throw exception?
+    }
+<span class="fc" id="L122">    return result;</span>
+  }
+
+  // TODO maybe we should add missing codewords to store the correct row number to make
+  // finding row numbers for other columns easier
+  // use row height count to make detection of invalid row numbers more reliable
+  private void adjustIncompleteIndicatorColumnRowNumbers(BarcodeMetadata barcodeMetadata) {
+<span class="fc" id="L129">    BoundingBox boundingBox = getBoundingBox();</span>
+<span class="fc bfc" id="L130" title="All 2 branches covered.">    ResultPoint top = isLeft ? boundingBox.getTopLeft() : boundingBox.getTopRight();</span>
+<span class="fc bfc" id="L131" title="All 2 branches covered.">    ResultPoint bottom = isLeft ? boundingBox.getBottomLeft() : boundingBox.getBottomRight();</span>
+<span class="fc" id="L132">    int firstRow = imageRowToCodewordIndex((int) top.getY());</span>
+<span class="fc" id="L133">    int lastRow = imageRowToCodewordIndex((int) bottom.getY());</span>
+    //float averageRowHeight = (lastRow - firstRow) / (float) barcodeMetadata.getRowCount();
+<span class="fc" id="L135">    Codeword[] codewords = getCodewords();</span>
+<span class="fc" id="L136">    int barcodeRow = -1;</span>
+<span class="fc" id="L137">    int maxRowHeight = 1;</span>
+<span class="fc" id="L138">    int currentRowHeight = 0;</span>
+<span class="fc bfc" id="L139" title="All 2 branches covered.">    for (int codewordsRow = firstRow; codewordsRow &lt; lastRow; codewordsRow++) {</span>
+<span class="fc bfc" id="L140" title="All 2 branches covered.">      if (codewords[codewordsRow] == null) {</span>
+<span class="fc" id="L141">        continue;</span>
+      }
+<span class="fc" id="L143">      Codeword codeword = codewords[codewordsRow];</span>
+
+<span class="fc" id="L145">      codeword.setRowNumberAsRowIndicatorColumn();</span>
+
+<span class="fc" id="L147">      int rowDifference = codeword.getRowNumber() - barcodeRow;</span>
+
+      // TODO improve handling with case where first row indicator doesn't start with 0
+
+<span class="fc bfc" id="L151" title="All 2 branches covered.">      if (rowDifference == 0) {</span>
+<span class="fc" id="L152">        currentRowHeight++;</span>
+<span class="fc bfc" id="L153" title="All 2 branches covered.">      } else if (rowDifference == 1) {</span>
+<span class="fc" id="L154">        maxRowHeight = Math.max(maxRowHeight, currentRowHeight);</span>
+<span class="fc" id="L155">        currentRowHeight = 1;</span>
+<span class="fc" id="L156">        barcodeRow = codeword.getRowNumber();</span>
+<span class="fc bfc" id="L157" title="All 2 branches covered.">      } else if (codeword.getRowNumber() &gt;= barcodeMetadata.getRowCount()) {</span>
+<span class="fc" id="L158">        codewords[codewordsRow] = null;</span>
+      } else {
+<span class="fc" id="L160">        barcodeRow = codeword.getRowNumber();</span>
+<span class="fc" id="L161">        currentRowHeight = 1;</span>
+      }
+    }
+    //return (int) (averageRowHeight + 0.5);
+<span class="fc" id="L165">  }</span>
+
+  BarcodeMetadata getBarcodeMetadata() {
+<span class="fc" id="L168">    Codeword[] codewords = getCodewords();</span>
+<span class="fc" id="L169">    BarcodeValue barcodeColumnCount = new BarcodeValue();</span>
+<span class="fc" id="L170">    BarcodeValue barcodeRowCountUpperPart = new BarcodeValue();</span>
+<span class="fc" id="L171">    BarcodeValue barcodeRowCountLowerPart = new BarcodeValue();</span>
+<span class="fc" id="L172">    BarcodeValue barcodeECLevel = new BarcodeValue();</span>
+<span class="fc bfc" id="L173" title="All 2 branches covered.">    for (Codeword codeword : codewords) {</span>
+<span class="fc bfc" id="L174" title="All 2 branches covered.">      if (codeword == null) {</span>
+<span class="fc" id="L175">        continue;</span>
+      }
+<span class="fc" id="L177">      codeword.setRowNumberAsRowIndicatorColumn();</span>
+<span class="fc" id="L178">      int rowIndicatorValue = codeword.getValue() % 30;</span>
+<span class="fc" id="L179">      int codewordRowNumber = codeword.getRowNumber();</span>
+<span class="fc bfc" id="L180" title="All 2 branches covered.">      if (!isLeft) {</span>
+<span class="fc" id="L181">        codewordRowNumber += 2;</span>
+      }
+<span class="pc bpc" id="L183" title="1 of 4 branches missed.">      switch (codewordRowNumber % 3) {</span>
+        case 0:
+<span class="fc" id="L185">          barcodeRowCountUpperPart.setValue(rowIndicatorValue * 3 + 1);</span>
+<span class="fc" id="L186">          break;</span>
+        case 1:
+<span class="fc" id="L188">          barcodeECLevel.setValue(rowIndicatorValue / 3);</span>
+<span class="fc" id="L189">          barcodeRowCountLowerPart.setValue(rowIndicatorValue % 3);</span>
+<span class="fc" id="L190">          break;</span>
+        case 2:
+<span class="fc" id="L192">          barcodeColumnCount.setValue(rowIndicatorValue + 1);</span>
+          break;
+      }
+    }
+    // Maybe we should check if we have ambiguous values?
+<span class="fc bfc" id="L197" title="All 2 branches covered.">    if ((barcodeColumnCount.getValue().length == 0) ||</span>
+<span class="fc bfc" id="L198" title="All 2 branches covered.">        (barcodeRowCountUpperPart.getValue().length == 0) ||</span>
+<span class="pc bpc" id="L199" title="1 of 2 branches missed.">        (barcodeRowCountLowerPart.getValue().length == 0) ||</span>
+<span class="pc bpc" id="L200" title="1 of 2 branches missed.">        (barcodeECLevel.getValue().length == 0) ||</span>
+<span class="pc bpc" id="L201" title="1 of 2 branches missed.">        barcodeColumnCount.getValue()[0] &lt; 1 ||</span>
+<span class="pc bpc" id="L202" title="1 of 2 branches missed.">        barcodeRowCountUpperPart.getValue()[0] + barcodeRowCountLowerPart.getValue()[0] &lt;</span>
+            PDF417Common.MIN_ROWS_IN_BARCODE ||
+<span class="pc bpc" id="L204" title="1 of 2 branches missed.">        barcodeRowCountUpperPart.getValue()[0] + barcodeRowCountLowerPart.getValue()[0] &gt;</span>
+            PDF417Common.MAX_ROWS_IN_BARCODE) {
+<span class="fc" id="L206">      return null;</span>
+    }
+<span class="fc" id="L208">    BarcodeMetadata barcodeMetadata = new BarcodeMetadata(barcodeColumnCount.getValue()[0],</span>
+<span class="fc" id="L209">        barcodeRowCountUpperPart.getValue()[0], barcodeRowCountLowerPart.getValue()[0], barcodeECLevel.getValue()[0]);</span>
+<span class="fc" id="L210">    removeIncorrectCodewords(codewords, barcodeMetadata);</span>
+<span class="fc" id="L211">    return barcodeMetadata;</span>
+  }
+
+  private void removeIncorrectCodewords(Codeword[] codewords, BarcodeMetadata barcodeMetadata) {
+    // Remove codewords which do not match the metadata
+    // TODO Maybe we should keep the incorrect codewords for the start and end positions?
+<span class="fc bfc" id="L217" title="All 2 branches covered.">    for (int codewordRow = 0; codewordRow &lt; codewords.length; codewordRow++) {</span>
+<span class="fc" id="L218">      Codeword codeword = codewords[codewordRow];</span>
+<span class="fc bfc" id="L219" title="All 2 branches covered.">      if (codewords[codewordRow] == null) {</span>
+<span class="fc" id="L220">        continue;</span>
+      }
+<span class="fc" id="L222">      int rowIndicatorValue = codeword.getValue() % 30;</span>
+<span class="fc" id="L223">      int codewordRowNumber = codeword.getRowNumber();</span>
+<span class="fc bfc" id="L224" title="All 2 branches covered.">      if (codewordRowNumber &gt; barcodeMetadata.getRowCount()) {</span>
+<span class="fc" id="L225">        codewords[codewordRow] = null;</span>
+<span class="fc" id="L226">        continue;</span>
+      }
+<span class="fc bfc" id="L228" title="All 2 branches covered.">      if (!isLeft) {</span>
+<span class="fc" id="L229">        codewordRowNumber += 2;</span>
+      }
+<span class="pc bpc" id="L231" title="1 of 4 branches missed.">      switch (codewordRowNumber % 3) {</span>
+        case 0:
+<span class="fc bfc" id="L233" title="All 2 branches covered.">          if (rowIndicatorValue * 3 + 1 != barcodeMetadata.getRowCountUpperPart()) {</span>
+<span class="fc" id="L234">            codewords[codewordRow] = null;</span>
+          }
+          break;
+        case 1:
+<span class="fc bfc" id="L238" title="All 2 branches covered.">          if (rowIndicatorValue / 3 != barcodeMetadata.getErrorCorrectionLevel() ||</span>
+<span class="fc bfc" id="L239" title="All 2 branches covered.">              rowIndicatorValue % 3 != barcodeMetadata.getRowCountLowerPart()) {</span>
+<span class="fc" id="L240">            codewords[codewordRow] = null;</span>
+          }
+          break;
+        case 2:
+<span class="fc bfc" id="L244" title="All 2 branches covered.">          if (rowIndicatorValue + 1 != barcodeMetadata.getColumnCount()) {</span>
+<span class="fc" id="L245">            codewords[codewordRow] = null;</span>
+          }
+          break;
+      }
+    }
+<span class="fc" id="L250">  }</span>
+
+  boolean isLeft() {
+<span class="fc" id="L253">    return isLeft;</span>
+  }
+
+  @Override
+  public String toString() {
+<span class="nc" id="L258">    return &quot;IsLeft: &quot; + isLeft + '\n' + super.toString();</span>
+  }
+
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.11.202310140853</span></div></body></html>

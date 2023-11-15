@@ -1,0 +1,185 @@
+
+
+
+<!DOCTYPE html>
+<html id="htmlId">
+<head>
+  <meta http-equiv="Content-Type" content="text/html;charset=windows-1252"> 
+  <title>Coverage Report > URIResultParser</title>
+  <style type="text/css">
+    @import "../../css/coverage.css";
+    @import "../../css/idea.min.css";
+  </style>
+  <script type="text/javascript" src="../../js/highlight.min.js"></script>
+  <script type="text/javascript" src="../../js/highlightjs-line-numbers.min.js"></script>
+</head>
+
+<body>
+<div class="content">
+<div class="breadCrumbs">
+Current scope:     <a href="../../index.html">all classes</a>
+    <span class="separator">|</span>
+    <a href="../index.html">com.google.zxing.client.result</a>
+</div>
+
+<h1>Coverage Summary for Class: URIResultParser (com.google.zxing.client.result)</h1>
+
+<table class="coverageStats">
+<tr>
+  <th class="name">Class</th>
+<th class="coverageStat 
+">
+  Class, %
+</th>
+<th class="coverageStat 
+">
+  Method, %
+</th>
+<th class="coverageStat 
+">
+  Line, %
+</th>
+</tr>
+<tr>
+  <td class="name">URIResultParser</td>
+<td class="coverageStat">
+  <span class="percent">
+    100%
+  </span>
+  <span class="absValue">
+    (1/1)
+  </span>
+</td>
+<td class="coverageStat">
+  <span class="percent">
+    100%
+  </span>
+  <span class="absValue">
+    (5/5)
+  </span>
+</td>
+<td class="coverageStat">
+  <span class="percent">
+    95.2%
+  </span>
+  <span class="absValue">
+    (20/21)
+  </span>
+</td>
+</tr>
+
+</table>
+
+<br/>
+<br/>
+
+
+<pre>
+<code class="sourceCode" id="sourceCode">&nbsp;/*
+&nbsp; * Copyright 2007 ZXing authors
+&nbsp; *
+&nbsp; * Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
+&nbsp; * you may not use this file except in compliance with the License.
+&nbsp; * You may obtain a copy of the License at
+&nbsp; *
+&nbsp; *      http://www.apache.org/licenses/LICENSE-2.0
+&nbsp; *
+&nbsp; * Unless required by applicable law or agreed to in writing, software
+&nbsp; * distributed under the License is distributed on an &quot;AS IS&quot; BASIS,
+&nbsp; * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+&nbsp; * See the License for the specific language governing permissions and
+&nbsp; * limitations under the License.
+&nbsp; */
+&nbsp;
+&nbsp;package com.google.zxing.client.result;
+&nbsp;
+&nbsp;import com.google.zxing.Result;
+&nbsp;
+&nbsp;import java.util.regex.Matcher;
+&nbsp;import java.util.regex.Pattern;
+&nbsp;
+&nbsp;/**
+&nbsp; * Tries to parse results that are a URI of some kind.
+&nbsp; * 
+&nbsp; * @author Sean Owen
+&nbsp; */
+<b class="fc">&nbsp;public final class URIResultParser extends ResultParser {</b>
+&nbsp;
+<b class="fc">&nbsp;  private static final Pattern ALLOWED_URI_CHARS_PATTERN =</b>
+<b class="fc">&nbsp;      Pattern.compile(&quot;[-._~:/?#\\[\\]@!$&amp;&#39;()*+,;=%A-Za-z0-9]+&quot;);</b>
+<b class="fc">&nbsp;  private static final Pattern USER_IN_HOST = Pattern.compile(&quot;:/*([^/@]+)@[^/]+&quot;);</b>
+&nbsp;  // See http://www.ietf.org/rfc/rfc2396.txt
+<b class="fc">&nbsp;  private static final Pattern URL_WITH_PROTOCOL_PATTERN = Pattern.compile(&quot;[a-zA-Z][a-zA-Z0-9+-.]+:&quot;);</b>
+<b class="fc">&nbsp;  private static final Pattern URL_WITHOUT_PROTOCOL_PATTERN = Pattern.compile(</b>
+&nbsp;      &quot;([a-zA-Z0-9\\-]+\\.){1,6}[a-zA-Z]{2,}&quot; + // host name elements; allow up to say 6 domain elements
+&nbsp;      &quot;(:\\d{1,5})?&quot; + // maybe port
+&nbsp;      &quot;(/|\\?|$)&quot;); // query, path or nothing
+&nbsp;
+&nbsp;  @Override
+&nbsp;  public URIParsedResult parse(Result result) {
+<b class="fc">&nbsp;    String rawText = getMassagedText(result);</b>
+&nbsp;    // We specifically handle the odd &quot;URL&quot; scheme here for simplicity and add &quot;URI&quot; for fun
+&nbsp;    // Assume anything starting this way really means to be a URI
+<b class="fc">&nbsp;    if (rawText.startsWith(&quot;URL:&quot;) || rawText.startsWith(&quot;URI:&quot;)) {</b>
+<b class="nc">&nbsp;      return new URIParsedResult(rawText.substring(4).trim(), null);</b>
+&nbsp;    }
+<b class="fc">&nbsp;    rawText = rawText.trim();</b>
+<b class="fc">&nbsp;    if (!isBasicallyValidURI(rawText) || isPossiblyMaliciousURI(rawText)) {</b>
+<b class="fc">&nbsp;      return null;</b>
+&nbsp;    }
+<b class="fc">&nbsp;    return new URIParsedResult(rawText, null);</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  /**
+&nbsp;   * @return true if the URI contains suspicious patterns that may suggest it intends to
+&nbsp;   *  mislead the user about its true nature. At the moment this looks for the presence
+&nbsp;   *  of user/password syntax in the host/authority portion of a URI which may be used
+&nbsp;   *  in attempts to make the URI&#39;s host appear to be other than it is. Example:
+&nbsp;   *  http://yourbank.com@phisher.com  This URI connects to phisher.com but may appear
+&nbsp;   *  to connect to yourbank.com at first glance.
+&nbsp;   */
+&nbsp;  static boolean isPossiblyMaliciousURI(String uri) {
+<b class="fc">&nbsp;    return !ALLOWED_URI_CHARS_PATTERN.matcher(uri).matches() || USER_IN_HOST.matcher(uri).find();</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  static boolean isBasicallyValidURI(String uri) {
+<b class="fc">&nbsp;    if (uri.contains(&quot; &quot;)) {</b>
+&nbsp;      // Quick hack check for a common case
+<b class="fc">&nbsp;      return false;</b>
+&nbsp;    }
+<b class="fc">&nbsp;    Matcher m = URL_WITH_PROTOCOL_PATTERN.matcher(uri);</b>
+<b class="fc">&nbsp;    if (m.find() &amp;&amp; m.start() == 0) { // match at start only</b>
+<b class="fc">&nbsp;      return true;</b>
+&nbsp;    }
+<b class="fc">&nbsp;    m = URL_WITHOUT_PROTOCOL_PATTERN.matcher(uri);</b>
+<b class="fc">&nbsp;    return m.find() &amp;&amp; m.start() == 0;</b>
+&nbsp;  }
+&nbsp;
+&nbsp;}
+</code>
+</pre>
+</div>
+
+<script type="text/javascript">
+(function() {
+    var msie = false, msie9 = false;
+    /*@cc_on
+      msie = true;
+      @if (@_jscript_version >= 9)
+        msie9 = true;
+      @end
+    @*/
+
+    if (!msie || msie && msie9) {
+      hljs.highlightAll()
+      hljs.initLineNumbersOnLoad();
+    }
+})();
+</script>
+
+<div class="footer">
+    
+    <div style="float:right;">generated on 2023-11-12 23:26</div>
+</div>
+</body>
+</html>

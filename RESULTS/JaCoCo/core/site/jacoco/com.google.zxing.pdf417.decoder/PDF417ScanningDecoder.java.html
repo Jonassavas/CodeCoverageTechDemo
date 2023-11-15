@@ -1,0 +1,635 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>PDF417ScanningDecoder.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">ZXing Core</a> &gt; <a href="index.source.html" class="el_package">com.google.zxing.pdf417.decoder</a> &gt; <span class="el_source">PDF417ScanningDecoder.java</span></div><h1>PDF417ScanningDecoder.java</h1><pre class="source lang-java linenums">/*
+ * Copyright 2013 ZXing authors
+ *
+ * Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an &quot;AS IS&quot; BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+package com.google.zxing.pdf417.decoder;
+
+import com.google.zxing.ChecksumException;
+import com.google.zxing.FormatException;
+import com.google.zxing.NotFoundException;
+import com.google.zxing.ResultPoint;
+import com.google.zxing.common.BitMatrix;
+import com.google.zxing.common.DecoderResult;
+import com.google.zxing.common.detector.MathUtils;
+import com.google.zxing.pdf417.PDF417Common;
+import com.google.zxing.pdf417.decoder.ec.ErrorCorrection;
+
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Formatter;
+import java.util.List;
+
+/**
+ * @author Guenther Grau
+ */
+public final class PDF417ScanningDecoder {
+
+  private static final int CODEWORD_SKEW_SIZE = 2;
+
+  private static final int MAX_ERRORS = 3;
+  private static final int MAX_EC_CODEWORDS = 512;
+<span class="fc" id="L43">  private static final ErrorCorrection errorCorrection = new ErrorCorrection();</span>
+
+  private PDF417ScanningDecoder() {
+  }
+
+  // TODO don't pass in minCodewordWidth and maxCodewordWidth, pass in barcode columns for start and stop pattern
+  // columns. That way width can be deducted from the pattern column.
+  // This approach also allows to detect more details about the barcode, e.g. if a bar type (white or black) is wider
+  // than it should be. This can happen if the scanner used a bad blackpoint.
+  public static DecoderResult decode(BitMatrix image,
+                                     ResultPoint imageTopLeft,
+                                     ResultPoint imageBottomLeft,
+                                     ResultPoint imageTopRight,
+                                     ResultPoint imageBottomRight,
+                                     int minCodewordWidth,
+                                     int maxCodewordWidth)
+      throws NotFoundException, FormatException, ChecksumException {
+<span class="fc" id="L60">    BoundingBox boundingBox = new BoundingBox(image, imageTopLeft, imageBottomLeft, imageTopRight, imageBottomRight);</span>
+<span class="fc" id="L61">    DetectionResultRowIndicatorColumn leftRowIndicatorColumn = null;</span>
+<span class="fc" id="L62">    DetectionResultRowIndicatorColumn rightRowIndicatorColumn = null;</span>
+    DetectionResult detectionResult;
+<span class="fc" id="L64">    for (boolean firstPass = true; ; firstPass = false) {</span>
+<span class="fc bfc" id="L65" title="All 2 branches covered.">      if (imageTopLeft != null) {</span>
+<span class="fc" id="L66">        leftRowIndicatorColumn = getRowIndicatorColumn(image, boundingBox, imageTopLeft, true, minCodewordWidth,</span>
+            maxCodewordWidth);
+      }
+<span class="fc bfc" id="L69" title="All 2 branches covered.">      if (imageTopRight != null) {</span>
+<span class="fc" id="L70">        rightRowIndicatorColumn = getRowIndicatorColumn(image, boundingBox, imageTopRight, false, minCodewordWidth,</span>
+            maxCodewordWidth);
+      }
+<span class="fc" id="L73">      detectionResult = merge(leftRowIndicatorColumn, rightRowIndicatorColumn);</span>
+<span class="fc bfc" id="L74" title="All 2 branches covered.">      if (detectionResult == null) {</span>
+<span class="fc" id="L75">        throw NotFoundException.getNotFoundInstance();</span>
+      }
+<span class="fc" id="L77">      BoundingBox resultBox = detectionResult.getBoundingBox();</span>
+<span class="pc bpc" id="L78" title="1 of 4 branches missed.">      if (firstPass &amp;&amp; resultBox != null &amp;&amp;</span>
+<span class="fc bfc" id="L79" title="All 4 branches covered.">          (resultBox.getMinY() &lt; boundingBox.getMinY() || resultBox.getMaxY() &gt; boundingBox.getMaxY())) {</span>
+<span class="fc" id="L80">        boundingBox = resultBox;</span>
+      } else {
+        break;
+      }
+    }
+<span class="fc" id="L85">    detectionResult.setBoundingBox(boundingBox);</span>
+<span class="fc" id="L86">    int maxBarcodeColumn = detectionResult.getBarcodeColumnCount() + 1;</span>
+<span class="fc" id="L87">    detectionResult.setDetectionResultColumn(0, leftRowIndicatorColumn);</span>
+<span class="fc" id="L88">    detectionResult.setDetectionResultColumn(maxBarcodeColumn, rightRowIndicatorColumn);</span>
+
+<span class="fc bfc" id="L90" title="All 2 branches covered.">    boolean leftToRight = leftRowIndicatorColumn != null;</span>
+<span class="fc bfc" id="L91" title="All 2 branches covered.">    for (int barcodeColumnCount = 1; barcodeColumnCount &lt;= maxBarcodeColumn; barcodeColumnCount++) {</span>
+<span class="fc bfc" id="L92" title="All 2 branches covered.">      int barcodeColumn = leftToRight ? barcodeColumnCount : maxBarcodeColumn - barcodeColumnCount;</span>
+<span class="fc bfc" id="L93" title="All 2 branches covered.">      if (detectionResult.getDetectionResultColumn(barcodeColumn) != null) {</span>
+        // This will be the case for the opposite row indicator column, which doesn't need to be decoded again.
+<span class="fc" id="L95">        continue;</span>
+      }
+      DetectionResultColumn detectionResultColumn;
+<span class="fc bfc" id="L98" title="All 4 branches covered.">      if (barcodeColumn == 0 || barcodeColumn == maxBarcodeColumn) {</span>
+<span class="fc bfc" id="L99" title="All 2 branches covered.">        detectionResultColumn = new DetectionResultRowIndicatorColumn(boundingBox, barcodeColumn == 0);</span>
+      } else {
+<span class="fc" id="L101">        detectionResultColumn = new DetectionResultColumn(boundingBox);</span>
+      }
+<span class="fc" id="L103">      detectionResult.setDetectionResultColumn(barcodeColumn, detectionResultColumn);</span>
+<span class="fc" id="L104">      int startColumn = -1;</span>
+<span class="fc" id="L105">      int previousStartColumn = startColumn;</span>
+      // TODO start at a row for which we know the start position, then detect upwards and downwards from there.
+<span class="fc bfc" id="L107" title="All 2 branches covered.">      for (int imageRow = boundingBox.getMinY(); imageRow &lt;= boundingBox.getMaxY(); imageRow++) {</span>
+<span class="fc" id="L108">        startColumn = getStartColumn(detectionResult, barcodeColumn, imageRow, leftToRight);</span>
+<span class="fc bfc" id="L109" title="All 4 branches covered.">        if (startColumn &lt; 0 || startColumn &gt; boundingBox.getMaxX()) {</span>
+<span class="pc bpc" id="L110" title="1 of 2 branches missed.">          if (previousStartColumn == -1) {</span>
+<span class="fc" id="L111">            continue;</span>
+          }
+<span class="nc" id="L113">          startColumn = previousStartColumn;</span>
+        }
+<span class="fc" id="L115">        Codeword codeword = detectCodeword(image, boundingBox.getMinX(), boundingBox.getMaxX(), leftToRight,</span>
+            startColumn, imageRow, minCodewordWidth, maxCodewordWidth);
+<span class="fc bfc" id="L117" title="All 2 branches covered.">        if (codeword != null) {</span>
+<span class="fc" id="L118">          detectionResultColumn.setCodeword(imageRow, codeword);</span>
+<span class="fc" id="L119">          previousStartColumn = startColumn;</span>
+<span class="fc" id="L120">          minCodewordWidth = Math.min(minCodewordWidth, codeword.getWidth());</span>
+<span class="fc" id="L121">          maxCodewordWidth = Math.max(maxCodewordWidth, codeword.getWidth());</span>
+        }
+      }
+    }
+<span class="fc" id="L125">    return createDecoderResult(detectionResult);</span>
+  }
+
+  private static DetectionResult merge(DetectionResultRowIndicatorColumn leftRowIndicatorColumn,
+                                       DetectionResultRowIndicatorColumn rightRowIndicatorColumn)
+      throws NotFoundException {
+<span class="pc bpc" id="L131" title="1 of 4 branches missed.">    if (leftRowIndicatorColumn == null &amp;&amp; rightRowIndicatorColumn == null) {</span>
+<span class="nc" id="L132">      return null;</span>
+    }
+<span class="fc" id="L134">    BarcodeMetadata barcodeMetadata = getBarcodeMetadata(leftRowIndicatorColumn, rightRowIndicatorColumn);</span>
+<span class="fc bfc" id="L135" title="All 2 branches covered.">    if (barcodeMetadata == null) {</span>
+<span class="fc" id="L136">      return null;</span>
+    }
+<span class="fc" id="L138">    BoundingBox boundingBox = BoundingBox.merge(adjustBoundingBox(leftRowIndicatorColumn),</span>
+<span class="fc" id="L139">        adjustBoundingBox(rightRowIndicatorColumn));</span>
+<span class="fc" id="L140">    return new DetectionResult(barcodeMetadata, boundingBox);</span>
+  }
+
+  private static BoundingBox adjustBoundingBox(DetectionResultRowIndicatorColumn rowIndicatorColumn)
+      throws NotFoundException {
+<span class="fc bfc" id="L145" title="All 2 branches covered.">    if (rowIndicatorColumn == null) {</span>
+<span class="fc" id="L146">      return null;</span>
+    }
+<span class="fc" id="L148">    int[] rowHeights = rowIndicatorColumn.getRowHeights();</span>
+<span class="pc bpc" id="L149" title="1 of 2 branches missed.">    if (rowHeights == null) {</span>
+<span class="nc" id="L150">      return null;</span>
+    }
+<span class="fc" id="L152">    int maxRowHeight = getMax(rowHeights);</span>
+<span class="fc" id="L153">    int missingStartRows = 0;</span>
+<span class="pc bpc" id="L154" title="1 of 2 branches missed.">    for (int rowHeight : rowHeights) {</span>
+<span class="fc" id="L155">      missingStartRows += maxRowHeight - rowHeight;</span>
+<span class="fc bfc" id="L156" title="All 2 branches covered.">      if (rowHeight &gt; 0) {</span>
+<span class="fc" id="L157">        break;</span>
+      }
+    }
+<span class="fc" id="L160">    Codeword[] codewords = rowIndicatorColumn.getCodewords();</span>
+<span class="fc bfc" id="L161" title="All 4 branches covered.">    for (int row = 0; missingStartRows &gt; 0 &amp;&amp; codewords[row] == null; row++) {</span>
+<span class="fc" id="L162">      missingStartRows--;</span>
+    }
+<span class="fc" id="L164">    int missingEndRows = 0;</span>
+<span class="pc bpc" id="L165" title="1 of 2 branches missed.">    for (int row = rowHeights.length - 1; row &gt;= 0; row--) {</span>
+<span class="fc" id="L166">      missingEndRows += maxRowHeight - rowHeights[row];</span>
+<span class="fc bfc" id="L167" title="All 2 branches covered.">      if (rowHeights[row] &gt; 0) {</span>
+<span class="fc" id="L168">        break;</span>
+      }
+    }
+<span class="fc bfc" id="L171" title="All 4 branches covered.">    for (int row = codewords.length - 1; missingEndRows &gt; 0 &amp;&amp; codewords[row] == null; row--) {</span>
+<span class="fc" id="L172">      missingEndRows--;</span>
+    }
+<span class="fc" id="L174">    return rowIndicatorColumn.getBoundingBox().addMissingRows(missingStartRows, missingEndRows,</span>
+<span class="fc" id="L175">        rowIndicatorColumn.isLeft());</span>
+  }
+
+  private static int getMax(int[] values) {
+<span class="fc" id="L179">    int maxValue = -1;</span>
+<span class="fc bfc" id="L180" title="All 2 branches covered.">    for (int value : values) {</span>
+<span class="fc" id="L181">      maxValue = Math.max(maxValue, value);</span>
+    }
+<span class="fc" id="L183">    return maxValue;</span>
+  }
+
+  private static BarcodeMetadata getBarcodeMetadata(DetectionResultRowIndicatorColumn leftRowIndicatorColumn,
+                                                    DetectionResultRowIndicatorColumn rightRowIndicatorColumn) {
+    BarcodeMetadata leftBarcodeMetadata;
+<span class="fc bfc" id="L189" title="All 2 branches covered.">    if (leftRowIndicatorColumn == null ||</span>
+<span class="fc bfc" id="L190" title="All 2 branches covered.">        (leftBarcodeMetadata = leftRowIndicatorColumn.getBarcodeMetadata()) == null) {</span>
+<span class="fc bfc" id="L191" title="All 2 branches covered.">      return rightRowIndicatorColumn == null ? null : rightRowIndicatorColumn.getBarcodeMetadata();</span>
+    }
+    BarcodeMetadata rightBarcodeMetadata;
+<span class="fc bfc" id="L194" title="All 2 branches covered.">    if (rightRowIndicatorColumn == null ||</span>
+<span class="pc bpc" id="L195" title="1 of 2 branches missed.">        (rightBarcodeMetadata = rightRowIndicatorColumn.getBarcodeMetadata()) == null) {</span>
+<span class="fc" id="L196">      return leftBarcodeMetadata;</span>
+    }
+
+<span class="pc bpc" id="L199" title="1 of 2 branches missed.">    if (leftBarcodeMetadata.getColumnCount() != rightBarcodeMetadata.getColumnCount() &amp;&amp;</span>
+<span class="nc bnc" id="L200" title="All 2 branches missed.">        leftBarcodeMetadata.getErrorCorrectionLevel() != rightBarcodeMetadata.getErrorCorrectionLevel() &amp;&amp;</span>
+<span class="nc bnc" id="L201" title="All 2 branches missed.">        leftBarcodeMetadata.getRowCount() != rightBarcodeMetadata.getRowCount()) {</span>
+<span class="nc" id="L202">      return null;</span>
+    }
+<span class="fc" id="L204">    return leftBarcodeMetadata;</span>
+  }
+
+  private static DetectionResultRowIndicatorColumn getRowIndicatorColumn(BitMatrix image,
+                                                                         BoundingBox boundingBox,
+                                                                         ResultPoint startPoint,
+                                                                         boolean leftToRight,
+                                                                         int minCodewordWidth,
+                                                                         int maxCodewordWidth) {
+<span class="fc" id="L213">    DetectionResultRowIndicatorColumn rowIndicatorColumn = new DetectionResultRowIndicatorColumn(boundingBox,</span>
+        leftToRight);
+<span class="fc bfc" id="L215" title="All 2 branches covered.">    for (int i = 0; i &lt; 2; i++) {</span>
+<span class="fc bfc" id="L216" title="All 2 branches covered.">      int increment = i == 0 ? 1 : -1;</span>
+<span class="fc" id="L217">      int startColumn = (int) startPoint.getX();</span>
+<span class="fc bfc" id="L218" title="All 2 branches covered.">      for (int imageRow = (int) startPoint.getY(); imageRow &lt;= boundingBox.getMaxY() &amp;&amp;</span>
+<span class="fc bfc" id="L219" title="All 2 branches covered.">          imageRow &gt;= boundingBox.getMinY(); imageRow += increment) {</span>
+<span class="fc" id="L220">        Codeword codeword = detectCodeword(image, 0, image.getWidth(), leftToRight, startColumn, imageRow,</span>
+            minCodewordWidth, maxCodewordWidth);
+<span class="fc bfc" id="L222" title="All 2 branches covered.">        if (codeword != null) {</span>
+<span class="fc" id="L223">          rowIndicatorColumn.setCodeword(imageRow, codeword);</span>
+<span class="fc bfc" id="L224" title="All 2 branches covered.">          if (leftToRight) {</span>
+<span class="fc" id="L225">            startColumn = codeword.getStartX();</span>
+          } else {
+<span class="fc" id="L227">            startColumn = codeword.getEndX();</span>
+          }
+        }
+      }
+    }
+<span class="fc" id="L232">    return rowIndicatorColumn;</span>
+  }
+
+  private static void adjustCodewordCount(DetectionResult detectionResult, BarcodeValue[][] barcodeMatrix)
+      throws NotFoundException {
+<span class="fc" id="L237">    BarcodeValue barcodeMatrix01 = barcodeMatrix[0][1];</span>
+<span class="fc" id="L238">    int[] numberOfCodewords = barcodeMatrix01.getValue();</span>
+<span class="fc" id="L239">    int calculatedNumberOfCodewords = detectionResult.getBarcodeColumnCount() *</span>
+<span class="fc" id="L240">        detectionResult.getBarcodeRowCount() -</span>
+<span class="fc" id="L241">        getNumberOfECCodeWords(detectionResult.getBarcodeECLevel());</span>
+<span class="fc bfc" id="L242" title="All 2 branches covered.">    if (numberOfCodewords.length == 0) {</span>
+<span class="pc bpc" id="L243" title="2 of 4 branches missed.">      if (calculatedNumberOfCodewords &lt; 1 || calculatedNumberOfCodewords &gt; PDF417Common.MAX_CODEWORDS_IN_BARCODE) {</span>
+<span class="nc" id="L244">        throw NotFoundException.getNotFoundInstance();</span>
+      }
+<span class="fc" id="L246">      barcodeMatrix01.setValue(calculatedNumberOfCodewords);</span>
+<span class="pc bpc" id="L247" title="5 of 6 branches missed.">    } else if (numberOfCodewords[0] != calculatedNumberOfCodewords &amp;&amp;</span>
+        calculatedNumberOfCodewords &gt;= 1 &amp;&amp;
+        calculatedNumberOfCodewords &lt;= PDF417Common.MAX_CODEWORDS_IN_BARCODE) {
+      // The calculated one is more reliable as it is derived from the row indicator columns
+<span class="nc" id="L251">      barcodeMatrix01.setValue(calculatedNumberOfCodewords);</span>
+    }
+<span class="fc" id="L253">  }</span>
+
+  private static DecoderResult createDecoderResult(DetectionResult detectionResult) throws FormatException,
+      ChecksumException, NotFoundException {
+<span class="fc" id="L257">    BarcodeValue[][] barcodeMatrix = createBarcodeMatrix(detectionResult);</span>
+<span class="fc" id="L258">    adjustCodewordCount(detectionResult, barcodeMatrix);</span>
+<span class="fc" id="L259">    Collection&lt;Integer&gt; erasures = new ArrayList&lt;&gt;();</span>
+<span class="fc" id="L260">    int[] codewords = new int[detectionResult.getBarcodeRowCount() * detectionResult.getBarcodeColumnCount()];</span>
+<span class="fc" id="L261">    List&lt;int[]&gt; ambiguousIndexValuesList = new ArrayList&lt;&gt;();</span>
+<span class="fc" id="L262">    Collection&lt;Integer&gt; ambiguousIndexesList = new ArrayList&lt;&gt;();</span>
+<span class="fc bfc" id="L263" title="All 2 branches covered.">    for (int row = 0; row &lt; detectionResult.getBarcodeRowCount(); row++) {</span>
+<span class="fc bfc" id="L264" title="All 2 branches covered.">      for (int column = 0; column &lt; detectionResult.getBarcodeColumnCount(); column++) {</span>
+<span class="fc" id="L265">        int[] values = barcodeMatrix[row][column + 1].getValue();</span>
+<span class="fc" id="L266">        int codewordIndex = row * detectionResult.getBarcodeColumnCount() + column;</span>
+<span class="fc bfc" id="L267" title="All 2 branches covered.">        if (values.length == 0) {</span>
+<span class="fc" id="L268">          erasures.add(codewordIndex);</span>
+<span class="fc bfc" id="L269" title="All 2 branches covered.">        } else if (values.length == 1) {</span>
+<span class="fc" id="L270">          codewords[codewordIndex] = values[0];</span>
+        } else {
+<span class="fc" id="L272">          ambiguousIndexesList.add(codewordIndex);</span>
+<span class="fc" id="L273">          ambiguousIndexValuesList.add(values);</span>
+        }
+      }
+    }
+<span class="fc" id="L277">    int[][] ambiguousIndexValues = new int[ambiguousIndexValuesList.size()][];</span>
+<span class="fc bfc" id="L278" title="All 2 branches covered.">    for (int i = 0; i &lt; ambiguousIndexValues.length; i++) {</span>
+<span class="fc" id="L279">      ambiguousIndexValues[i] = ambiguousIndexValuesList.get(i);</span>
+    }
+<span class="fc" id="L281">    return createDecoderResultFromAmbiguousValues(detectionResult.getBarcodeECLevel(), codewords,</span>
+<span class="fc" id="L282">        PDF417Common.toIntArray(erasures), PDF417Common.toIntArray(ambiguousIndexesList), ambiguousIndexValues);</span>
+  }
+
+  /**
+   * This method deals with the fact, that the decoding process doesn't always yield a single most likely value. The
+   * current error correction implementation doesn't deal with erasures very well, so it's better to provide a value
+   * for these ambiguous codewords instead of treating it as an erasure. The problem is that we don't know which of
+   * the ambiguous values to choose. We try decode using the first value, and if that fails, we use another of the
+   * ambiguous values and try to decode again. This usually only happens on very hard to read and decode barcodes,
+   * so decoding the normal barcodes is not affected by this.
+   *
+   * @param erasureArray contains the indexes of erasures
+   * @param ambiguousIndexes array with the indexes that have more than one most likely value
+   * @param ambiguousIndexValues two dimensional array that contains the ambiguous values. The first dimension must
+   * be the same length as the ambiguousIndexes array
+   */
+  private static DecoderResult createDecoderResultFromAmbiguousValues(int ecLevel,
+                                                                      int[] codewords,
+                                                                      int[] erasureArray,
+                                                                      int[] ambiguousIndexes,
+                                                                      int[][] ambiguousIndexValues)
+      throws FormatException, ChecksumException {
+<span class="fc" id="L304">    int[] ambiguousIndexCount = new int[ambiguousIndexes.length];</span>
+
+<span class="fc" id="L306">    int tries = 100;</span>
+<span class="pc bpc" id="L307" title="1 of 2 branches missed.">    while (tries-- &gt; 0) {</span>
+<span class="fc bfc" id="L308" title="All 2 branches covered.">      for (int i = 0; i &lt; ambiguousIndexCount.length; i++) {</span>
+<span class="fc" id="L309">        codewords[ambiguousIndexes[i]] = ambiguousIndexValues[i][ambiguousIndexCount[i]];</span>
+      }
+      try {
+<span class="fc" id="L312">        return decodeCodewords(codewords, ecLevel, erasureArray);</span>
+<span class="fc" id="L313">      } catch (ChecksumException ignored) {</span>
+        //
+      }
+<span class="fc bfc" id="L316" title="All 2 branches covered.">      if (ambiguousIndexCount.length == 0) {</span>
+<span class="fc" id="L317">        throw ChecksumException.getChecksumInstance();</span>
+      }
+<span class="pc bpc" id="L319" title="1 of 2 branches missed.">      for (int i = 0; i &lt; ambiguousIndexCount.length; i++) {</span>
+<span class="pc bpc" id="L320" title="1 of 2 branches missed.">        if (ambiguousIndexCount[i] &lt; ambiguousIndexValues[i].length - 1) {</span>
+<span class="fc" id="L321">          ambiguousIndexCount[i]++;</span>
+<span class="fc" id="L322">          break;</span>
+        } else {
+<span class="nc" id="L324">          ambiguousIndexCount[i] = 0;</span>
+<span class="nc bnc" id="L325" title="All 2 branches missed.">          if (i == ambiguousIndexCount.length - 1) {</span>
+<span class="nc" id="L326">            throw ChecksumException.getChecksumInstance();</span>
+          }
+        }
+      }
+    }
+<span class="nc" id="L331">    throw ChecksumException.getChecksumInstance();</span>
+  }
+
+  private static BarcodeValue[][] createBarcodeMatrix(DetectionResult detectionResult) {
+<span class="fc" id="L335">    BarcodeValue[][] barcodeMatrix =</span>
+<span class="fc" id="L336">        new BarcodeValue[detectionResult.getBarcodeRowCount()][detectionResult.getBarcodeColumnCount() + 2];</span>
+<span class="fc bfc" id="L337" title="All 2 branches covered.">    for (int row = 0; row &lt; barcodeMatrix.length; row++) {</span>
+<span class="fc bfc" id="L338" title="All 2 branches covered.">      for (int column = 0; column &lt; barcodeMatrix[row].length; column++) {</span>
+<span class="fc" id="L339">        barcodeMatrix[row][column] = new BarcodeValue();</span>
+      }
+    }
+
+<span class="fc" id="L343">    int column = 0;</span>
+<span class="fc bfc" id="L344" title="All 2 branches covered.">    for (DetectionResultColumn detectionResultColumn : detectionResult.getDetectionResultColumns()) {</span>
+<span class="pc bpc" id="L345" title="1 of 2 branches missed.">      if (detectionResultColumn != null) {</span>
+<span class="fc bfc" id="L346" title="All 2 branches covered.">        for (Codeword codeword : detectionResultColumn.getCodewords()) {</span>
+<span class="fc bfc" id="L347" title="All 2 branches covered.">          if (codeword != null) {</span>
+<span class="fc" id="L348">            int rowNumber = codeword.getRowNumber();</span>
+<span class="fc bfc" id="L349" title="All 2 branches covered.">            if (rowNumber &gt;= 0) {</span>
+<span class="fc bfc" id="L350" title="All 2 branches covered.">              if (rowNumber &gt;= barcodeMatrix.length) {</span>
+                // We have more rows than the barcode metadata allows for, ignore them.
+<span class="fc" id="L352">                continue;</span>
+              }
+<span class="fc" id="L354">              barcodeMatrix[rowNumber][column].setValue(codeword.getValue());</span>
+            }
+          }
+        }
+      }
+<span class="fc" id="L359">      column++;</span>
+    }
+<span class="fc" id="L361">    return barcodeMatrix;</span>
+  }
+
+  private static boolean isValidBarcodeColumn(DetectionResult detectionResult, int barcodeColumn) {
+<span class="pc bpc" id="L365" title="2 of 4 branches missed.">    return barcodeColumn &gt;= 0 &amp;&amp; barcodeColumn &lt;= detectionResult.getBarcodeColumnCount() + 1;</span>
+  }
+
+  private static int getStartColumn(DetectionResult detectionResult,
+                                    int barcodeColumn,
+                                    int imageRow,
+                                    boolean leftToRight) {
+<span class="fc bfc" id="L372" title="All 2 branches covered.">    int offset = leftToRight ? 1 : -1;</span>
+<span class="fc" id="L373">    Codeword codeword = null;</span>
+<span class="pc bpc" id="L374" title="1 of 2 branches missed.">    if (isValidBarcodeColumn(detectionResult, barcodeColumn - offset)) {</span>
+<span class="fc" id="L375">      codeword = detectionResult.getDetectionResultColumn(barcodeColumn - offset).getCodeword(imageRow);</span>
+    }
+<span class="fc bfc" id="L377" title="All 2 branches covered.">    if (codeword != null) {</span>
+<span class="fc bfc" id="L378" title="All 2 branches covered.">      return leftToRight ? codeword.getEndX() : codeword.getStartX();</span>
+    }
+<span class="fc" id="L380">    codeword = detectionResult.getDetectionResultColumn(barcodeColumn).getCodewordNearby(imageRow);</span>
+<span class="fc bfc" id="L381" title="All 2 branches covered.">    if (codeword != null) {</span>
+<span class="fc bfc" id="L382" title="All 2 branches covered.">      return leftToRight ? codeword.getStartX() : codeword.getEndX();</span>
+    }
+<span class="pc bpc" id="L384" title="1 of 2 branches missed.">    if (isValidBarcodeColumn(detectionResult, barcodeColumn - offset)) {</span>
+<span class="fc" id="L385">      codeword = detectionResult.getDetectionResultColumn(barcodeColumn - offset).getCodewordNearby(imageRow);</span>
+    }
+<span class="fc bfc" id="L387" title="All 2 branches covered.">    if (codeword != null) {</span>
+<span class="pc bpc" id="L388" title="1 of 2 branches missed.">      return leftToRight ? codeword.getEndX() : codeword.getStartX();</span>
+    }
+<span class="fc" id="L390">    int skippedColumns = 0;</span>
+
+<span class="pc bpc" id="L392" title="1 of 2 branches missed.">    while (isValidBarcodeColumn(detectionResult, barcodeColumn - offset)) {</span>
+<span class="fc" id="L393">      barcodeColumn -= offset;</span>
+<span class="fc bfc" id="L394" title="All 2 branches covered.">      for (Codeword previousRowCodeword : detectionResult.getDetectionResultColumn(barcodeColumn).getCodewords()) {</span>
+<span class="fc bfc" id="L395" title="All 2 branches covered.">        if (previousRowCodeword != null) {</span>
+<span class="fc bfc" id="L396" title="All 2 branches covered.">          return (leftToRight ? previousRowCodeword.getEndX() : previousRowCodeword.getStartX()) +</span>
+              offset *
+              skippedColumns *
+<span class="fc" id="L399">              (previousRowCodeword.getEndX() - previousRowCodeword.getStartX());</span>
+        }
+      }
+<span class="fc" id="L402">      skippedColumns++;</span>
+    }
+<span class="nc bnc" id="L404" title="All 2 branches missed.">    return leftToRight ? detectionResult.getBoundingBox().getMinX() : detectionResult.getBoundingBox().getMaxX();</span>
+  }
+
+  private static Codeword detectCodeword(BitMatrix image,
+                                         int minColumn,
+                                         int maxColumn,
+                                         boolean leftToRight,
+                                         int startColumn,
+                                         int imageRow,
+                                         int minCodewordWidth,
+                                         int maxCodewordWidth) {
+<span class="fc" id="L415">    startColumn = adjustCodewordStartColumn(image, minColumn, maxColumn, leftToRight, startColumn, imageRow);</span>
+    // we usually know fairly exact now how long a codeword is. We should provide minimum and maximum expected length
+    // and try to adjust the read pixels, e.g. remove single pixel errors or try to cut off exceeding pixels.
+    // min and maxCodewordWidth should not be used as they are calculated for the whole barcode an can be inaccurate
+    // for the current position
+<span class="fc" id="L420">    int[] moduleBitCount = getModuleBitCount(image, minColumn, maxColumn, leftToRight, startColumn, imageRow);</span>
+<span class="fc bfc" id="L421" title="All 2 branches covered.">    if (moduleBitCount == null) {</span>
+<span class="fc" id="L422">      return null;</span>
+    }
+    int endColumn;
+<span class="fc" id="L425">    int codewordBitCount = MathUtils.sum(moduleBitCount);</span>
+<span class="fc bfc" id="L426" title="All 2 branches covered.">    if (leftToRight) {</span>
+<span class="fc" id="L427">      endColumn = startColumn + codewordBitCount;</span>
+    } else {
+<span class="fc bfc" id="L429" title="All 2 branches covered.">      for (int i = 0; i &lt; moduleBitCount.length / 2; i++) {</span>
+<span class="fc" id="L430">        int tmpCount = moduleBitCount[i];</span>
+<span class="fc" id="L431">        moduleBitCount[i] = moduleBitCount[moduleBitCount.length - 1 - i];</span>
+<span class="fc" id="L432">        moduleBitCount[moduleBitCount.length - 1 - i] = tmpCount;</span>
+      }
+<span class="fc" id="L434">      endColumn = startColumn;</span>
+<span class="fc" id="L435">      startColumn = endColumn - codewordBitCount;</span>
+    }
+    // TODO implement check for width and correction of black and white bars
+    // use start (and maybe stop pattern) to determine if black bars are wider than white bars. If so, adjust.
+    // should probably done only for codewords with a lot more than 17 bits.
+    // The following fixes 10-1.png, which has wide black bars and small white bars
+    //    for (int i = 0; i &lt; moduleBitCount.length; i++) {
+    //      if (i % 2 == 0) {
+    //        moduleBitCount[i]--;
+    //      } else {
+    //        moduleBitCount[i]++;
+    //      }
+    //    }
+
+    // We could also use the width of surrounding codewords for more accurate results, but this seems
+    // sufficient for now
+<span class="fc bfc" id="L451" title="All 2 branches covered.">    if (!checkCodewordSkew(codewordBitCount, minCodewordWidth, maxCodewordWidth)) {</span>
+      // We could try to use the startX and endX position of the codeword in the same column in the previous row,
+      // create the bit count from it and normalize it to 8. This would help with single pixel errors.
+<span class="fc" id="L454">      return null;</span>
+    }
+
+<span class="fc" id="L457">    int decodedValue = PDF417CodewordDecoder.getDecodedValue(moduleBitCount);</span>
+<span class="fc" id="L458">    int codeword = PDF417Common.getCodeword(decodedValue);</span>
+<span class="pc bpc" id="L459" title="1 of 2 branches missed.">    if (codeword == -1) {</span>
+<span class="nc" id="L460">      return null;</span>
+    }
+<span class="fc" id="L462">    return new Codeword(startColumn, endColumn, getCodewordBucketNumber(decodedValue), codeword);</span>
+  }
+
+  private static int[] getModuleBitCount(BitMatrix image,
+                                         int minColumn,
+                                         int maxColumn,
+                                         boolean leftToRight,
+                                         int startColumn,
+                                         int imageRow) {
+<span class="fc" id="L471">    int imageColumn = startColumn;</span>
+<span class="fc" id="L472">    int[] moduleBitCount = new int[8];</span>
+<span class="fc" id="L473">    int moduleNumber = 0;</span>
+<span class="fc bfc" id="L474" title="All 2 branches covered.">    int increment = leftToRight ? 1 : -1;</span>
+<span class="fc" id="L475">    boolean previousPixelValue = leftToRight;</span>
+<span class="fc bfc" id="L476" title="All 8 branches covered.">    while ((leftToRight ? imageColumn &lt; maxColumn : imageColumn &gt;= minColumn) &amp;&amp;</span>
+           moduleNumber &lt; moduleBitCount.length) {
+<span class="fc bfc" id="L478" title="All 2 branches covered.">      if (image.get(imageColumn, imageRow) == previousPixelValue) {</span>
+<span class="fc" id="L479">        moduleBitCount[moduleNumber]++;</span>
+<span class="fc" id="L480">        imageColumn += increment;</span>
+      } else {
+<span class="fc" id="L482">        moduleNumber++;</span>
+<span class="fc bfc" id="L483" title="All 2 branches covered.">        previousPixelValue = !previousPixelValue;</span>
+      }
+    }
+<span class="fc bfc" id="L486" title="All 2 branches covered.">    if (moduleNumber == moduleBitCount.length ||</span>
+<span class="fc bfc" id="L487" title="All 6 branches covered.">        ((imageColumn == (leftToRight ? maxColumn : minColumn)) &amp;&amp;</span>
+         moduleNumber == moduleBitCount.length - 1)) {
+<span class="fc" id="L489">      return moduleBitCount;</span>
+    }
+<span class="fc" id="L491">    return null;</span>
+  }
+
+  private static int getNumberOfECCodeWords(int barcodeECLevel) {
+<span class="fc" id="L495">    return 2 &lt;&lt; barcodeECLevel;</span>
+  }
+
+  private static int adjustCodewordStartColumn(BitMatrix image,
+                                               int minColumn,
+                                               int maxColumn,
+                                               boolean leftToRight,
+                                               int codewordStartColumn,
+                                               int imageRow) {
+<span class="fc" id="L504">    int correctedStartColumn = codewordStartColumn;</span>
+<span class="fc bfc" id="L505" title="All 2 branches covered.">    int increment = leftToRight ? -1 : 1;</span>
+    // there should be no black pixels before the start column. If there are, then we need to start earlier.
+<span class="fc bfc" id="L507" title="All 2 branches covered.">    for (int i = 0; i &lt; 2; i++) {</span>
+<span class="fc bfc" id="L508" title="All 6 branches covered.">      while ((leftToRight ? correctedStartColumn &gt;= minColumn : correctedStartColumn &lt; maxColumn) &amp;&amp;</span>
+<span class="fc bfc" id="L509" title="All 2 branches covered.">             leftToRight == image.get(correctedStartColumn, imageRow)) {</span>
+<span class="fc bfc" id="L510" title="All 2 branches covered.">        if (Math.abs(codewordStartColumn - correctedStartColumn) &gt; CODEWORD_SKEW_SIZE) {</span>
+<span class="fc" id="L511">          return codewordStartColumn;</span>
+        }
+<span class="fc" id="L513">        correctedStartColumn += increment;</span>
+      }
+<span class="fc" id="L515">      increment = -increment;</span>
+<span class="fc bfc" id="L516" title="All 2 branches covered.">      leftToRight = !leftToRight;</span>
+    }
+<span class="fc" id="L518">    return correctedStartColumn;</span>
+  }
+
+  private static boolean checkCodewordSkew(int codewordSize, int minCodewordWidth, int maxCodewordWidth) {
+<span class="fc bfc" id="L522" title="All 4 branches covered.">    return minCodewordWidth - CODEWORD_SKEW_SIZE &lt;= codewordSize &amp;&amp;</span>
+        codewordSize &lt;= maxCodewordWidth + CODEWORD_SKEW_SIZE;
+  }
+
+  private static DecoderResult decodeCodewords(int[] codewords, int ecLevel, int[] erasures) throws FormatException,
+      ChecksumException {
+<span class="pc bpc" id="L528" title="1 of 2 branches missed.">    if (codewords.length == 0) {</span>
+<span class="nc" id="L529">      throw FormatException.getFormatInstance();</span>
+    }
+
+<span class="fc" id="L532">    int numECCodewords = 1 &lt;&lt; (ecLevel + 1);</span>
+<span class="fc" id="L533">    int correctedErrorsCount = correctErrors(codewords, erasures, numECCodewords);</span>
+<span class="fc" id="L534">    verifyCodewordCount(codewords, numECCodewords);</span>
+
+    // Decode the codewords
+<span class="fc" id="L537">    DecoderResult decoderResult = DecodedBitStreamParser.decode(codewords, String.valueOf(ecLevel));</span>
+<span class="fc" id="L538">    decoderResult.setErrorsCorrected(correctedErrorsCount);</span>
+<span class="fc" id="L539">    decoderResult.setErasures(erasures.length);</span>
+<span class="fc" id="L540">    return decoderResult;</span>
+  }
+
+  /**
+   * &lt;p&gt;Given data and error-correction codewords received, possibly corrupted by errors, attempts to
+   * correct the errors in-place.&lt;/p&gt;
+   *
+   * @param codewords   data and error correction codewords
+   * @param erasures positions of any known erasures
+   * @param numECCodewords number of error correction codewords that are available in codewords
+   * @throws ChecksumException if error correction fails
+   */
+  private static int correctErrors(int[] codewords, int[] erasures, int numECCodewords) throws ChecksumException {
+<span class="pc bpc" id="L553" title="3 of 8 branches missed.">    if (erasures != null &amp;&amp;</span>
+        erasures.length &gt; numECCodewords / 2 + MAX_ERRORS ||
+        numECCodewords &lt; 0 ||
+        numECCodewords &gt; MAX_EC_CODEWORDS) {
+      // Too many errors or EC Codewords is corrupted
+<span class="fc" id="L558">      throw ChecksumException.getChecksumInstance();</span>
+    }
+<span class="fc" id="L560">    return errorCorrection.decode(codewords, numECCodewords, erasures);</span>
+  }
+
+  /**
+   * Verify that all is OK with the codeword array.
+   */
+  private static void verifyCodewordCount(int[] codewords, int numECCodewords) throws FormatException {
+<span class="pc bpc" id="L567" title="1 of 2 branches missed.">    if (codewords.length &lt; 4) {</span>
+      // Codeword array size should be at least 4 allowing for
+      // Count CW, At least one Data CW, Error Correction CW, Error Correction CW
+<span class="nc" id="L570">      throw FormatException.getFormatInstance();</span>
+    }
+    // The first codeword, the Symbol Length Descriptor, shall always encode the total number of data
+    // codewords in the symbol, including the Symbol Length Descriptor itself, data codewords and pad
+    // codewords, but excluding the number of error correction codewords.
+<span class="fc" id="L575">    int numberOfCodewords = codewords[0];</span>
+<span class="pc bpc" id="L576" title="1 of 2 branches missed.">    if (numberOfCodewords &gt; codewords.length) {</span>
+<span class="nc" id="L577">      throw FormatException.getFormatInstance();</span>
+    }
+<span class="pc bpc" id="L579" title="1 of 2 branches missed.">    if (numberOfCodewords == 0) {</span>
+      // Reset to the length of the array - 8 (Allow for at least level 3 Error Correction (8 Error Codewords)
+<span class="nc bnc" id="L581" title="All 2 branches missed.">      if (numECCodewords &lt; codewords.length) {</span>
+<span class="nc" id="L582">        codewords[0] = codewords.length - numECCodewords;</span>
+      } else {
+<span class="nc" id="L584">        throw FormatException.getFormatInstance();</span>
+      }
+    }
+<span class="fc" id="L587">  }</span>
+
+  private static int[] getBitCountForCodeword(int codeword) {
+<span class="fc" id="L590">    int[] result = new int[8];</span>
+<span class="fc" id="L591">    int previousValue = 0;</span>
+<span class="fc" id="L592">    int i = result.length - 1;</span>
+    while (true) {
+<span class="fc bfc" id="L594" title="All 2 branches covered.">      if ((codeword &amp; 0x1) != previousValue) {</span>
+<span class="fc" id="L595">        previousValue = codeword &amp; 0x1;</span>
+<span class="fc" id="L596">        i--;</span>
+<span class="fc bfc" id="L597" title="All 2 branches covered.">        if (i &lt; 0) {</span>
+<span class="fc" id="L598">          break;</span>
+        }
+      }
+<span class="fc" id="L601">      result[i]++;</span>
+<span class="fc" id="L602">      codeword &gt;&gt;= 1;</span>
+    }
+<span class="fc" id="L604">    return result;</span>
+  }
+
+  private static int getCodewordBucketNumber(int codeword) {
+<span class="fc" id="L608">    return getCodewordBucketNumber(getBitCountForCodeword(codeword));</span>
+  }
+
+  private static int getCodewordBucketNumber(int[] moduleBitCount) {
+<span class="fc" id="L612">    return (moduleBitCount[0] - moduleBitCount[2] + moduleBitCount[4] - moduleBitCount[6] + 9) % 9;</span>
+  }
+
+  public static String toString(BarcodeValue[][] barcodeMatrix) {
+<span class="nc" id="L616">    try (Formatter formatter = new Formatter()) {</span>
+<span class="nc bnc" id="L617" title="All 2 branches missed.">      for (int row = 0; row &lt; barcodeMatrix.length; row++) {</span>
+<span class="nc" id="L618">        formatter.format(&quot;Row %2d: &quot;, row);</span>
+<span class="nc bnc" id="L619" title="All 2 branches missed.">        for (int column = 0; column &lt; barcodeMatrix[row].length; column++) {</span>
+<span class="nc" id="L620">          BarcodeValue barcodeValue = barcodeMatrix[row][column];</span>
+<span class="nc bnc" id="L621" title="All 2 branches missed.">          if (barcodeValue.getValue().length == 0) {</span>
+<span class="nc" id="L622">            formatter.format(&quot;        &quot;, (Object[]) null);</span>
+          } else {
+<span class="nc" id="L624">            formatter.format(&quot;%4d(%2d)&quot;, barcodeValue.getValue()[0],</span>
+<span class="nc" id="L625">                barcodeValue.getConfidence(barcodeValue.getValue()[0]));</span>
+          }
+        }
+<span class="nc" id="L628">        formatter.format(&quot;%n&quot;);</span>
+      }
+<span class="nc" id="L630">      return formatter.toString();</span>
+    }
+  }
+
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.11.202310140853</span></div></body></html>

@@ -1,0 +1,280 @@
+
+
+
+<!DOCTYPE html>
+<html id="htmlId">
+<head>
+  <meta http-equiv="Content-Type" content="text/html;charset=windows-1252"> 
+  <title>Coverage Report > DecoderResult</title>
+  <style type="text/css">
+    @import "../../css/coverage.css";
+    @import "../../css/idea.min.css";
+  </style>
+  <script type="text/javascript" src="../../js/highlight.min.js"></script>
+  <script type="text/javascript" src="../../js/highlightjs-line-numbers.min.js"></script>
+</head>
+
+<body>
+<div class="content">
+<div class="breadCrumbs">
+Current scope:     <a href="../../index.html">all classes</a>
+    <span class="separator">|</span>
+    <a href="../index.html">com.google.zxing.common</a>
+</div>
+
+<h1>Coverage Summary for Class: DecoderResult (com.google.zxing.common)</h1>
+
+<table class="coverageStats">
+<tr>
+  <th class="name">Class</th>
+<th class="coverageStat 
+">
+  Class, %
+</th>
+<th class="coverageStat 
+">
+  Method, %
+</th>
+<th class="coverageStat 
+">
+  Line, %
+</th>
+</tr>
+<tr>
+  <td class="name">DecoderResult</td>
+<td class="coverageStat">
+  <span class="percent">
+    100%
+  </span>
+  <span class="absValue">
+    (1/1)
+  </span>
+</td>
+<td class="coverageStat">
+  <span class="percent">
+    85%
+  </span>
+  <span class="absValue">
+    (17/20)
+  </span>
+</td>
+<td class="coverageStat">
+  <span class="percent">
+    89.3%
+  </span>
+  <span class="absValue">
+    (25/28)
+  </span>
+</td>
+</tr>
+
+</table>
+
+<br/>
+<br/>
+
+
+<pre>
+<code class="sourceCode" id="sourceCode">&nbsp;/*
+&nbsp; * Copyright 2007 ZXing authors
+&nbsp; *
+&nbsp; * Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
+&nbsp; * you may not use this file except in compliance with the License.
+&nbsp; * You may obtain a copy of the License at
+&nbsp; *
+&nbsp; *      http://www.apache.org/licenses/LICENSE-2.0
+&nbsp; *
+&nbsp; * Unless required by applicable law or agreed to in writing, software
+&nbsp; * distributed under the License is distributed on an &quot;AS IS&quot; BASIS,
+&nbsp; * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+&nbsp; * See the License for the specific language governing permissions and
+&nbsp; * limitations under the License.
+&nbsp; */
+&nbsp;
+&nbsp;package com.google.zxing.common;
+&nbsp;
+&nbsp;import java.util.List;
+&nbsp;
+&nbsp;/**
+&nbsp; * &lt;p&gt;Encapsulates the result of decoding a matrix of bits. This typically
+&nbsp; * applies to 2D barcode formats. For now it contains the raw bytes obtained,
+&nbsp; * as well as a String interpretation of those bytes, if applicable.&lt;/p&gt;
+&nbsp; *
+&nbsp; * @author Sean Owen
+&nbsp; */
+&nbsp;public final class DecoderResult {
+&nbsp;
+&nbsp;  private final byte[] rawBytes;
+&nbsp;  private int numBits;
+&nbsp;  private final String text;
+&nbsp;  private final List&lt;byte[]&gt; byteSegments;
+&nbsp;  private final String ecLevel;
+&nbsp;  private Integer errorsCorrected;
+&nbsp;  private Integer erasures;
+&nbsp;  private Object other;
+&nbsp;  private final int structuredAppendParity;
+&nbsp;  private final int structuredAppendSequenceNumber;
+&nbsp;  private final int symbologyModifier;
+&nbsp;
+&nbsp;  public DecoderResult(byte[] rawBytes,
+&nbsp;                       String text,
+&nbsp;                       List&lt;byte[]&gt; byteSegments,
+&nbsp;                       String ecLevel) {
+<b class="fc">&nbsp;    this(rawBytes, text, byteSegments, ecLevel, -1, -1, 0);</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  public DecoderResult(byte[] rawBytes,
+&nbsp;                       String text,
+&nbsp;                       List&lt;byte[]&gt; byteSegments,
+&nbsp;                       String ecLevel,
+&nbsp;                       int symbologyModifier) {
+<b class="fc">&nbsp;    this(rawBytes, text, byteSegments, ecLevel, -1, -1, symbologyModifier);</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  public DecoderResult(byte[] rawBytes,
+&nbsp;                       String text,
+&nbsp;                       List&lt;byte[]&gt; byteSegments,
+&nbsp;                       String ecLevel,
+&nbsp;                       int saSequence,
+&nbsp;                       int saParity) {
+<b class="nc">&nbsp;    this(rawBytes, text, byteSegments, ecLevel, saSequence, saParity, 0);</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  public DecoderResult(byte[] rawBytes,
+&nbsp;                       String text,
+&nbsp;                       List&lt;byte[]&gt; byteSegments,
+&nbsp;                       String ecLevel,
+&nbsp;                       int saSequence,
+&nbsp;                       int saParity,
+<b class="fc">&nbsp;                       int symbologyModifier) {</b>
+<b class="fc">&nbsp;    this.rawBytes = rawBytes;</b>
+<b class="fc">&nbsp;    this.numBits = rawBytes == null ? 0 : 8 * rawBytes.length;</b>
+<b class="fc">&nbsp;    this.text = text;</b>
+<b class="fc">&nbsp;    this.byteSegments = byteSegments;</b>
+<b class="fc">&nbsp;    this.ecLevel = ecLevel;</b>
+<b class="fc">&nbsp;    this.structuredAppendParity = saParity;</b>
+<b class="fc">&nbsp;    this.structuredAppendSequenceNumber = saSequence;</b>
+<b class="fc">&nbsp;    this.symbologyModifier = symbologyModifier;</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  /**
+&nbsp;   * @return raw bytes representing the result, or {@code null} if not applicable
+&nbsp;   */
+&nbsp;  public byte[] getRawBytes() {
+<b class="fc">&nbsp;    return rawBytes;</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  /**
+&nbsp;   * @return how many bits of {@link #getRawBytes()} are valid; typically 8 times its length
+&nbsp;   * @since 3.3.0
+&nbsp;   */
+&nbsp;  public int getNumBits() {
+<b class="fc">&nbsp;    return numBits;</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  /**
+&nbsp;   * @param numBits overrides the number of bits that are valid in {@link #getRawBytes()}
+&nbsp;   * @since 3.3.0
+&nbsp;   */
+&nbsp;  public void setNumBits(int numBits) {
+<b class="fc">&nbsp;    this.numBits = numBits;</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  /**
+&nbsp;   * @return text representation of the result
+&nbsp;   */
+&nbsp;  public String getText() {
+<b class="fc">&nbsp;    return text;</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  /**
+&nbsp;   * @return list of byte segments in the result, or {@code null} if not applicable
+&nbsp;   */
+&nbsp;  public List&lt;byte[]&gt; getByteSegments() {
+<b class="fc">&nbsp;    return byteSegments;</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  /**
+&nbsp;   * @return name of error correction level used, or {@code null} if not applicable
+&nbsp;   */
+&nbsp;  public String getECLevel() {
+<b class="fc">&nbsp;    return ecLevel;</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  /**
+&nbsp;   * @return number of errors corrected, or {@code null} if not applicable
+&nbsp;   */
+&nbsp;  public Integer getErrorsCorrected() {
+<b class="fc">&nbsp;    return errorsCorrected;</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  public void setErrorsCorrected(Integer errorsCorrected) {
+<b class="fc">&nbsp;    this.errorsCorrected = errorsCorrected;</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  /**
+&nbsp;   * @return number of erasures corrected, or {@code null} if not applicable
+&nbsp;   */
+&nbsp;  public Integer getErasures() {
+<b class="fc">&nbsp;    return erasures;</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  public void setErasures(Integer erasures) {
+<b class="fc">&nbsp;    this.erasures = erasures;</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  /**
+&nbsp;   * @return arbitrary additional metadata
+&nbsp;   */
+&nbsp;  public Object getOther() {
+<b class="fc">&nbsp;    return other;</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  public void setOther(Object other) {
+<b class="fc">&nbsp;    this.other = other;</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  public boolean hasStructuredAppend() {
+<b class="fc">&nbsp;    return structuredAppendParity &gt;= 0 &amp;&amp; structuredAppendSequenceNumber &gt;= 0;</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  public int getStructuredAppendParity() {
+<b class="nc">&nbsp;    return structuredAppendParity;</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  public int getStructuredAppendSequenceNumber() {
+<b class="nc">&nbsp;    return structuredAppendSequenceNumber;</b>
+&nbsp;  }
+&nbsp;
+&nbsp;  public int getSymbologyModifier() {
+<b class="fc">&nbsp;    return symbologyModifier;</b>
+&nbsp;  }
+&nbsp;
+&nbsp;}
+</code>
+</pre>
+</div>
+
+<script type="text/javascript">
+(function() {
+    var msie = false, msie9 = false;
+    /*@cc_on
+      msie = true;
+      @if (@_jscript_version >= 9)
+        msie9 = true;
+      @end
+    @*/
+
+    if (!msie || msie && msie9) {
+      hljs.highlightAll()
+      hljs.initLineNumbersOnLoad();
+    }
+})();
+</script>
+
+<div class="footer">
+    
+    <div style="float:right;">generated on 2023-11-12 23:26</div>
+</div>
+</body>
+</html>
