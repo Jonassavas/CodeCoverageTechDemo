@@ -1,1 +1,0 @@
-https://app.codecov.io/gh/zxing/zxing?search=&trend=all%20time 
